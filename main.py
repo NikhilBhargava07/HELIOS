@@ -15,6 +15,7 @@ MIN_OPEN_INTEREST = 100  # Minimum open interest for options to consider
 def main():
     ticker = yf.Ticker(TICKER_SYMBOL)
     print_stock_price(TICKER_SYMBOL)
+    print_alpaca_put_chain(TICKER_SYMBOL)
     print(f"Finding CSP candidates for {TICKER_SYMBOL}...\n")
     candidates = find_csp_candidates(ticker, MIN_DTE, MAX_DTE, MIN_VOLUME, MIN_OPEN_INTEREST)
 
