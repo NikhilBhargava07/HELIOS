@@ -90,6 +90,62 @@ def add_recommendation_score(puts, target_delta):
     return puts
 
 
+def filter_valid_quotes(puts, max_spread, min_quote_size):
+    return puts[
+        (puts["bid"] > 0)
+        & (puts["ask"] > 0)
+        & (puts["spread"] > 0)
+        & (puts["spread"] <= max_spread)
+        & (puts["bidSize"] >= min_quote_size)
+        & (puts["askSize"] >= min_quote_size)
+    ]
+
+
+def filter_by_delta(puts, target_delta, delta_tolerance):
+    min_delta = target_delta - delta_tolerance
+    max_delta = target_delta + delta_tolerance
+
+    return puts[
+        (puts["delta"] >= min_delta)
+        & (puts["delta"] <= max_delta)
+    ]
+
+
+def filter_by_iv(puts, min_iv_percent, max_iv_percent):
+    return puts[
+        (puts["ivPercent"] >= min_iv_percent)
+        & (puts["ivPercent"] <= max_iv_percent)
+    ]
+
+
+def filter_by_cash_required(puts, available_capital):
+    return puts[puts["cashRequired"] <= available_capital]
+
+
+def filter_by_roc(puts, min_roc_percent):
+    return puts[puts["returnOnCashPercent"] >= min_roc_percent]
+
+
+def apply_csp_filters(
+    puts,
+    target_delta,
+    delta_tolerance,
+    max_spread,
+    min_quote_size,
+    min_iv_percent,
+    max_iv_percent,
+    min_roc_percent,
+    available_capital,
+):
+    filtered_puts = filter_valid_quotes(puts, max_spread, min_quote_size)
+    filtered_puts = filter_by_delta(filtered_puts, target_delta, delta_tolerance)
+    filtered_puts = filter_by_iv(filtered_puts, min_iv_percent, max_iv_percent)
+    filtered_puts = filter_by_roc(filtered_puts, min_roc_percent)
+    filtered_puts = filter_by_cash_required(filtered_puts, available_capital)
+
+    return filtered_puts
+
+
 def find_csp_candidates(
     ticker_symbol,
     min_dte,
@@ -100,13 +156,12 @@ def find_csp_candidates(
     min_quote_size,
     min_iv_percent,
     max_iv_percent,
+    min_roc_percent,
     available_capital,
 ):
     today = datetime.today().date()
     min_expiration = (today + timedelta(days=min_dte)).strftime("%Y-%m-%d")
     max_expiration = (today + timedelta(days=max_dte)).strftime("%Y-%m-%d")
-    min_delta = target_delta - delta_tolerance
-    max_delta = target_delta + delta_tolerance
 
     request = OptionChainRequest(
         underlying_symbol=ticker_symbol,
@@ -123,19 +178,17 @@ def find_csp_candidates(
     if puts.empty:
         return pd.DataFrame()
 
-    filtered_puts = puts[
-        (puts["bid"] > 0)
-        & (puts["ask"] > 0)
-        & (puts["spread"] > 0)
-        & (puts["spread"] <= max_spread)
-        & (puts["bidSize"] >= min_quote_size)
-        & (puts["askSize"] >= min_quote_size)
-        & (puts["delta"] >= min_delta)
-        & (puts["delta"] <= max_delta)
-        & (puts["ivPercent"] >= min_iv_percent)
-        & (puts["ivPercent"] <= max_iv_percent)
-        & (puts["cashRequired"] <= available_capital)
-    ]
+    filtered_puts = apply_csp_filters(
+        puts,
+        target_delta,
+        delta_tolerance,
+        max_spread,
+        min_quote_size,
+        min_iv_percent,
+        max_iv_percent,
+        min_roc_percent,
+        available_capital,
+    )
 
     if filtered_puts.empty:
         return pd.DataFrame()

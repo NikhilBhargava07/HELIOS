@@ -10,6 +10,7 @@ MAX_SPREAD = 0.50  # Maximum allowed bid/ask spread
 MIN_QUOTE_SIZE = 1  # Minimum bid and ask size available at the current quote
 MIN_IV_PERCENT = 20  # Minimum implied volatility percentage
 MAX_IV_PERCENT = 80  # Avoid extremely high IV contracts for now
+MIN_ROC_PERCENT = 0.50  # Minimum return on cash percentage
 AVAILABLE_CAPITAL = 100000  # Simulated account size
 MAX_RECOMMENDATIONS = 3  # Show up to this many filtered CSP candidates
 
@@ -47,6 +48,7 @@ def main():
         MIN_QUOTE_SIZE,
         MIN_IV_PERCENT,
         MAX_IV_PERCENT,
+        MIN_ROC_PERCENT,
         AVAILABLE_CAPITAL,
     )
 
