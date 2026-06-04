@@ -4,13 +4,29 @@ from printing_details import *
 TICKER_SYMBOL = "AMZN"  # Change this to the stock ticker you want to analyze
 MIN_DTE = 30  # Minimum days to expiration for options to consider
 MAX_DTE = 45  # Maximum days to expiration for options to consider
-MIN_VOLUME = 10  # Minimum volume for options to consider
-MIN_OPEN_INTEREST = 100  # Minimum open interest for options to consider
+TARGET_DELTA = -0.25  # Target delta for cash-secured puts
+DELTA_TOLERANCE = 0.05  # Allows deltas from -0.30 to -0.20
+MAX_SPREAD = 0.50  # Maximum allowed bid/ask spread
+MIN_QUOTE_SIZE = 1  # Minimum bid and ask size available at the current quote
+MIN_IV_PERCENT = 20  # Minimum implied volatility percentage
+MAX_IV_PERCENT = 80  # Avoid extremely high IV contracts for now
+AVAILABLE_CAPITAL = 100000  # Simulated account size
 
 def main():
     print_stock_price(TICKER_SYMBOL)
     print(f"Finding CSP candidates for {TICKER_SYMBOL}...\n")
-    candidates = find_csp_candidates(TICKER_SYMBOL, MIN_DTE, MAX_DTE, MIN_VOLUME, MIN_OPEN_INTEREST)
+    candidates = find_csp_candidates(
+        TICKER_SYMBOL,
+        MIN_DTE,
+        MAX_DTE,
+        TARGET_DELTA,
+        DELTA_TOLERANCE,
+        MAX_SPREAD,
+        MIN_QUOTE_SIZE,
+        MIN_IV_PERCENT,
+        MAX_IV_PERCENT,
+        AVAILABLE_CAPITAL,
+    )
 
     if candidates.empty:
         print("No CSP candidates found.")
