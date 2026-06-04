@@ -1,7 +1,7 @@
 from csp_candidates import *
 from printing_details import *
 
-TICKER_SYMBOL = "AMZN"  # Change this to the stock ticker you want to analyze
+TICKER_SYMBOL = "NVDA"  # Change this to the stock ticker you want to analyze
 MIN_DTE = 30  # Minimum days to expiration for options to consider
 MAX_DTE = 45  # Maximum days to expiration for options to consider
 TARGET_DELTA = -0.25  # Target delta for cash-secured puts
@@ -11,7 +11,28 @@ MIN_QUOTE_SIZE = 1  # Minimum bid and ask size available at the current quote
 MIN_IV_PERCENT = 20  # Minimum implied volatility percentage
 MAX_IV_PERCENT = 80  # Avoid extremely high IV contracts for now
 AVAILABLE_CAPITAL = 100000  # Simulated account size
-MAX_RECOMMENDATIONS = 5  # Show up to this many filtered CSP candidates
+MAX_RECOMMENDATIONS = 3  # Show up to this many filtered CSP candidates
+
+def print_recommendations(candidates):
+    for recommendation_number, candidate in enumerate(candidates.itertuples(), start=1):
+        print(
+            f"{recommendation_number}. Sell 1 {TICKER_SYMBOL} ${candidate.strike:.2f} put "
+            f"expiring {candidate.expiration} ({candidate.DTE} DTE)"
+        )
+        print(
+            f"   Price: ${candidate.currentStockPrice:.2f} | Delta: {candidate.delta:.3f} | "
+            f"IV: {candidate.ivPercent:.2f}% | Spread: ${candidate.spread:.2f}"
+        )
+        print(
+            f"   Premium: ${candidate.premiumIfSoldAtBid:.2f} | Cash required: "
+            f"${candidate.cashRequired:.2f} | Breakeven: ${candidate.breakevenPrice:.2f} | "
+            f"ROC: {candidate.returnOnCashPercent:.2f}%"
+        )
+        print(
+            f"   Why: close to {TARGET_DELTA} delta, tight spread, decent IV, "
+            "and breakeven is below current price."
+        )
+        print()
 
 def main():
     print_stock_price(TICKER_SYMBOL)
@@ -32,7 +53,8 @@ def main():
     if candidates.empty:
         print("No CSP candidates found.")
     else:
-        print(candidates.head(MAX_RECOMMENDATIONS).to_string(index=False))
+        top_candidates = candidates.head(MAX_RECOMMENDATIONS)
+        print_recommendations(top_candidates)
 
 if __name__ == "__main__":
     main()
