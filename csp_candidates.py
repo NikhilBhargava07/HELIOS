@@ -142,27 +142,21 @@ def find_csp_candidates(
 
     ranked_puts = add_recommendation_score(filtered_puts, target_delta)
 
-    columns = [
+    display_columns = [
         "contractSymbol",
         "expiration",
         "DTE",
         "strike",
         "currentStockPrice",
-        "percentOTM",
+        "delta",
         "bid",
         "ask",
         "spread",
-        "bidSize",
-        "askSize",
         "ivPercent",
-        "delta",
-        "deltaDistance",
         "breakevenPrice",
-        "cashRequired",
         "premiumIfSoldAtBid",
+        "cashRequired",
         "returnOnCashPercent",
-        "annualizedReturnPercent",
-        "score",
     ]
 
-    return ranked_puts[columns].sort_values(by="score", ascending=False)
+    return ranked_puts.sort_values(by="score", ascending=False)[display_columns]

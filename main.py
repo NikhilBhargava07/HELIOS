@@ -11,6 +11,7 @@ MIN_QUOTE_SIZE = 1  # Minimum bid and ask size available at the current quote
 MIN_IV_PERCENT = 20  # Minimum implied volatility percentage
 MAX_IV_PERCENT = 80  # Avoid extremely high IV contracts for now
 AVAILABLE_CAPITAL = 100000  # Simulated account size
+MAX_RECOMMENDATIONS = 5  # Show up to this many filtered CSP candidates
 
 def main():
     print_stock_price(TICKER_SYMBOL)
@@ -31,7 +32,7 @@ def main():
     if candidates.empty:
         print("No CSP candidates found.")
     else:
-        print(candidates)
+        print(candidates.head(MAX_RECOMMENDATIONS).to_string(index=False))
 
 if __name__ == "__main__":
     main()
