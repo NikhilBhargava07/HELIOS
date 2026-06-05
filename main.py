@@ -1,3 +1,4 @@
+from ai_review import *
 from csp_candidates import *
 from printing_details import *
 
@@ -18,6 +19,21 @@ CURRENT_CSP_CAPITAL_COMMITTED = 0  # Update later from open CSP positions
 MAX_OPEN_POSITIONS = 5  # Abstract suggests 3-5 open positions max
 CURRENT_OPEN_POSITIONS = 0  # Update later from a position tracker
 MAX_RECOMMENDATIONS = 3  # Show up to this many filtered CSP candidates
+
+STRATEGY_RULES = {
+    "strategy": "cash-secured put",
+    "approved_tickers": APPROVED_TICKERS,
+    "target_delta": TARGET_DELTA,
+    "delta_tolerance": DELTA_TOLERANCE,
+    "min_dte": MIN_DTE,
+    "max_dte": MAX_DTE,
+    "max_spread": MAX_SPREAD,
+    "min_iv_percent": MIN_IV_PERCENT,
+    "max_iv_percent": MAX_IV_PERCENT,
+    "min_roc_percent": MIN_ROC_PERCENT,
+    "max_csp_capital_percent": MAX_CSP_CAPITAL_PERCENT,
+    "max_open_positions": MAX_OPEN_POSITIONS,
+}
 
 def is_approved_ticker(ticker_symbol, approved_tickers):
     return ticker_symbol in approved_tickers
@@ -54,6 +70,18 @@ def print_recommendations(candidates):
             "and breakeven is below current price."
         )
         print()
+
+
+def print_ai_review(review):
+    print("Agent review:")
+    print(f"Decision: {review['decision']}")
+
+    if review["selected_contract"]:
+        print(f"Selected contract: {review['selected_contract']}")
+
+    print(f"Summary: {review['summary']}")
+    print(f"Risk note: {review['risk_note']}")
+    print()
 
 def main():
     if not is_approved_ticker(TICKER_SYMBOL, APPROVED_TICKERS):
@@ -96,6 +124,8 @@ def main():
     else:
         top_candidates = candidates.head(MAX_RECOMMENDATIONS)
         print_recommendations(top_candidates)
+        review = review_csp_candidates(TICKER_SYMBOL, top_candidates, STRATEGY_RULES)
+        print_ai_review(review)
 
 if __name__ == "__main__":
     main()
