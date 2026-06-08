@@ -1,7 +1,37 @@
 import os
+import json
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 
 HIGH_ROC_WARNING_PERCENT = 2.00
+
+load_dotenv(Path(__file__).with_name(".env"))
+
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
+
+
+CSP_REVIEW_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "decision": {
+            "type": "string",
+            "enum": ["approve", "reject_all", "needs_review"],
+        },
+        "selected_contract": {
+            "type": ["string", "null"],
+        },
+        "summary": {
+            "type": "string",
+        },
+        "risk_note": {
+            "type": "string",
+        },
+    },
+    "required": ["decision", "selected_contract", "summary", "risk_note"],
+}
 
 
 def build_candidate_summary(candidate):
@@ -68,6 +98,84 @@ def local_review_csp_candidates(ticker_symbol, candidates):
     }
 
 
+def build_ai_prompt(ticker_symbol, candidates, strategy_rules):
+    candidate_summaries = prepare_candidates_for_ai(candidates)
+
+    return f"""
+You are reviewing cash-secured put candidates for an educational paper-trading prototype.
+
+Important rules:
+- The candidates already passed hard-coded filters.
+- You may approve, reject all, or mark needs_review.
+- You may not suggest contracts outside the provided candidates.
+- You may not override the strategy rules.
+- This is not financial advice and no order will be placed.
+- Be concise and practical for a beginner learning CSPs.
+
+Ticker:
+{ticker_symbol}
+
+Strategy rules:
+{json.dumps(strategy_rules, indent=2)}
+
+Candidate CSPs:
+{json.dumps(candidate_summaries, indent=2)}
+
+Return JSON only.
+"""
+
+
+def openai_review_csp_candidates(ticker_symbol, candidates, strategy_rules):
+    try:
+        from openai import OpenAI
+    except ImportError:
+        review = local_review_csp_candidates(ticker_symbol, candidates)
+        review["risk_note"] = (
+            "OpenAI SDK is not installed yet, so local rule-based review was used. "
+            + review["risk_note"]
+        )
+        return review
+
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    prompt = build_ai_prompt(ticker_symbol, candidates, strategy_rules)
+
+    try:
+        response = client.responses.create(
+            model=OPENAI_MODEL,
+            input=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a cautious CSP review agent. "
+                        "Review only the provided candidates and return structured JSON."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "csp_review",
+                    "schema": CSP_REVIEW_SCHEMA,
+                    "strict": True,
+                }
+            },
+        )
+
+        return json.loads(response.output_text)
+    except Exception as error:
+        review = local_review_csp_candidates(ticker_symbol, candidates)
+        review["risk_note"] = (
+            f"OpenAI review failed, so local rule-based review was used. "
+            f"Error: {error}. "
+            + review["risk_note"]
+        )
+        return review
+
+
 def review_csp_candidates(ticker_symbol, candidates, strategy_rules):
     """
     Future OpenAI integration point.
@@ -78,10 +186,4 @@ def review_csp_candidates(ticker_symbol, candidates, strategy_rules):
     if not os.getenv("OPENAI_API_KEY"):
         return local_review_csp_candidates(ticker_symbol, candidates)
 
-    # TODO: Call OpenAI with structured JSON output.
-    # Input should include:
-    # - ticker_symbol
-    # - prepare_candidates_for_ai(candidates)
-    # - strategy_rules
-    # - future user style profile / past trade outcomes
-    return local_review_csp_candidates(ticker_symbol, candidates)
+    return openai_review_csp_candidates(ticker_symbol, candidates, strategy_rules)
