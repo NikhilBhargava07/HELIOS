@@ -83,27 +83,42 @@ def print_ai_review(review):
     print(f"Risk note: {review['risk_note']}")
     print()
 
-def main():
-    if not can_open_new_position(CURRENT_OPEN_POSITIONS, MAX_OPEN_POSITIONS):
-        print(f"No recommendation: max open positions reached ({MAX_OPEN_POSITIONS}).")
-        return
+
+def get_recommendation_results(
+    current_open_positions=CURRENT_OPEN_POSITIONS,
+    current_csp_capital_committed=CURRENT_CSP_CAPITAL_COMMITTED,
+):
+    if not can_open_new_position(current_open_positions, MAX_OPEN_POSITIONS):
+        return {
+            "candidates": pd.DataFrame(),
+            "review": {
+                "decision": "reject_all",
+                "selected_contract": None,
+                "summary": f"Max open positions reached ({MAX_OPEN_POSITIONS}).",
+                "risk_note": "Position limits prevent overcommitting the account.",
+            },
+        }
 
     available_csp_capital = calculate_available_csp_capital(
         TOTAL_CAPITAL,
         MAX_CSP_CAPITAL_PERCENT,
-        CURRENT_CSP_CAPITAL_COMMITTED,
+        current_csp_capital_committed,
     )
 
     if available_csp_capital <= 0:
-        print("No recommendation: no CSP capital available under current allocation rules.")
-        return
+        return {
+            "candidates": pd.DataFrame(),
+            "review": {
+                "decision": "reject_all",
+                "selected_contract": None,
+                "summary": "No CSP capital available under current allocation rules.",
+                "risk_note": "Capital allocation rules keep the account from being overcommitted.",
+            },
+        }
 
     all_candidates = []
 
-    print(f"Scanning approved tickers: {', '.join(APPROVED_TICKERS)}\n")
-
     for ticker_symbol in APPROVED_TICKERS:
-        print(f"Checking {ticker_symbol}...")
         candidates = find_csp_candidates(
             ticker_symbol,
             MIN_DTE,
@@ -122,16 +137,40 @@ def main():
             all_candidates.append(candidates.head(CANDIDATES_PER_TICKER))
 
     if not all_candidates:
-        print("\nNo CSP candidates found across approved tickers.")
-        return
+        return {
+            "candidates": pd.DataFrame(),
+            "review": {
+                "decision": "reject_all",
+                "selected_contract": None,
+                "summary": "No CSP candidates found across approved tickers.",
+                "risk_note": "The current filters may be too strict for today's market data.",
+            },
+        }
 
     combined_candidates = pd.concat(all_candidates, ignore_index=True)
     combined_candidates = combined_candidates.sort_values(by="score", ascending=False)
     top_candidates = combined_candidates.head(MAX_RECOMMENDATIONS)
+    review = review_csp_candidates("approved ticker list", top_candidates, STRATEGY_RULES)
+
+    return {
+        "candidates": top_candidates,
+        "review": review,
+    }
+
+
+def main():
+    print(f"Scanning approved tickers: {', '.join(APPROVED_TICKERS)}\n")
+    results = get_recommendation_results()
+    top_candidates = results["candidates"]
+    review = results["review"]
+
+    if top_candidates.empty:
+        print(review["summary"])
+        print(review["risk_note"])
+        return
 
     print("\nTop CSP candidates across approved tickers:\n")
     print_recommendations(top_candidates)
-    review = review_csp_candidates("approved ticker list", top_candidates, STRATEGY_RULES)
     print_ai_review(review)
 
 if __name__ == "__main__":
