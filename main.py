@@ -1,9 +1,8 @@
 from ai_review import *
 from csp_candidates import *
-from printing_details import *
+import pandas as pd
 
-TICKER_SYMBOL = "NVDA"  # Change this to the stock ticker you want to analyze
-APPROVED_TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "SPY", "QQQ"]
+APPROVED_TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "SPY", "QQQ", "CSCO", "TSLA", "META"]  # Approved ticker list
 MIN_DTE = 30  # Minimum days to expiration for options to consider
 MAX_DTE = 45  # Maximum days to expiration for options to consider
 TARGET_DELTA = -0.25  # Target delta for cash-secured puts
@@ -18,6 +17,7 @@ MAX_CSP_CAPITAL_PERCENT = 0.70  # Use at most 70% of account for CSP collateral
 CURRENT_CSP_CAPITAL_COMMITTED = 0  # Update later from open CSP positions
 MAX_OPEN_POSITIONS = 5  # Abstract suggests 3-5 open positions max
 CURRENT_OPEN_POSITIONS = 0  # Update later from a position tracker
+CANDIDATES_PER_TICKER = 1  # Keep each ticker's best candidate for cross-ticker review
 MAX_RECOMMENDATIONS = 3  # Show up to this many filtered CSP candidates
 
 STRATEGY_RULES = {
@@ -53,7 +53,7 @@ def calculate_available_csp_capital(total_capital, max_csp_capital_percent, curr
 def print_recommendations(candidates):
     for recommendation_number, candidate in enumerate(candidates.itertuples(), start=1):
         print(
-            f"{recommendation_number}. Sell 1 {TICKER_SYMBOL} ${candidate.strike:.2f} put "
+            f"{recommendation_number}. Sell 1 {candidate.tickerSymbol} ${candidate.strike:.2f} put "
             f"expiring {candidate.expiration} ({candidate.DTE} DTE)"
         )
         print(
@@ -84,11 +84,6 @@ def print_ai_review(review):
     print()
 
 def main():
-    if not is_approved_ticker(TICKER_SYMBOL, APPROVED_TICKERS):
-        print(f"{TICKER_SYMBOL} is not on the approved ticker list.")
-        print(f"Approved tickers: {', '.join(APPROVED_TICKERS)}")
-        return
-
     if not can_open_new_position(CURRENT_OPEN_POSITIONS, MAX_OPEN_POSITIONS):
         print(f"No recommendation: max open positions reached ({MAX_OPEN_POSITIONS}).")
         return
@@ -103,29 +98,41 @@ def main():
         print("No recommendation: no CSP capital available under current allocation rules.")
         return
 
-    print_stock_price(TICKER_SYMBOL)
-    print(f"Finding CSP candidates for {TICKER_SYMBOL}...\n")
-    candidates = find_csp_candidates(
-        TICKER_SYMBOL,
-        MIN_DTE,
-        MAX_DTE,
-        TARGET_DELTA,
-        DELTA_TOLERANCE,
-        MAX_SPREAD,
-        MIN_QUOTE_SIZE,
-        MIN_IV_PERCENT,
-        MAX_IV_PERCENT,
-        MIN_ROC_PERCENT,
-        available_csp_capital,
-    )
+    all_candidates = []
 
-    if candidates.empty:
-        print("No CSP candidates found.")
-    else:
-        top_candidates = candidates.head(MAX_RECOMMENDATIONS)
-        print_recommendations(top_candidates)
-        review = review_csp_candidates(TICKER_SYMBOL, top_candidates, STRATEGY_RULES)
-        print_ai_review(review)
+    print(f"Scanning approved tickers: {', '.join(APPROVED_TICKERS)}\n")
+
+    for ticker_symbol in APPROVED_TICKERS:
+        print(f"Checking {ticker_symbol}...")
+        candidates = find_csp_candidates(
+            ticker_symbol,
+            MIN_DTE,
+            MAX_DTE,
+            TARGET_DELTA,
+            DELTA_TOLERANCE,
+            MAX_SPREAD,
+            MIN_QUOTE_SIZE,
+            MIN_IV_PERCENT,
+            MAX_IV_PERCENT,
+            MIN_ROC_PERCENT,
+            available_csp_capital,
+        )
+
+        if not candidates.empty:
+            all_candidates.append(candidates.head(CANDIDATES_PER_TICKER))
+
+    if not all_candidates:
+        print("\nNo CSP candidates found across approved tickers.")
+        return
+
+    combined_candidates = pd.concat(all_candidates, ignore_index=True)
+    combined_candidates = combined_candidates.sort_values(by="score", ascending=False)
+    top_candidates = combined_candidates.head(MAX_RECOMMENDATIONS)
+
+    print("\nTop CSP candidates across approved tickers:\n")
+    print_recommendations(top_candidates)
+    review = review_csp_candidates("approved ticker list", top_candidates, STRATEGY_RULES)
+    print_ai_review(review)
 
 if __name__ == "__main__":
     main()

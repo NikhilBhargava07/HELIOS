@@ -36,6 +36,7 @@ CSP_REVIEW_SCHEMA = {
 
 def build_candidate_summary(candidate):
     return {
+        "ticker_symbol": candidate.tickerSymbol,
         "contract_symbol": candidate.contractSymbol,
         "expiration": candidate.expiration,
         "dte": int(candidate.DTE),
@@ -87,11 +88,13 @@ def local_review_csp_candidates(ticker_symbol, candidates):
     if not risk_notes:
         risk_notes.append("Primary risk is assignment if the stock falls below the strike.")
 
+    ticker_display = best_candidate["tickerSymbol"] if "tickerSymbol" in best_candidate else ticker_symbol
+
     return {
         "decision": "approve",
         "selected_contract": best_candidate["contractSymbol"],
         "summary": (
-            f"The top {ticker_symbol} CSP candidate has the best current balance of "
+            f"The top candidate is a {ticker_display} CSP with the best current balance of "
             "target delta, premium, spread, and breakeven among the filtered choices."
         ),
         "risk_note": " ".join(risk_notes),

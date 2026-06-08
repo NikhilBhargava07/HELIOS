@@ -26,7 +26,7 @@ def get_latest_stock_price(ticker_symbol):
     return latest_trades[ticker_symbol].price
 
 
-def build_put_rows_from_snapshots(snapshots, current_stock_price):
+def build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price):
     rows = []
 
     for contract_symbol, snapshot in snapshots.items():
@@ -49,6 +49,7 @@ def build_put_rows_from_snapshots(snapshots, current_stock_price):
 
         rows.append(
             {
+                "tickerSymbol": ticker_symbol,
                 "contractSymbol": contract_symbol,
                 "expiration": expiration_text,
                 "DTE": dte,
@@ -173,7 +174,7 @@ def find_csp_candidates(
 
     snapshots = option_data_client.get_option_chain(request)
     current_stock_price = get_latest_stock_price(ticker_symbol)
-    puts = build_put_rows_from_snapshots(snapshots, current_stock_price)
+    puts = build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price)
 
     if puts.empty:
         return pd.DataFrame()
@@ -196,6 +197,7 @@ def find_csp_candidates(
     ranked_puts = add_recommendation_score(filtered_puts, target_delta)
 
     display_columns = [
+        "tickerSymbol",
         "contractSymbol",
         "expiration",
         "DTE",
@@ -210,6 +212,7 @@ def find_csp_candidates(
         "premiumIfSoldAtBid",
         "cashRequired",
         "returnOnCashPercent",
+        "score",
     ]
 
     return ranked_puts.sort_values(by="score", ascending=False)[display_columns]
