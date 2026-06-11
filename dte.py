@@ -11,5 +11,3 @@ def calculate_dte(expiration: str) -> int:
     dte = (expiration_date - today).days
 
     return dte
-
-# def filter_by_delta():

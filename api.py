@@ -13,6 +13,12 @@ from main import (
     TOTAL_CAPITAL,
     get_recommendation_results,
 )
+from market_context import (
+    ai_market_take,
+    build_market_context,
+    get_market_trends,
+    get_recent_news,
+)
 from paper_store import (
     get_capital_summary,
     get_dashboard_data,
@@ -128,6 +134,32 @@ def get_dashboard():
         MAX_CSP_CAPITAL_PERCENT,
         MAX_OPEN_POSITIONS,
     )
+
+
+@app.get("/api/market/trends")
+def get_trends():
+    return {
+        "trends": get_market_trends(APPROVED_TICKERS),
+    }
+
+
+@app.get("/api/market/news")
+def get_news():
+    return {
+        "news": get_recent_news(APPROVED_TICKERS),
+    }
+
+
+@app.get("/api/market/context")
+def get_context():
+    return build_market_context(APPROVED_TICKERS)
+
+
+@app.post("/api/market/take")
+def post_market_take():
+    context = build_market_context(APPROVED_TICKERS)
+
+    return ai_market_take(context)
 
 
 frontend_path = Path(__file__).with_name("frontend")

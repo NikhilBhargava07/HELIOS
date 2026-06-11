@@ -4,33 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CSP Recommendation Agent</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
-    <main class="page">
-        <section class="hero">
-            <p class="eyebrow">Paper-trading prototype</p>
-            <h1>CSP Recommendation Agent</h1>
-            <p class="subhead">
-                Scans approved tickers, applies hard safety filters, then asks the agent to review the top CSP candidates.
-            </p>
-            <button id="load-recommendations">Get recommendations</button>
-            <p id="status" class="status">Ready.</p>
-        </section>
+    <button id="menu-toggle" class="menu-toggle">☰</button>
+    <aside id="sidebar" class="sidebar">
+        <div class="brand">
+            <span class="eyebrow">CSP Agent</span>
+            <strong>Dashboard</strong>
+        </div>
+        <nav class="nav">
+            <a class="nav-link active" data-tab="home" href="#home">Home</a>
+            <a class="nav-link" data-tab="trends" href="#trends">Market Trends</a>
+            <a class="nav-link" data-tab="news" href="#news">News</a>
+            <a class="nav-link" data-tab="market-take" href="#market-take">AI Market Take</a>
+            <a class="nav-link" data-tab="capital" href="#capital">Capital & Positions</a>
+        </nav>
+    </aside>
 
-        <section class="panel">
+    <main class="page app-shell">
+        <section id="home" class="panel tab-panel active" data-panel="home">
+            <div class="page-header">
+                <p class="eyebrow">Paper-trading prototype</p>
+                <h1>CSP Recommendation Agent</h1>
+                <p class="subhead">
+                    Scans approved tickers, applies hard safety filters, then asks the agent to review the top CSP candidates.
+                </p>
+                <button id="load-recommendations">Get recommendations</button>
+                <p id="recommendation-status" class="status">Ready.</p>
+            </div>
             <h2>Agent Review</h2>
             <div id="agent-review" class="agent-review empty">
                 Run the scan to see the agent's recommendation.
             </div>
-        </section>
-
-        <section class="panel">
             <h2>Top CSP Candidates</h2>
             <div id="candidate-list" class="candidate-grid"></div>
         </section>
 
-        <section class="panel">
+        <section id="trends" class="panel tab-panel" data-panel="trends">
+            <div class="page-header compact">
+                <p class="eyebrow">Market context</p>
+                <h1>Market Trends</h1>
+                <p class="subhead">
+                    Pull recent price movement for the approved ticker list before judging CSP risk.
+                </p>
+                <button id="load-trends">Load market trends</button>
+                <p id="trend-status" class="status">Trend data has not been loaded yet.</p>
+            </div>
+            <h2>Market Trends</h2>
+            <div id="trend-list" class="trend-grid empty">
+                Load market trends to see recent price movement.
+            </div>
+            <button id="toggle-trends" class="secondary hidden">See more trends</button>
+        </section>
+
+        <section id="news" class="panel tab-panel" data-panel="news">
+            <div class="page-header compact">
+                <p class="eyebrow">News context</p>
+                <h1>Recent Market News</h1>
+                <p class="subhead">
+                    Pull outside headlines so the user can read the source and decide how much the news matters.
+                </p>
+                <button id="load-news">Load recent news</button>
+                <p id="news-status" class="status">Recent news has not been loaded yet.</p>
+            </div>
+            <h2>Notable News</h2>
+            <div id="news-list" class="news-list empty">
+                Load recent news to see current headlines.
+            </div>
+            <button id="toggle-news" class="secondary hidden">See more news</button>
+        </section>
+
+        <section id="market-take" class="panel tab-panel" data-panel="market-take">
+            <div class="page-header compact">
+                <p class="eyebrow">Agent reasoning</p>
+                <h1>AI Market Take</h1>
+                <p class="subhead">
+                    Ask the agent to connect trends and headlines back to CSP opportunity and risk.
+                </p>
+                <button id="summarize-market">Ask AI for market take</button>
+                <p id="market-take-status" class="status">No AI market take loaded yet.</p>
+            </div>
+            <h2>AI Market Take</h2>
+            <div id="market-take-output" class="agent-review empty">
+                Ask the AI for a trend/news take framed around CSP risk.
+            </div>
+        </section>
+
+        <section id="capital" class="panel tab-panel" data-panel="capital">
+            <div class="page-header compact">
+                <p class="eyebrow">Paper ledger</p>
+                <h1>Capital & Positions</h1>
+                <p class="subhead">
+                    Track paper orders, committed cash, and open CSP exposure as the prototype records decisions.
+                </p>
+            </div>
             <h2>Capital & Positions</h2>
             <div id="dashboard" class="dashboard empty">
                 No paper orders recorded yet.
@@ -38,6 +106,6 @@
         </section>
     </main>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=5"></script>
 </body>
 </html>

@@ -2,7 +2,29 @@ from ai_review import *
 from csp_candidates import *
 import pandas as pd
 
-APPROVED_TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "SPY", "QQQ", "CSCO", "TSLA", "META"]  # Approved ticker list
+APPROVED_TICKERS = [
+    "SPY",
+    "QQQ",
+    "IWM",
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "NVDA",
+    "META",
+    "AVGO",
+    "AMD",
+    "COST",
+    "JPM",
+    "V",
+    "MA",
+    "HD",
+    "WMT",
+    "ORCL",
+    "NFLX",
+    "CSCO",
+    "TSLA",
+]  # Approved ticker list
 MIN_DTE = 30  # Minimum days to expiration for options to consider
 MAX_DTE = 45  # Maximum days to expiration for options to consider
 TARGET_DELTA = -0.25  # Target delta for cash-secured puts

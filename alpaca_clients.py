@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from alpaca.data.historical import (
     StockHistoricalDataClient,
     OptionHistoricalDataClient,
+    NewsClient,
 )
 
 load_dotenv()
@@ -15,3 +16,4 @@ if not API_KEY or not SECRET_KEY:
 
 stock_data_client = StockHistoricalDataClient(API_KEY, SECRET_KEY)
 option_data_client = OptionHistoricalDataClient(API_KEY, SECRET_KEY)
+news_client = NewsClient(API_KEY, SECRET_KEY)
