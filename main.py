@@ -25,6 +25,29 @@ APPROVED_TICKERS = [
     "CSCO",
     "TSLA",
 ]  # Approved ticker list
+COMPANY_NAMES = {
+    "SPY": "SPDR S&P 500 ETF Trust",
+    "QQQ": "Invesco QQQ Trust",
+    "IWM": "iShares Russell 2000 ETF",
+    "AAPL": "Apple",
+    "MSFT": "Microsoft",
+    "GOOGL": "Alphabet",
+    "AMZN": "Amazon",
+    "NVDA": "NVIDIA",
+    "META": "Meta Platforms",
+    "AVGO": "Broadcom",
+    "AMD": "Advanced Micro Devices",
+    "COST": "Costco Wholesale",
+    "JPM": "JPMorgan Chase",
+    "V": "Visa",
+    "MA": "Mastercard",
+    "HD": "Home Depot",
+    "WMT": "Walmart",
+    "ORCL": "Oracle",
+    "NFLX": "Netflix",
+    "CSCO": "Cisco",
+    "TSLA": "Tesla",
+}
 MIN_DTE = 30  # Minimum days to expiration for options to consider
 MAX_DTE = 45  # Maximum days to expiration for options to consider
 TARGET_DELTA = -0.25  # Target delta for cash-secured puts
@@ -39,8 +62,8 @@ MAX_CSP_CAPITAL_PERCENT = 0.70  # Use at most 70% of account for CSP collateral
 CURRENT_CSP_CAPITAL_COMMITTED = 0  # Update later from open CSP positions
 MAX_OPEN_POSITIONS = 5  # Abstract suggests 3-5 open positions max
 CURRENT_OPEN_POSITIONS = 0  # Update later from a position tracker
-CANDIDATES_PER_TICKER = 1  # Keep each ticker's best candidate for cross-ticker review
-MAX_RECOMMENDATIONS = 3  # Show up to this many filtered CSP candidates
+CANDIDATES_PER_TICKER = 3  # Keep a few per ticker so discarded cards can be replaced
+MAX_RECOMMENDATIONS = 10  # Keep a larger pool so the frontend can cycle replacements
 
 STRATEGY_RULES = {
     "strategy": "cash-secured put",

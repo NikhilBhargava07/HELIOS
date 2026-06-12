@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from main import (
     APPROVED_TICKERS,
+    COMPANY_NAMES,
     MAX_CSP_CAPITAL_PERCENT,
     MAX_OPEN_POSITIONS,
     STRATEGY_RULES,
@@ -14,8 +15,10 @@ from main import (
     get_recommendation_results,
 )
 from market_context import (
+    NEWS_LOOKBACK_DAYS,
     ai_market_take,
     build_market_context,
+    get_latest_stock_prices,
     get_market_trends,
     get_recent_news,
 )
@@ -71,6 +74,8 @@ def candidates_to_records(candidates):
             if hasattr(value, "item"):
                 record[key] = value.item()
 
+        record["companyName"] = COMPANY_NAMES.get(record["tickerSymbol"], record["tickerSymbol"])
+
     return records
 
 
@@ -96,6 +101,7 @@ def get_recommendations():
     return {
         "recommendation_run_id": recommendation_run["id"],
         "approved_tickers": APPROVED_TICKERS,
+        "company_names": COMPANY_NAMES,
         "strategy_rules": STRATEGY_RULES,
         "capital": capital_summary,
         "dashboard": get_dashboard_data(
@@ -129,17 +135,39 @@ def post_user_decision(decision_request: UserDecisionRequest):
 
 @app.get("/api/dashboard")
 def get_dashboard():
-    return get_dashboard_data(
+    dashboard = get_dashboard_data(
         TOTAL_CAPITAL,
         MAX_CSP_CAPITAL_PERCENT,
         MAX_OPEN_POSITIONS,
     )
+    dashboard["company_names"] = COMPANY_NAMES
+
+    return dashboard
 
 
 @app.get("/api/market/trends")
 def get_trends():
+    trends = get_market_trends(APPROVED_TICKERS)
+    prices = get_latest_stock_prices(APPROVED_TICKERS)
+
+    for trend in trends:
+        latest = prices.get(trend["ticker"], {})
+        trend["company_name"] = COMPANY_NAMES.get(trend["ticker"], trend["ticker"])
+        trend["current_price"] = latest.get("price")
+        trend["price_timestamp"] = latest.get("timestamp")
+
     return {
-        "trends": get_market_trends(APPROVED_TICKERS),
+        "trends": trends,
+        "prices": prices,
+        "company_names": COMPANY_NAMES,
+    }
+
+
+@app.get("/api/market/prices")
+def get_prices():
+    return {
+        "prices": get_latest_stock_prices(APPROVED_TICKERS),
+        "company_names": COMPANY_NAMES,
     }
 
 
@@ -147,6 +175,7 @@ def get_trends():
 def get_news():
     return {
         "news": get_recent_news(APPROVED_TICKERS),
+        "lookback_days": NEWS_LOOKBACK_DAYS,
     }
 
 
@@ -158,8 +187,10 @@ def get_context():
 @app.post("/api/market/take")
 def post_market_take():
     context = build_market_context(APPROVED_TICKERS)
+    take = ai_market_take(context)
+    take["company_names"] = COMPANY_NAMES
 
-    return ai_market_take(context)
+    return take
 
 
 frontend_path = Path(__file__).with_name("frontend")
