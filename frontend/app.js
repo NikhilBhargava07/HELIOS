@@ -18,6 +18,7 @@ const newsList = document.querySelector("#news-list");
 const marketTakeEl = document.querySelector("#market-take-output");
 const toggleTrendsButton = document.querySelector("#toggle-trends");
 const toggleNewsButton = document.querySelector("#toggle-news");
+const toastEl = document.querySelector("#toast");
 
 let currentRecommendationRunId = null;
 let companyNames = {};
@@ -36,6 +37,7 @@ const DEFAULT_NEWS_COUNT = 5;
 const PRICE_REFRESH_MS = 15000;
 const TREND_METRIC_ROTATE_MS = 5000;
 const NEUTRAL_TREND_PERCENT_THRESHOLD = 0.2;
+const TOAST_TIMEOUT_MS = 5200;
 const GLOSSARY = {
     "assignment risk": "The chance you must buy 100 shares at the strike price if the put is assigned.",
     "cash-secured put": "A put option you sell while keeping enough cash to buy 100 shares if assigned.",
@@ -59,6 +61,24 @@ function money(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     })}`;
+}
+
+function candidateByContract(contractSymbol) {
+    return candidatePool.find(candidate => candidate.contractSymbol === contractSymbol);
+}
+
+function showToast(title, message, variant = "success") {
+    toastEl.classList.toggle("error", variant === "error");
+    toastEl.innerHTML = `
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(message)}</span>
+    `;
+    toastEl.classList.remove("hidden");
+
+    clearTimeout(showToast.timeoutId);
+    showToast.timeoutId = setTimeout(() => {
+        toastEl.classList.add("hidden");
+    }, TOAST_TIMEOUT_MS);
 }
 
 function percent(value) {
@@ -632,13 +652,21 @@ async function submitDecision(action, contractSymbol) {
 
         const data = await response.json();
         renderDashboard(data.dashboard);
-        recommendationStatus.textContent = action === "place_paper_order"
-            ? "Paper order recorded."
-            : "Recommendation discarded.";
-        return true;
+
+        if (action === "place_paper_order") {
+            if (data.order_submitted) {
+                recommendationStatus.textContent = `Alpaca paper order submitted (${data.alpaca_order?.status || "submitted"}).`;
+            } else {
+                recommendationStatus.textContent = `Alpaca paper order failed: ${data.order_error || "unknown error"}`;
+            }
+        } else {
+            recommendationStatus.textContent = "Recommendation discarded.";
+        }
+
+        return data;
     } catch (error) {
         recommendationStatus.textContent = `Error: ${error.message}`;
-        return false;
+        return null;
     }
 }
 
@@ -670,6 +698,46 @@ async function discardCandidate(clickedButton) {
     if (!recorded) {
         return;
     }
+
+    if (card) {
+        card.classList.add("discarding");
+        setTimeout(() => removeCandidateFromPool(contractSymbol), 180);
+    } else {
+        removeCandidateFromPool(contractSymbol);
+    }
+}
+
+async function placeCandidate(clickedButton) {
+    const contractSymbol = clickedButton.dataset.contract;
+    const card = clickedButton.closest(".candidate-card");
+    const candidate = candidateByContract(contractSymbol);
+
+    clickedButton.disabled = true;
+    clickedButton.textContent = "Placing...";
+
+    const result = await submitDecision("place_paper_order", contractSymbol);
+
+    if (!result) {
+        clickedButton.disabled = false;
+        clickedButton.textContent = "Paper place";
+        return;
+    }
+
+    if (!result.order_submitted) {
+        showToast(
+            "Paper order failed",
+            result.order_error || "Alpaca did not accept the order.",
+            "error",
+        );
+        clickedButton.disabled = false;
+        clickedButton.textContent = "Paper place";
+        return;
+    }
+
+    showToast(
+        "Paper order placed",
+        `${candidate?.tickerSymbol || contractSymbol} ${money(candidate?.strike || 0)} put submitted to Alpaca (${result.alpaca_order?.status || "submitted"}).`,
+    );
 
     if (card) {
         card.classList.add("discarding");
@@ -731,5 +799,7 @@ candidateList.addEventListener("click", (event) => {
         return;
     }
 
-    submitDecision(clickedButton.dataset.action, clickedButton.dataset.contract);
+    if (clickedButton.dataset.action === "place_paper_order") {
+        placeCandidate(clickedButton);
+    }
 });

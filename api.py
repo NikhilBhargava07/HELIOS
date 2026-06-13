@@ -23,11 +23,15 @@ from market_context import (
     get_recent_news,
 )
 from paper_store import (
+    find_candidate,
+    find_recommendation_run,
     get_capital_summary,
     get_dashboard_data,
+    load_store,
     record_user_decision,
     save_recommendation_run,
 )
+from order_manager import submit_cash_secured_put_order
 
 
 app = FastAPI(title="CSP Agent API")
@@ -45,6 +49,25 @@ class UserDecisionRequest(BaseModel):
     contract_symbol: str
     action: str
     note: str = ""
+
+
+def get_recommendation_run_from_store(run_id):
+    store = load_store()
+    run = find_recommendation_run(store, run_id)
+
+    if run is None:
+        raise ValueError("Recommendation run not found.")
+
+    return run
+
+
+def get_candidate_from_run(run, contract_symbol):
+    candidate = find_candidate(run, contract_symbol)
+
+    if candidate is None:
+        raise ValueError("Candidate not found in recommendation run.")
+
+    return candidate
 
 
 def candidates_to_records(candidates):
@@ -116,15 +139,53 @@ def get_recommendations():
 
 @app.post("/api/decisions")
 def post_user_decision(decision_request: UserDecisionRequest):
+    alpaca_order = None
+    order_error = None
+
+    if decision_request.action == "place_paper_order":
+        store_action = "place_paper_order"
+        try:
+            run = get_recommendation_run_from_store(decision_request.recommendation_run_id)
+            candidate = get_candidate_from_run(run, decision_request.contract_symbol)
+            alpaca_order = submit_cash_secured_put_order(candidate)
+        except Exception as error:
+            store_action = "place_paper_order_failed"
+            order_error = str(error)
+
+            decision = record_user_decision(
+                decision_request.recommendation_run_id,
+                decision_request.contract_symbol,
+                store_action,
+                decision_request.note,
+                order_error=order_error,
+            )
+
+            return {
+                "decision": decision,
+                "order_submitted": False,
+                "order_error": order_error,
+                "dashboard": get_dashboard_data(
+                    TOTAL_CAPITAL,
+                    MAX_CSP_CAPITAL_PERCENT,
+                    MAX_OPEN_POSITIONS,
+                ),
+            }
+    else:
+        store_action = decision_request.action
+
     decision = record_user_decision(
         decision_request.recommendation_run_id,
         decision_request.contract_symbol,
-        decision_request.action,
+        store_action,
         decision_request.note,
+        alpaca_order=alpaca_order,
+        order_error=order_error,
     )
 
     return {
         "decision": decision,
+        "order_submitted": alpaca_order is not None,
+        "alpaca_order": alpaca_order,
         "dashboard": get_dashboard_data(
             TOTAL_CAPITAL,
             MAX_CSP_CAPITAL_PERCENT,

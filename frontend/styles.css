@@ -49,6 +49,47 @@ body::before {
     display: none;
 }
 
+.toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 80;
+    max-width: min(420px, calc(100vw - 32px));
+    border: 1px solid rgba(126, 231, 135, 0.38);
+    border-radius: 18px;
+    padding: 16px 18px;
+    background:
+        linear-gradient(145deg, rgba(126, 231, 135, 0.14), transparent 48%),
+        #0d1117;
+    color: #e6edf3;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+    transform: translateY(0);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.toast strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.toast span {
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.toast.hidden {
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.toast.error {
+    border-color: rgba(255, 123, 114, 0.42);
+    background:
+        linear-gradient(145deg, rgba(255, 123, 114, 0.12), transparent 48%),
+        #0d1117;
+}
+
 .sidebar {
     position: fixed;
     inset: 0 auto 0 0;

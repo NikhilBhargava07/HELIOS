@@ -73,7 +73,14 @@ def find_candidate(run, contract_symbol):
     return None
 
 
-def record_user_decision(run_id, contract_symbol, action, note=""):
+NON_OPEN_ORDER_STATUSES = {
+    "canceled",
+    "expired",
+    "rejected",
+}
+
+
+def record_user_decision(run_id, contract_symbol, action, note="", alpaca_order=None, order_error=None):
     store = load_store()
     run = find_recommendation_run(store, run_id)
 
@@ -95,27 +102,33 @@ def record_user_decision(run_id, contract_symbol, action, note=""):
         "note": note,
         "agent_selected_contract": run["agent_review"].get("selected_contract"),
         "agent_decision": run["agent_review"].get("decision"),
+        "alpaca_order_id": (alpaca_order or {}).get("id"),
+        "order_error": order_error,
     }
 
     store["user_decisions"].append(decision)
 
     if action == "place_paper_order":
-        order = create_paper_order(decision, candidate)
-        position = create_open_position(order, candidate)
+        order = create_paper_order(decision, candidate, alpaca_order)
         store["paper_orders"].append(order)
-        store["positions"].append(position)
+
+        if should_track_open_position(order):
+            position = create_open_position(order, candidate)
+            store["positions"].append(position)
 
     save_store(store)
 
     return decision
 
 
-def create_paper_order(decision, candidate):
+def create_paper_order(decision, candidate, alpaca_order=None):
+    alpaca_order = alpaca_order or {}
+
     return {
         "id": str(uuid4()),
         "created_at": utc_now(),
         "decision_id": decision["id"],
-        "status": "paper_filled",
+        "status": alpaca_order.get("status", "local_recorded"),
         "side": "sell",
         "strategy": "cash-secured put",
         "contract_symbol": candidate["contractSymbol"],
@@ -125,7 +138,16 @@ def create_paper_order(decision, candidate):
         "premium_received": candidate["premiumIfSoldAtBid"],
         "cash_required": candidate["cashRequired"],
         "breakeven_price": candidate["breakevenPrice"],
+        "alpaca_order_id": alpaca_order.get("id"),
+        "alpaca_client_order_id": alpaca_order.get("client_order_id"),
+        "alpaca_limit_price": alpaca_order.get("limit_price"),
+        "alpaca_submitted_at": alpaca_order.get("submitted_at"),
+        "raw_alpaca_order": alpaca_order.get("raw_order"),
     }
+
+
+def should_track_open_position(order):
+    return str(order.get("status", "")).lower() not in NON_OPEN_ORDER_STATUSES
 
 
 def create_open_position(order, candidate):
