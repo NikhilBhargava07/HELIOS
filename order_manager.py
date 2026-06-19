@@ -97,7 +97,6 @@ def get_paper_account_summary():
         "buying_power": first_number(raw_account, "buying_power"),
         "options_buying_power": first_number(raw_account, "options_buying_power"),
         "available_csp_cash": buying_power,
-        "raw_account": raw_account,
     }
 
 

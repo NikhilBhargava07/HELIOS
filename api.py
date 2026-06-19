@@ -1,3 +1,5 @@
+import os
+from enum import Enum
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -24,10 +26,9 @@ from market_context import (
 )
 from paper_store import (
     find_candidate,
-    find_recommendation_run,
     get_capital_summary,
     get_dashboard_data,
-    load_store,
+    get_recommendation_run,
     record_user_decision,
     save_recommendation_run,
 )
@@ -36,24 +37,37 @@ from order_manager import get_paper_account_summary, submit_cash_secured_put_ord
 
 app = FastAPI(title="CSP Agent API")
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://127.0.0.1:8000,http://localhost:8000",
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=allowed_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
+
+
+class UserDecisionAction(str, Enum):
+    DISCARD = "discard"
+    PLACE_PAPER_ORDER = "place_paper_order"
 
 
 class UserDecisionRequest(BaseModel):
     recommendation_run_id: str
     contract_symbol: str
-    action: str
+    action: UserDecisionAction
     note: str = ""
 
 
 def get_recommendation_run_from_store(run_id):
-    store = load_store()
-    run = find_recommendation_run(store, run_id)
+    run = get_recommendation_run(run_id)
 
     if run is None:
         raise ValueError("Recommendation run not found.")
@@ -196,7 +210,7 @@ def post_user_decision(decision_request: UserDecisionRequest):
     alpaca_order = None
     order_error = None
 
-    if decision_request.action == "place_paper_order":
+    if decision_request.action == UserDecisionAction.PLACE_PAPER_ORDER:
         store_action = "place_paper_order"
         try:
             run = get_recommendation_run_from_store(decision_request.recommendation_run_id)
@@ -232,7 +246,7 @@ def post_user_decision(decision_request: UserDecisionRequest):
                 "dashboard": get_dashboard_with_cash_context(alpaca_account),
             }
     else:
-        store_action = decision_request.action
+        store_action = decision_request.action.value
 
     decision = record_user_decision(
         decision_request.recommendation_run_id,
@@ -247,7 +261,7 @@ def post_user_decision(decision_request: UserDecisionRequest):
         "decision": decision,
         "order_submitted": alpaca_order is not None,
         "alpaca_order": alpaca_order,
-        "refresh_recommendations": decision_request.action == "place_paper_order",
+        "refresh_recommendations": decision_request.action == UserDecisionAction.PLACE_PAPER_ORDER,
         "dashboard": get_dashboard_with_cash_context(),
     }
 

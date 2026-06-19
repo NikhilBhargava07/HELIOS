@@ -1,6 +1,7 @@
-from ai_review import *
-from csp_candidates import *
 import pandas as pd
+
+from ai_review import review_csp_candidates
+from csp_candidates import find_csp_candidates, get_latest_stock_prices
 
 APPROVED_TICKERS = [
     "SPY",
@@ -150,10 +151,6 @@ STRATEGY_RULES = {
     "max_open_positions": MAX_OPEN_POSITIONS,
 }
 
-def is_approved_ticker(ticker_symbol, approved_tickers):
-    return ticker_symbol in approved_tickers
-
-
 def can_open_new_position(current_open_positions, max_open_positions):
     return current_open_positions < max_open_positions
 
@@ -240,20 +237,29 @@ def get_recommendation_results(
 
     all_candidates = []
 
+    try:
+        latest_stock_prices = get_latest_stock_prices(APPROVED_TICKERS)
+    except Exception:
+        latest_stock_prices = {}
+
     for ticker_symbol in APPROVED_TICKERS:
-        candidates = find_csp_candidates(
-            ticker_symbol,
-            MIN_DTE,
-            MAX_DTE,
-            TARGET_DELTA,
-            DELTA_TOLERANCE,
-            MAX_SPREAD,
-            MIN_QUOTE_SIZE,
-            MIN_IV_PERCENT,
-            MAX_IV_PERCENT,
-            MIN_ROC_PERCENT,
-            available_csp_capital,
-        )
+        try:
+            candidates = find_csp_candidates(
+                ticker_symbol,
+                MIN_DTE,
+                MAX_DTE,
+                TARGET_DELTA,
+                DELTA_TOLERANCE,
+                MAX_SPREAD,
+                MIN_QUOTE_SIZE,
+                MIN_IV_PERCENT,
+                MAX_IV_PERCENT,
+                MIN_ROC_PERCENT,
+                available_csp_capital,
+                current_stock_price=latest_stock_prices.get(ticker_symbol),
+            )
+        except Exception:
+            continue
 
         if not candidates.empty:
             all_candidates.append(candidates.head(CANDIDATES_PER_TICKER))

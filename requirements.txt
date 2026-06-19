@@ -7,4 +7,3 @@ psycopg[binary]==3.2.13
 python-dotenv==1.2.2
 requests==2.34.2
 uvicorn==0.49.0
-yfinance==1.4.1

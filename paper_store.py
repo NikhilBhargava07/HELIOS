@@ -12,11 +12,7 @@ EMPTY_STORE = {
     "positions": [],
 }
 
-NON_OPEN_ORDER_STATUSES = {
-    "canceled",
-    "expired",
-    "rejected",
-}
+FILLED_ORDER_STATUSES = {"filled"}
 
 
 def normalize_candidate(candidate):
@@ -203,6 +199,34 @@ def find_candidate(run, contract_symbol):
     return None
 
 
+def get_recommendation_run(run_id):
+    ensure_schema()
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM recommendation_runs WHERE id = %s",
+                (run_id,),
+            )
+            run_row = cursor.fetchone()
+
+            if run_row is None:
+                return None
+
+            cursor.execute(
+                """
+                SELECT *
+                FROM csp_candidates
+                WHERE recommendation_run_id = %s
+                ORDER BY created_at ASC
+                """,
+                (run_id,),
+            )
+            candidates = [candidate_from_row(row) for row in cursor.fetchall()]
+
+    return run_from_row(run_row, candidates)
+
+
 def save_recommendation_run(candidates, review):
     ensure_schema()
     run_id = str(uuid4())
@@ -277,8 +301,7 @@ def save_recommendation_run(candidates, review):
 
 def record_user_decision(run_id, contract_symbol, action, note="", alpaca_order=None, order_error=None):
     ensure_schema()
-    store = load_store()
-    run = find_recommendation_run(store, run_id)
+    run = get_recommendation_run(run_id)
 
     if run is None:
         raise ValueError("Recommendation run not found.")
@@ -421,7 +444,7 @@ def insert_paper_order(cursor, order):
 
 
 def should_track_open_position(order):
-    return str(order.get("status", "")).lower() not in NON_OPEN_ORDER_STATUSES
+    return str(order.get("status", "")).lower() in FILLED_ORDER_STATUSES
 
 
 def create_open_position(order, candidate):
@@ -496,8 +519,9 @@ def get_open_positions():
             return [position_from_row(row) for row in cursor.fetchall()]
 
 
-def get_capital_summary(total_capital, max_csp_capital_percent, max_open_positions):
-    open_positions = get_open_positions()
+def get_capital_summary(total_capital, max_csp_capital_percent, max_open_positions, open_positions=None):
+    if open_positions is None:
+        open_positions = get_open_positions()
     committed_capital = sum(position["cash_required"] for position in open_positions)
     max_csp_capital = total_capital * max_csp_capital_percent
 
@@ -513,16 +537,29 @@ def get_capital_summary(total_capital, max_csp_capital_percent, max_open_positio
 
 
 def get_dashboard_data(total_capital, max_csp_capital_percent, max_open_positions):
-    store = load_store()
+    ensure_schema()
+    open_positions = get_open_positions()
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM paper_orders ORDER BY created_at DESC LIMIT 20")
+            paper_orders = [order_from_row(row) for row in cursor.fetchall()]
+
+            cursor.execute("SELECT * FROM user_decisions ORDER BY created_at DESC LIMIT 20")
+            user_decisions = [decision_from_row(row) for row in cursor.fetchall()]
+
+            cursor.execute("SELECT * FROM recommendation_runs ORDER BY created_at DESC LIMIT 10")
+            recommendation_rows = cursor.fetchall()
 
     return {
         "capital": get_capital_summary(
             total_capital,
             max_csp_capital_percent,
             max_open_positions,
+            open_positions=open_positions,
         ),
-        "open_positions": get_open_positions(),
-        "paper_orders": store["paper_orders"][-20:],
-        "user_decisions": store["user_decisions"][-20:],
-        "recommendation_runs": store["recommendation_runs"][-10:],
+        "open_positions": open_positions,
+        "paper_orders": list(reversed(paper_orders)),
+        "user_decisions": list(reversed(user_decisions)),
+        "recommendation_runs": [run_from_row(row, []) for row in reversed(recommendation_rows)],
     }

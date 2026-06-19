@@ -82,8 +82,17 @@ CREATE TABLE IF NOT EXISTS positions (
 CREATE INDEX IF NOT EXISTS idx_csp_candidates_ticker_created
     ON csp_candidates(ticker_symbol, created_at DESC);
 
+CREATE INDEX IF NOT EXISTS idx_csp_candidates_run_created
+    ON csp_candidates(recommendation_run_id, created_at ASC);
+
 CREATE INDEX IF NOT EXISTS idx_user_decisions_ticker_created
     ON user_decisions(ticker_symbol, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_positions_status
     ON positions(status);
+
+CREATE INDEX IF NOT EXISTS idx_paper_orders_created
+    ON paper_orders(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_recommendation_runs_created
+    ON recommendation_runs(created_at DESC);

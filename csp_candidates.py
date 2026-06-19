@@ -5,7 +5,7 @@ from alpaca.data.enums import DataFeed, OptionsFeed
 from alpaca.data.requests import OptionChainRequest, StockLatestTradeRequest
 from alpaca.trading.enums import ContractType
 from alpaca_clients import option_data_client, stock_data_client
-from dte import *
+from dte import calculate_dte
 
 def parse_option_symbol(contract_symbol):
     option_code = contract_symbol[-15:]
@@ -24,6 +24,20 @@ def get_latest_stock_price(ticker_symbol):
     latest_trades = stock_data_client.get_stock_latest_trade(request)
 
     return latest_trades[ticker_symbol].price
+
+
+def get_latest_stock_prices(ticker_symbols):
+    request = StockLatestTradeRequest(
+        symbol_or_symbols=ticker_symbols,
+        feed=DataFeed.IEX,
+    )
+    latest_trades = stock_data_client.get_stock_latest_trade(request)
+
+    return {
+        ticker_symbol: latest_trades[ticker_symbol].price
+        for ticker_symbol in ticker_symbols
+        if ticker_symbol in latest_trades
+    }
 
 
 def build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price):
@@ -159,6 +173,7 @@ def find_csp_candidates(
     max_iv_percent,
     min_roc_percent,
     available_capital,
+    current_stock_price=None,
 ):
     today = datetime.today().date()
     min_expiration = (today + timedelta(days=min_dte)).strftime("%Y-%m-%d")
@@ -173,7 +188,8 @@ def find_csp_candidates(
     )
 
     snapshots = option_data_client.get_option_chain(request)
-    current_stock_price = get_latest_stock_price(ticker_symbol)
+    if current_stock_price is None:
+        current_stock_price = get_latest_stock_price(ticker_symbol)
     puts = build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price)
 
     if puts.empty:

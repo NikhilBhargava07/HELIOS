@@ -227,6 +227,15 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
+function safeExternalUrl(value) {
+    try {
+        const url = new URL(String(value || ""));
+        return ["http:", "https:"].includes(url.protocol) ? url.href : "#";
+    } catch {
+        return "#";
+    }
+}
+
 function glossaryTerm(term) {
     return `
         <span class="tooltip-term" tabindex="0">
@@ -515,9 +524,9 @@ function renderNews(news) {
     newsList.classList.remove("empty");
     newsList.innerHTML = visibleNews.map(item => `
         <article class="news-item">
-            <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.headline}</a>
-            <div class="label">${item.source || "Unknown source"} · ${(item.symbols || []).join(", ")}</div>
-            <p>${item.summary || ""}</p>
+            <a href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.headline)}</a>
+            <div class="label">${escapeHtml(item.source || "Unknown source")} · ${escapeHtml((item.symbols || []).join(", "))}</div>
+            <p>${escapeHtml(item.summary || "")}</p>
         </article>
     `).join("");
 

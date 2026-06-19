@@ -56,6 +56,11 @@ def get_price_trend(ticker_symbol, period):
     bars = stock_data_client.get_stock_bars(request)
     ticker_bars = bars.data.get(ticker_symbol, [])
 
+    return build_price_trend(ticker_symbol, period, ticker_bars)
+
+
+def build_price_trend(ticker_symbol, period, ticker_bars):
+
     if len(ticker_bars) < 2:
         return {
             "ticker": ticker_symbol,
@@ -89,6 +94,13 @@ def get_market_trends(ticker_symbols, periods=None):
     if periods is None:
         periods = ["1d", "5d", "2w", "1m", "ytd"]
 
+    request = StockBarsRequest(
+        symbol_or_symbols=ticker_symbols,
+        timeframe=TimeFrame.Day,
+        start=get_start_date("ytd"),
+        feed=DataFeed.IEX,
+    )
+    bars = stock_data_client.get_stock_bars(request)
     trends = []
 
     for ticker_symbol in ticker_symbols:
@@ -96,7 +108,11 @@ def get_market_trends(ticker_symbols, periods=None):
 
         for period in periods:
             try:
-                trend = get_price_trend(ticker_symbol, period)
+                trend = build_price_trend(
+                    ticker_symbol,
+                    period,
+                    bars.data.get(ticker_symbol, []),
+                )
                 ticker_trend[period] = trend["percent_change"]
                 ticker_trend[f"{period}_dollar"] = trend["dollar_change"]
             except Exception as error:

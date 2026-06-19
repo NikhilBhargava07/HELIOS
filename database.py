@@ -1,4 +1,5 @@
 import os
+from threading import Lock
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -12,6 +13,8 @@ from psycopg.rows import dict_row
 load_dotenv(Path(__file__).with_name(".env"))
 
 DEFAULT_DATABASE_URL = "postgresql://csp_agent:csp_agent_dev_password@localhost:5432/csp_agent"
+_schema_ready = False
+_schema_lock = Lock()
 
 
 def get_database_url():
@@ -46,9 +49,18 @@ def utc_now():
 
 
 def ensure_schema():
-    with get_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
+    global _schema_ready
+
+    if _schema_ready:
+        return
+
+    with _schema_lock:
+        if _schema_ready:
+            return
+
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS recommendation_runs (
                     id UUID PRIMARY KEY,
@@ -134,17 +146,29 @@ def ensure_schema():
                 CREATE INDEX IF NOT EXISTS idx_csp_candidates_ticker_created
                     ON csp_candidates(ticker_symbol, created_at DESC);
 
+                CREATE INDEX IF NOT EXISTS idx_csp_candidates_run_created
+                    ON csp_candidates(recommendation_run_id, created_at ASC);
+
                 CREATE INDEX IF NOT EXISTS idx_user_decisions_ticker_created
                     ON user_decisions(ticker_symbol, created_at DESC);
 
                 CREATE INDEX IF NOT EXISTS idx_positions_status
                     ON positions(status);
+
+
+                CREATE INDEX IF NOT EXISTS idx_paper_orders_created
+                    ON paper_orders(created_at DESC);
+
+                CREATE INDEX IF NOT EXISTS idx_recommendation_runs_created
+                    ON recommendation_runs(created_at DESC);
                 """
             )
-            cursor.execute("ALTER TABLE user_decisions ADD COLUMN IF NOT EXISTS alpaca_order_id TEXT;")
-            cursor.execute("ALTER TABLE user_decisions ADD COLUMN IF NOT EXISTS order_error TEXT;")
-            cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS alpaca_order_id TEXT;")
-            cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS alpaca_client_order_id TEXT;")
-            cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS alpaca_limit_price NUMERIC(12, 2);")
-            cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS alpaca_submitted_at TIMESTAMPTZ;")
-            cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS raw_alpaca_order JSONB;")
+                cursor.execute("ALTER TABLE user_decisions ADD COLUMN IF NOT EXISTS alpaca_order_id TEXT;")
+                cursor.execute("ALTER TABLE user_decisions ADD COLUMN IF NOT EXISTS order_error TEXT;")
+                cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS alpaca_order_id TEXT;")
+                cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS alpaca_client_order_id TEXT;")
+                cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS alpaca_limit_price NUMERIC(12, 2);")
+                cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS alpaca_submitted_at TIMESTAMPTZ;")
+                cursor.execute("ALTER TABLE paper_orders ADD COLUMN IF NOT EXISTS raw_alpaca_order JSONB;")
+
+        _schema_ready = True
