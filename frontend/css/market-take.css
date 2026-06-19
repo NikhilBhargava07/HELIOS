@@ -1,0 +1,222 @@
+/* AI market-take cards, glossary tooltips, and responsive layout rules. */
+
+.take-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.take-card {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    background:
+        linear-gradient(145deg, rgba(126, 231, 135, 0.08), transparent 45%),
+        #0d1117;
+    transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.take-card-primary {
+    background:
+        linear-gradient(135deg, rgba(82, 180, 90, 0.2), rgba(88, 166, 255, 0.08)),
+        #0d1117;
+}
+
+.take-card-wide {
+    grid-column: 1 / -1;
+}
+
+.take-card-stack {
+    display: grid;
+    gap: 14px;
+}
+
+.take-card-compact {
+    min-height: 150px;
+}
+
+.take-card-compact strong {
+    display: block;
+    margin-top: 4px;
+    font-size: clamp(1.35rem, 2.6vw, 1.75rem);
+    line-height: 1.1;
+}
+
+.take-explainer {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.warning-card {
+    background:
+        linear-gradient(145deg, rgba(242, 204, 96, 0.12), transparent 44%),
+        #0d1117;
+}
+
+.take-label {
+    display: inline-block;
+    margin-bottom: 10px;
+    color: var(--green-bright);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.take-card h3 {
+    margin: 0 0 8px;
+    font-size: 1.4rem;
+}
+
+.take-card p,
+.take-card strong {
+    margin: 0;
+    color: #d8dee9;
+    line-height: 1.5;
+}
+
+.take-card-wide p {
+    max-width: 980px;
+    font-size: 1.02rem;
+    line-height: 1.65;
+}
+
+.mini-heading {
+    margin: 10px 0 10px;
+}
+
+.company-note-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.company-note {
+    border: 1px solid rgba(88, 166, 255, 0.28);
+    border-radius: 16px;
+    padding: 14px;
+    background:
+        linear-gradient(145deg, rgba(88, 166, 255, 0.10), transparent 52%),
+        #0d1117;
+}
+
+.company-note strong {
+    display: inline-flex;
+    margin-bottom: 8px;
+    color: var(--blue);
+    font-size: 1rem;
+}
+
+.company-note p {
+    margin: 0;
+    color: #d8dee9;
+    line-height: 1.5;
+}
+
+.scenario-list {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 20px;
+    padding: 0;
+    list-style: none;
+}
+
+.scenario-list li {
+    border-left: 3px solid var(--blue);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: rgba(88, 166, 255, 0.08);
+    color: #d8dee9;
+}
+
+.glossary-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding-top: 6px;
+}
+
+.glossary-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(139, 148, 158, 0.32);
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: rgba(139, 148, 158, 0.08);
+}
+
+.tooltip-term,
+.ticker-tooltip {
+    position: relative;
+    border-bottom: 1px dotted var(--green-bright);
+    color: #e6edf3;
+    cursor: help;
+}
+
+.ticker-tooltip {
+    display: inline-block;
+    font-weight: 900;
+}
+
+.tooltip-bubble {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 10px);
+    z-index: 50;
+    width: min(260px, 72vw);
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #05080d;
+    color: #d8dee9;
+    font-size: 0.86rem;
+    line-height: 1.4;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.38);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 6px);
+    transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.tooltip-term:hover .tooltip-bubble,
+.tooltip-term:focus .tooltip-bubble,
+.ticker-tooltip:hover .tooltip-bubble,
+.ticker-tooltip:focus .tooltip-bubble {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.hidden {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .menu-toggle {
+        display: inline-flex;
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 160ms ease;
+        z-index: 20;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .page {
+        width: min(100% - 32px, 1120px);
+        margin: 0 auto;
+        padding-top: 72px;
+    }
+
+    .take-card-wide {
+        grid-column: span 1;
+    }
+}

@@ -77,6 +77,5 @@ docker compose up --build
 
 ## Current state
 
-Postgres is created and the schema is initialized. The app still uses the local JSON paper store for now.
-
-Next step: migrate `paper_store.py` to write recommendation runs, user decisions, paper orders, and positions into Postgres using `DATABASE_URL`.
+Postgres is the application's persistent memory store. Database code lives in
+`backend/memory/`, while live positions and buying power come from Alpaca.

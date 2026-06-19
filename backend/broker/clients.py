@@ -1,3 +1,5 @@
+"""Create authenticated Alpaca market-data clients shared by the application."""
+
 import os
 from dotenv import load_dotenv
 from alpaca.data.historical import (
@@ -5,7 +7,9 @@ from alpaca.data.historical import (
     OptionHistoricalDataClient,
 )
 
-load_dotenv()
+from backend.config import PROJECT_ROOT
+
+load_dotenv(PROJECT_ROOT / ".env")
 
 API_KEY = os.getenv("APCA_API_KEY_ID")
 SECRET_KEY = os.getenv("APCA_API_SECRET_KEY")

@@ -1,13 +1,16 @@
+"""Review hard-filtered CSP candidates with OpenAI or a local fallback."""
+
 import os
 import json
-from pathlib import Path
 
 from dotenv import load_dotenv
+
+from backend.config import PROJECT_ROOT
 
 
 HIGH_ROC_WARNING_PERCENT = 2.00
 
-load_dotenv(Path(__file__).with_name(".env"))
+load_dotenv(PROJECT_ROOT / ".env")
 
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 
@@ -35,6 +38,7 @@ CSP_REVIEW_SCHEMA = {
 
 
 def build_candidate_summary(candidate):
+    """Convert one DataFrame candidate row into compact AI input."""
     return {
         "ticker_symbol": candidate.tickerSymbol,
         "contract_symbol": candidate.contractSymbol,
@@ -53,6 +57,7 @@ def build_candidate_summary(candidate):
 
 
 def prepare_candidates_for_ai(candidates):
+    """Convert all filtered candidates into JSON-friendly AI input."""
     return [
         build_candidate_summary(candidate)
         for candidate in candidates.itertuples()
@@ -102,6 +107,7 @@ def local_review_csp_candidates(ticker_symbol, candidates):
 
 
 def build_ai_prompt(ticker_symbol, candidates, strategy_rules):
+    """Build instructions that prevent the model from overriding hard rules."""
     candidate_summaries = prepare_candidates_for_ai(candidates)
 
     return f"""
@@ -129,6 +135,7 @@ Return JSON only.
 
 
 def openai_review_csp_candidates(ticker_symbol, candidates, strategy_rules):
+    """Request a schema-validated CSP review from OpenAI."""
     try:
         from openai import OpenAI
     except ImportError:
