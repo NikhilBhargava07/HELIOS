@@ -227,6 +227,22 @@ def get_recommendation_run(run_id):
     return run_from_row(run_row, candidates)
 
 
+def get_latest_recommendation_run():
+    ensure_schema()
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT id FROM recommendation_runs ORDER BY created_at DESC LIMIT 1"
+            )
+            row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return get_recommendation_run(str(row["id"]))
+
+
 def save_recommendation_run(candidates, review):
     ensure_schema()
     run_id = str(uuid4())

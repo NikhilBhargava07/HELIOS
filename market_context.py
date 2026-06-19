@@ -304,6 +304,8 @@ def local_market_take(context):
             "csp_stance": "Wait",
             "reasoned_take": "Load trends and news before leaning on the market take. Without current context, the safest answer is to rely only on the hard CSP filters and avoid making a market call.",
             "csp_take": "Use only the hard CSP filters for now.",
+            "portfolio_take": "Current positions cannot be evaluated without market context.",
+            "recommendation_take": "Recent recommendations cannot be compared without market context.",
             "action": "Review filtered CSP candidates normally.",
             "avoid": "Do not force a trade without context.",
             "company_notes": [],
@@ -322,6 +324,12 @@ def local_market_take(context):
         key=lambda row: row.get("5d") if row.get("5d") is not None else 999,
     )[:3]
 
+    positions = context.get("portfolio", {}).get("open_csp_positions", [])
+    latest_run = context.get("latest_recommendation") or {}
+    candidates = latest_run.get("candidates", [])
+    position_tickers = [position["ticker_symbol"] for position in positions]
+    candidate_tickers = list(dict.fromkeys(candidate["tickerSymbol"] for candidate in candidates[:4]))
+
     return {
         "headline": "Use trend data as a risk check.",
         "market_mood": "Mixed",
@@ -332,6 +340,16 @@ def local_market_take(context):
             "For CSPs, that means the better paper trades are likely the ones with clean filters, enough downside cushion, and stocks you would actually accept owning."
         ),
         "csp_take": "Favor CSPs only when hard filters pass.",
+        "portfolio_take": (
+            f"Current open CSPs: {', '.join(position_tickers)}. Review their trend and assignment risk before adding exposure."
+            if position_tickers
+            else "There are no current Alpaca CSP positions to assess."
+        ),
+        "recommendation_take": (
+            f"The latest candidate list includes {', '.join(candidate_tickers)}. Compare these names with existing exposure before placing another CSP."
+            if candidate_tickers
+            else "Run recommendations before asking the agent to compare specific new CSP candidates."
+        ),
         "action": "Prefer names you are comfortable owning.",
         "avoid": "Avoid chasing high IV after sharp moves.",
         "company_notes": [
@@ -386,6 +404,8 @@ Return only valid JSON with these keys:
 - csp_stance: one of "Favorable", "Selective", "Cautious", "Wait"
 - reasoned_take: 3 to 5 sentences. Give a real opinion using the news and trend data. Mention specific tickers/companies from context and explain why they matter. Keep it understandable for a newer options learner.
 - csp_take: 1 to 2 sentences, framed around CSP paper trading
+- portfolio_take: 2 to 4 sentences discussing the user's current open CSP positions by ticker. Explain assignment risk and relevant trends/news. If there are no positions, say so.
+- recommendation_take: 2 to 4 sentences comparing the latest recommended CSP candidates by ticker. Say which look more or less suitable and why. If there is no recent run, say so.
 - action: max 24 words, what the user should prioritize
 - avoid: max 24 words, what the user should avoid
 - company_notes: 2 to 4 objects with keys ticker and note. Each note should explain why that company looks interesting, volatile, weak, or worth watching based on trends/news.
@@ -394,6 +414,9 @@ Return only valid JSON with these keys:
 Avoid empty buzzwords like "macro uncertainty" unless you explain what that means in plain language.
 Do not say a stock "will" rise or fall. Say "could", "may", "looks", or "seems" because this is not prediction software.
 If news mentions a product, earnings, AI demand, regulation, rates, inflation, or geopolitics, connect that to the relevant company/ticker.
+The portfolio and latest recommendation are the center of the response, not optional background. Discuss the current open positions and newest recommended companies before making general market comments.
+Prioritize current-position and recommended tickers in company_notes. The action field should state whether to monitor existing risk, consider a specific candidate, or pass for now, with a brief reason.
+Do not invent trading patterns or preferences that are not present in the context.
 
 Context:
 {json.dumps(context, indent=2)}
@@ -422,6 +445,8 @@ Context:
             "csp_stance": take.get("csp_stance", "Selective"),
             "reasoned_take": take.get("reasoned_take", take.get("summary", "")),
             "csp_take": take.get("csp_take", ""),
+            "portfolio_take": take.get("portfolio_take", ""),
+            "recommendation_take": take.get("recommendation_take", ""),
             "action": take.get("action", ""),
             "avoid": take.get("avoid", ""),
             "company_notes": take.get("company_notes", [])[:4],

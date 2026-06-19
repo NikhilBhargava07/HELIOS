@@ -378,7 +378,9 @@ function renderDashboard(dashboard) {
     dashboardEl.classList.remove("empty");
     dashboardEl.innerHTML = `
         <p class="ledger-note">
-            This is a Postgres paper ledger saved by the prototype. Alpaca may still reject orders if paper buying power changes.
+            ${dashboard.position_source === "alpaca"
+                ? "Open positions and buying power are synced from Alpaca paper trading. Decisions and order history are saved in Postgres."
+                : "Alpaca positions could not be loaded, so open positions are temporarily shown from the Postgres paper ledger."}
         </p>
         <div class="dashboard-grid">
             <div><span class="label">Total capital:</span> ${money(capital.total_capital)}</div>
@@ -393,9 +395,14 @@ function renderDashboard(dashboard) {
         <h3>Open Positions</h3>
         ${positions.length ? positions.map(position => `
             <div class="history-row">
-                ${tickerTooltip(position.ticker_symbol)} ${money(position.strike)} CSP ·
+                <strong>${tickerTooltip(position.ticker_symbol)} ${money(position.strike)} CSP</strong> ·
+                ${position.quantity !== undefined ? `Quantity ${Number(position.quantity)} · ` : ""}
+                ${position.expiration ? `Expires ${escapeHtml(position.expiration)} · ` : ""}
                 Cash ${money(position.cash_required)} ·
                 Premium ${money(position.premium_received)}
+                ${position.breakeven_price !== undefined ? ` · Breakeven ${money(position.breakeven_price)}` : ""}
+                ${position.market_value !== undefined && position.market_value !== null ? ` · Market value ${money(position.market_value)}` : ""}
+                ${position.unrealized_pnl !== undefined && position.unrealized_pnl !== null ? ` · Unrealized P&amp;L ${signedMoney(position.unrealized_pnl)}` : ""}
             </div>
         `).join("") : "<p>No open paper positions.</p>"}
         <h3>Recent Paper Orders</h3>
@@ -563,6 +570,14 @@ function renderMarketTake(take) {
                 <span class="take-label">CSP angle</span>
                 <p>${escapeHtml(take.csp_take || "Keep using the hard filters.")}</p>
             </article>
+            <article class="take-card take-card-wide">
+                <span class="take-label">Your open CSPs</span>
+                <p>${annotateTickers(take.portfolio_take || "No current positions were available to review.")}</p>
+            </article>
+            <article class="take-card take-card-wide">
+                <span class="take-label">Latest recommendations</span>
+                <p>${annotateTickers(take.recommendation_take || "No recent recommendation run was available to compare.")}</p>
+            </article>
             <article class="take-card">
                 <span class="take-label">Do this</span>
                 <p>${escapeHtml(take.action || "Prioritize clean candidates.")}</p>
@@ -697,6 +712,23 @@ async function loadMarketTake() {
         marketTakeStatus.textContent = `Error: ${error.message}`;
     } finally {
         summarizeMarketButton.disabled = false;
+    }
+}
+
+async function loadDashboard() {
+    dashboardEl.classList.remove("empty");
+    dashboardEl.textContent = "Loading current Alpaca positions...";
+
+    try {
+        const response = await fetch("/api/dashboard");
+
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        renderDashboard(await response.json());
+    } catch (error) {
+        dashboardEl.textContent = `Could not load positions: ${error.message}`;
     }
 }
 
@@ -842,6 +874,10 @@ function showTab(tabName) {
     });
 
     sidebar.classList.remove("open");
+
+    if (tabName === "capital") {
+        loadDashboard();
+    }
 }
 
 window.showTab = showTab;

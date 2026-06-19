@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -9,6 +10,10 @@ from dotenv import load_dotenv
 
 
 load_dotenv(Path(__file__).with_name(".env"))
+
+OPTION_SYMBOL_PATTERN = re.compile(
+    r"^(?P<ticker>[A-Z.]+)(?P<expiration>\d{6})(?P<type>[CP])(?P<strike>\d{8})$"
+)
 
 
 def get_alpaca_credentials():
@@ -98,6 +103,60 @@ def get_paper_account_summary():
         "options_buying_power": first_number(raw_account, "options_buying_power"),
         "available_csp_cash": buying_power,
     }
+
+
+def parse_option_contract_symbol(contract_symbol):
+    match = OPTION_SYMBOL_PATTERN.match(contract_symbol or "")
+
+    if not match:
+        return None
+
+    expiration_code = match.group("expiration")
+
+    return {
+        "ticker_symbol": match.group("ticker"),
+        "expiration": f"20{expiration_code[:2]}-{expiration_code[2:4]}-{expiration_code[4:]}",
+        "option_type": "put" if match.group("type") == "P" else "call",
+        "strike": int(match.group("strike")) / 1000,
+    }
+
+
+def get_paper_csp_positions():
+    positions = []
+
+    for model in get_trading_client().get_all_positions():
+        raw_position = serialize_alpaca_model(model)
+        contract_symbol = raw_position.get("symbol")
+        contract = parse_option_contract_symbol(contract_symbol)
+        quantity = number_or_none(raw_position.get("qty"))
+
+        if not contract or contract["option_type"] != "put" or quantity is None or quantity >= 0:
+            continue
+
+        contract_count = abs(quantity)
+        average_premium = number_or_none(raw_position.get("avg_entry_price")) or 0
+        strike = contract["strike"]
+
+        positions.append(
+            {
+                "id": str(raw_position.get("asset_id") or contract_symbol),
+                "status": "open",
+                "source": "alpaca",
+                "strategy": "cash-secured put",
+                "contract_symbol": contract_symbol,
+                "ticker_symbol": contract["ticker_symbol"],
+                "expiration": contract["expiration"],
+                "strike": strike,
+                "quantity": contract_count,
+                "premium_received": average_premium * 100 * contract_count,
+                "cash_required": strike * 100 * contract_count,
+                "breakeven_price": strike - average_premium,
+                "market_value": number_or_none(raw_position.get("market_value")),
+                "unrealized_pnl": number_or_none(raw_position.get("unrealized_pl")),
+            }
+        )
+
+    return positions
 
 
 def submit_cash_secured_put_order(candidate):

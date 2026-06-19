@@ -26,13 +26,17 @@ from market_context import (
 )
 from paper_store import (
     find_candidate,
-    get_capital_summary,
     get_dashboard_data,
+    get_latest_recommendation_run,
     get_recommendation_run,
     record_user_decision,
     save_recommendation_run,
 )
-from order_manager import get_paper_account_summary, submit_cash_secured_put_order
+from order_manager import (
+    get_paper_account_summary,
+    get_paper_csp_positions,
+    submit_cash_secured_put_order,
+)
 
 
 app = FastAPI(title="CSP Agent API")
@@ -126,6 +130,13 @@ def get_safe_paper_account_summary():
         }
 
 
+def get_safe_paper_csp_positions():
+    try:
+        return get_paper_csp_positions(), None
+    except Exception as error:
+        return None, str(error)
+
+
 def get_effective_available_csp_cash(capital_summary, alpaca_account):
     alpaca_available = (alpaca_account or {}).get("available_csp_cash")
 
@@ -152,8 +163,23 @@ def get_dashboard_with_cash_context(alpaca_account=None):
         MAX_OPEN_POSITIONS,
     )
     safe_alpaca_account = alpaca_account or get_safe_paper_account_summary()
+    alpaca_positions, position_error = get_safe_paper_csp_positions()
+
+    if alpaca_positions is not None:
+        committed_capital = sum(position["cash_required"] for position in alpaca_positions)
+        dashboard["open_positions"] = alpaca_positions
+        dashboard["capital"]["open_positions"] = alpaca_positions
+        dashboard["capital"]["committed_capital"] = committed_capital
+        dashboard["capital"]["available_csp_capital"] = max(
+            0,
+            dashboard["capital"]["max_csp_capital"] - committed_capital,
+        )
+        dashboard["capital"]["open_position_count"] = len(alpaca_positions)
+
     dashboard["capital"] = attach_alpaca_cash_context(dashboard["capital"], safe_alpaca_account)
     dashboard["alpaca_account"] = safe_alpaca_account
+    dashboard["position_source"] = "alpaca" if alpaca_positions is not None else "postgres"
+    dashboard["position_error"] = position_error
     dashboard["company_names"] = COMPANY_NAMES
 
     return dashboard
@@ -166,12 +192,9 @@ def health_check():
 
 @app.get("/api/recommendations")
 def get_recommendations():
-    capital_summary = get_capital_summary(
-        TOTAL_CAPITAL,
-        MAX_CSP_CAPITAL_PERCENT,
-        MAX_OPEN_POSITIONS,
-    )
     alpaca_account = get_safe_paper_account_summary()
+    dashboard = get_dashboard_with_cash_context(alpaca_account)
+    capital_summary = dashboard["capital"]
     effective_available_csp_cash = get_effective_available_csp_cash(capital_summary, alpaca_account)
     results = get_recommendation_results(
         current_open_positions=capital_summary["open_position_count"],
@@ -190,7 +213,6 @@ def get_recommendations():
     candidates = candidates_to_records(results["candidates"])
     recommendation_run = save_recommendation_run(candidates, results["review"])
     capital_summary = attach_alpaca_cash_context(capital_summary, alpaca_account)
-    dashboard = get_dashboard_with_cash_context(alpaca_account)
 
     return {
         "recommendation_run_id": recommendation_run["id"],
@@ -313,6 +335,14 @@ def get_context():
 @app.post("/api/market/take")
 def post_market_take():
     context = build_market_context(APPROVED_TICKERS)
+    dashboard = get_dashboard_with_cash_context()
+    latest_recommendation = get_latest_recommendation_run()
+    context["portfolio"] = {
+        "open_csp_positions": dashboard["open_positions"],
+        "capital": dashboard["capital"],
+        "position_source": dashboard["position_source"],
+    }
+    context["latest_recommendation"] = latest_recommendation
     take = ai_market_take(context)
     take["company_names"] = COMPANY_NAMES
 
