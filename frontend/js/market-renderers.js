@@ -163,14 +163,6 @@ function renderMarketTake(take) {
                 <span class="take-label">CSP angle</span>
                 <p>${escapeHtml(take.csp_take || "Keep using the hard filters.")}</p>
             </article>
-            <article class="take-card take-card-wide">
-                <span class="take-label">Your open CSPs</span>
-                <p>${annotateTickers(take.portfolio_take || "No current positions were available to review.")}</p>
-            </article>
-            <article class="take-card take-card-wide">
-                <span class="take-label">Latest recommendations</span>
-                <p>${annotateTickers(take.recommendation_take || "No recent recommendation run was available to compare.")}</p>
-            </article>
             <article class="take-card">
                 <span class="take-label">Do this</span>
                 <p>${escapeHtml(take.action || "Prioritize clean candidates.")}</p>
@@ -178,6 +170,14 @@ function renderMarketTake(take) {
             <article class="take-card warning-card">
                 <span class="take-label">Avoid this</span>
                 <p>${escapeHtml(take.avoid || "Do not force trades for premium.")}</p>
+            </article>
+            <article class="take-card take-card-wide">
+                <span class="take-label">Your open CSPs</span>
+                <p>${annotateTickers(take.portfolio_take || "No current positions were available to review.")}</p>
+            </article>
+            <article class="take-card take-card-wide">
+                <span class="take-label">Latest recommendations</span>
+                <p>${annotateTickers(take.recommendation_take || "No recent recommendation run was available to compare.")}</p>
             </article>
         </div>
         ${companyNotes.length ? `
