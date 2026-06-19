@@ -67,6 +67,52 @@ function candidateByContract(contractSymbol) {
     return candidatePool.find(candidate => candidate.contractSymbol === contractSymbol);
 }
 
+function candidateIsAffordable(candidate, availableCash) {
+    if (availableCash === null || availableCash === undefined) {
+        return true;
+    }
+
+    return Number(candidate.cashRequired || 0) <= Number(availableCash);
+}
+
+function filterAffordableCandidates(candidates, availableCash) {
+    return (candidates || []).filter(candidate => candidateIsAffordable(candidate, availableCash));
+}
+
+function selectedContractIsAffordable(review, candidates) {
+    if (!review?.selected_contract) {
+        return false;
+    }
+
+    return candidates.some(candidate => candidate.contractSymbol === review.selected_contract);
+}
+
+function reviewWithAffordableSelection(review, candidates, availableCash) {
+    if (!review || selectedContractIsAffordable(review, candidates)) {
+        return review;
+    }
+
+    if (!candidates.length) {
+        const cashText = availableCash === null || availableCash === undefined
+            ? "current buying power"
+            : money(availableCash);
+
+        return {
+            decision: "reject_all",
+            selected_contract: null,
+            summary: `No displayed CSP can be backed by ${cashText} of available CSP cash.`,
+            risk_note: "The app is filtering out contracts that would fail the cash-secured requirement before you try to place them.",
+        };
+    }
+
+    return {
+        ...review,
+        selected_contract: candidates[0].contractSymbol,
+        summary: `${review.summary} The original agent selection is not currently affordable, so the app is showing the best affordable displayed candidate instead.`,
+        risk_note: `${review.risk_note} Cash availability can change after orders, open positions, or Alpaca buying-power updates.`,
+    };
+}
+
 function showToast(title, message, variant = "success") {
     toastEl.classList.toggle("error", variant === "error");
     toastEl.innerHTML = `
@@ -253,12 +299,22 @@ function annotateTickers(text) {
 }
 
 function renderReview(review) {
+    const selectedContract = review.selected_contract;
+    const selectedCandidate = selectedContract ? candidateByContract(selectedContract) : null;
+
     reviewEl.classList.remove("empty");
     reviewEl.innerHTML = `
         <div><span class="label">Decision:</span> ${formatDecision(review.decision)}</div>
-        <div><span class="label">Selected:</span> ${annotateTickers(review.selected_contract || "None")}</div>
+        <div><span class="label">Selected:</span> ${annotateTickers(selectedContract || "None")}</div>
         <div><span class="label">Summary:</span> ${annotateTickers(review.summary)}</div>
         <div class="warning"><span class="label">Risk note:</span> ${annotateTickers(review.risk_note)}</div>
+        ${selectedContract ? `
+            <div class="review-actions">
+                <button data-action="place_paper_order" data-contract="${escapeHtml(selectedContract)}">
+                    Paper place selected${selectedCandidate ? ` (${tickerTooltip(selectedCandidate.tickerSymbol)} ${money(selectedCandidate.strike)} put)` : ""}
+                </button>
+            </div>
+        ` : ""}
     `;
 }
 
@@ -313,13 +369,16 @@ function renderDashboard(dashboard) {
     dashboardEl.classList.remove("empty");
     dashboardEl.innerHTML = `
         <p class="ledger-note">
-            This is a local paper ledger saved by the prototype, not your live Alpaca paper account.
+            This is a Postgres paper ledger saved by the prototype. Alpaca may still reject orders if paper buying power changes.
         </p>
         <div class="dashboard-grid">
             <div><span class="label">Total capital:</span> ${money(capital.total_capital)}</div>
             <div><span class="label">Max CSP capital:</span> ${money(capital.max_csp_capital)}</div>
             <div><span class="label">Committed:</span> ${money(capital.committed_capital)}</div>
             <div><span class="label">Available CSP capital:</span> ${money(capital.available_csp_capital)}</div>
+            ${capital.effective_available_csp_capital !== undefined ? `
+                <div><span class="label">Effective CSP cash:</span> ${money(capital.effective_available_csp_capital)}</div>
+            ` : ""}
             <div><span class="label">Open positions:</span> ${capital.open_position_count}/${capital.max_open_positions}</div>
         </div>
         <h3>Open Positions</h3>
@@ -538,13 +597,20 @@ async function loadRecommendations() {
         }
 
         const data = await response.json();
+        const effectiveAvailableCash = data.capital?.effective_available_csp_capital;
+        const affordableCandidates = filterAffordableCandidates(data.candidates || [], effectiveAvailableCash);
+        const affordableReview = reviewWithAffordableSelection(
+            data.review,
+            affordableCandidates,
+            effectiveAvailableCash,
+        );
 
         currentRecommendationRunId = data.recommendation_run_id;
         companyNames = data.company_names || companyNames;
-        renderReview(data.review);
-        renderCandidates(data.candidates);
+        renderCandidates(affordableCandidates);
+        renderReview(affordableReview);
         renderDashboard(data.dashboard);
-        recommendationStatus.textContent = `Scanned ${data.approved_tickers.length} approved tickers.`;
+        recommendationStatus.textContent = `Scanned ${data.approved_tickers.length} approved tickers. Showing ${affordableCandidates.length} cash-backed candidates.`;
     } catch (error) {
         recommendationStatus.textContent = `Error: ${error.message}`;
     } finally {
@@ -711,6 +777,7 @@ async function placeCandidate(clickedButton) {
     const contractSymbol = clickedButton.dataset.contract;
     const card = clickedButton.closest(".candidate-card");
     const candidate = candidateByContract(contractSymbol);
+    const originalButtonText = clickedButton.textContent;
 
     clickedButton.disabled = true;
     clickedButton.textContent = "Placing...";
@@ -719,7 +786,7 @@ async function placeCandidate(clickedButton) {
 
     if (!result) {
         clickedButton.disabled = false;
-        clickedButton.textContent = "Paper place";
+        clickedButton.textContent = originalButtonText;
         return;
     }
 
@@ -730,7 +797,13 @@ async function placeCandidate(clickedButton) {
             "error",
         );
         clickedButton.disabled = false;
-        clickedButton.textContent = "Paper place";
+        clickedButton.textContent = originalButtonText;
+
+        if (result.refresh_recommendations) {
+            recommendationStatus.textContent = "Refreshing recommendations with current buying power...";
+            loadRecommendations();
+        }
+
         return;
     }
 
@@ -745,6 +818,9 @@ async function placeCandidate(clickedButton) {
     } else {
         removeCandidateFromPool(contractSymbol);
     }
+
+    recommendationStatus.textContent = "Refreshing recommendations with updated buying power...";
+    loadRecommendations();
 }
 
 function showTab(tabName) {
@@ -796,6 +872,18 @@ candidateList.addEventListener("click", (event) => {
 
     if (clickedButton.dataset.action === "discard") {
         discardCandidate(clickedButton);
+        return;
+    }
+
+    if (clickedButton.dataset.action === "place_paper_order") {
+        placeCandidate(clickedButton);
+    }
+});
+
+reviewEl.addEventListener("click", (event) => {
+    const clickedButton = event.target.closest("button[data-action]");
+
+    if (!clickedButton) {
         return;
     }
 

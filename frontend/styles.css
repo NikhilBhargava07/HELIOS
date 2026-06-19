@@ -293,6 +293,10 @@ body:has(#capital:target) .nav-link[href="#capital"] {
     color: var(--muted);
 }
 
+.review-actions {
+    margin-top: 8px;
+}
+
 .candidate-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

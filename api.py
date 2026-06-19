@@ -31,7 +31,7 @@ from paper_store import (
     record_user_decision,
     save_recommendation_run,
 )
-from order_manager import submit_cash_secured_put_order
+from order_manager import get_paper_account_summary, submit_cash_secured_put_order
 
 
 app = FastAPI(title="CSP Agent API")
@@ -102,6 +102,49 @@ def candidates_to_records(candidates):
     return records
 
 
+def get_safe_paper_account_summary():
+    try:
+        return get_paper_account_summary()
+    except Exception as error:
+        return {
+            "available_csp_cash": None,
+            "account_error": str(error),
+        }
+
+
+def get_effective_available_csp_cash(capital_summary, alpaca_account):
+    alpaca_available = (alpaca_account or {}).get("available_csp_cash")
+
+    if alpaca_available is None:
+        return capital_summary["available_csp_capital"]
+
+    return min(capital_summary["available_csp_capital"], alpaca_available)
+
+
+def attach_alpaca_cash_context(capital_summary, alpaca_account):
+    capital_summary["alpaca_available_csp_cash"] = (alpaca_account or {}).get("available_csp_cash")
+    capital_summary["effective_available_csp_capital"] = get_effective_available_csp_cash(
+        capital_summary,
+        alpaca_account,
+    )
+
+    return capital_summary
+
+
+def get_dashboard_with_cash_context(alpaca_account=None):
+    dashboard = get_dashboard_data(
+        TOTAL_CAPITAL,
+        MAX_CSP_CAPITAL_PERCENT,
+        MAX_OPEN_POSITIONS,
+    )
+    safe_alpaca_account = alpaca_account or get_safe_paper_account_summary()
+    dashboard["capital"] = attach_alpaca_cash_context(dashboard["capital"], safe_alpaca_account)
+    dashboard["alpaca_account"] = safe_alpaca_account
+    dashboard["company_names"] = COMPANY_NAMES
+
+    return dashboard
+
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
@@ -114,12 +157,26 @@ def get_recommendations():
         MAX_CSP_CAPITAL_PERCENT,
         MAX_OPEN_POSITIONS,
     )
+    alpaca_account = get_safe_paper_account_summary()
+    effective_available_csp_cash = get_effective_available_csp_cash(capital_summary, alpaca_account)
     results = get_recommendation_results(
         current_open_positions=capital_summary["open_position_count"],
         current_csp_capital_committed=capital_summary["committed_capital"],
+        external_available_csp_capital=effective_available_csp_cash,
     )
+
+    if effective_available_csp_cash <= 0 and alpaca_account.get("available_csp_cash") == 0:
+        results["review"] = {
+            "decision": "reject_all",
+            "selected_contract": None,
+            "summary": "Alpaca reports $0 options buying power, so no CSP can be backed right now.",
+            "risk_note": "The paper account may need options approval, open orders may be tying up buying power, or Alpaca may be blocking option collateral despite showing cash.",
+        }
+
     candidates = candidates_to_records(results["candidates"])
     recommendation_run = save_recommendation_run(candidates, results["review"])
+    capital_summary = attach_alpaca_cash_context(capital_summary, alpaca_account)
+    dashboard = get_dashboard_with_cash_context(alpaca_account)
 
     return {
         "recommendation_run_id": recommendation_run["id"],
@@ -127,11 +184,8 @@ def get_recommendations():
         "company_names": COMPANY_NAMES,
         "strategy_rules": STRATEGY_RULES,
         "capital": capital_summary,
-        "dashboard": get_dashboard_data(
-            TOTAL_CAPITAL,
-            MAX_CSP_CAPITAL_PERCENT,
-            MAX_OPEN_POSITIONS,
-        ),
+        "alpaca_account": alpaca_account,
+        "dashboard": dashboard,
         "candidates": candidates,
         "review": results["review"],
     }
@@ -147,6 +201,16 @@ def post_user_decision(decision_request: UserDecisionRequest):
         try:
             run = get_recommendation_run_from_store(decision_request.recommendation_run_id)
             candidate = get_candidate_from_run(run, decision_request.contract_symbol)
+            alpaca_account = get_safe_paper_account_summary()
+            available_csp_cash = alpaca_account.get("available_csp_cash")
+            cash_required = float(candidate.get("cashRequired") or 0)
+
+            if available_csp_cash is not None and cash_required > available_csp_cash:
+                raise ValueError(
+                    f"Insufficient Alpaca paper buying power. This CSP requires ${cash_required:,.2f}, "
+                    f"but Alpaca reports ${available_csp_cash:,.2f} available."
+                )
+
             alpaca_order = submit_cash_secured_put_order(candidate)
         except Exception as error:
             store_action = "place_paper_order_failed"
@@ -164,11 +228,8 @@ def post_user_decision(decision_request: UserDecisionRequest):
                 "decision": decision,
                 "order_submitted": False,
                 "order_error": order_error,
-                "dashboard": get_dashboard_data(
-                    TOTAL_CAPITAL,
-                    MAX_CSP_CAPITAL_PERCENT,
-                    MAX_OPEN_POSITIONS,
-                ),
+                "refresh_recommendations": True,
+                "dashboard": get_dashboard_with_cash_context(alpaca_account),
             }
     else:
         store_action = decision_request.action
@@ -186,24 +247,14 @@ def post_user_decision(decision_request: UserDecisionRequest):
         "decision": decision,
         "order_submitted": alpaca_order is not None,
         "alpaca_order": alpaca_order,
-        "dashboard": get_dashboard_data(
-            TOTAL_CAPITAL,
-            MAX_CSP_CAPITAL_PERCENT,
-            MAX_OPEN_POSITIONS,
-        ),
+        "refresh_recommendations": decision_request.action == "place_paper_order",
+        "dashboard": get_dashboard_with_cash_context(),
     }
 
 
 @app.get("/api/dashboard")
 def get_dashboard():
-    dashboard = get_dashboard_data(
-        TOTAL_CAPITAL,
-        MAX_CSP_CAPITAL_PERCENT,
-        MAX_OPEN_POSITIONS,
-    )
-    dashboard["company_names"] = COMPANY_NAMES
-
-    return dashboard
+    return get_dashboard_with_cash_context()
 
 
 @app.get("/api/market/trends")

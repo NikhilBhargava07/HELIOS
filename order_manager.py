@@ -47,6 +47,60 @@ def serialize_alpaca_order(order):
     return dict(order)
 
 
+def serialize_alpaca_model(model):
+    if hasattr(model, "model_dump"):
+        return model.model_dump(mode="json")
+
+    if hasattr(model, "dict"):
+        return model.dict()
+
+    return dict(model)
+
+
+def number_or_none(value):
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def first_number(raw_data, *keys):
+    for key in keys:
+        value = raw_data.get(key)
+        number = number_or_none(value)
+
+        if number is not None:
+            return number
+
+    return None
+
+
+def get_paper_account_summary():
+    account = get_trading_client().get_account()
+    raw_account = serialize_alpaca_model(account)
+    buying_power = first_number(
+        raw_account,
+        "options_buying_power",
+        "buying_power",
+        "cash",
+    )
+    cash = first_number(raw_account, "cash")
+
+    return {
+        "id": raw_account.get("id"),
+        "status": raw_account.get("status"),
+        "currency": raw_account.get("currency"),
+        "cash": cash,
+        "buying_power": first_number(raw_account, "buying_power"),
+        "options_buying_power": first_number(raw_account, "options_buying_power"),
+        "available_csp_cash": buying_power,
+        "raw_account": raw_account,
+    }
+
+
 def submit_cash_secured_put_order(candidate):
     trading_client = get_trading_client()
     contract_symbol = candidate["contractSymbol"]

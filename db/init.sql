@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS user_decisions (
     note TEXT,
     agent_selected_contract TEXT,
     agent_decision TEXT,
+    alpaca_order_id TEXT,
+    order_error TEXT,
     created_at TIMESTAMPTZ NOT NULL
 );
 
@@ -52,6 +54,11 @@ CREATE TABLE IF NOT EXISTS paper_orders (
     premium_received NUMERIC(12, 2) NOT NULL,
     cash_required NUMERIC(14, 2) NOT NULL,
     breakeven_price NUMERIC(12, 2),
+    alpaca_order_id TEXT,
+    alpaca_client_order_id TEXT,
+    alpaca_limit_price NUMERIC(12, 2),
+    alpaca_submitted_at TIMESTAMPTZ,
+    raw_alpaca_order JSONB,
     created_at TIMESTAMPTZ NOT NULL
 );
 
