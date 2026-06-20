@@ -156,3 +156,33 @@ def insert_position(cursor, position):
             position["cash_required"], position["breakeven_price"], position["realized_pnl"],
         ),
     )
+
+
+def reconcile_paper_orders(alpaca_orders):
+    """Update saved order statuses and broker details from Alpaca snapshots."""
+    ensure_schema()
+    updated_count = 0
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            for order in alpaca_orders:
+                order_id = order.get("id")
+                status = order.get("status")
+                if not order_id or not status:
+                    continue
+                cursor.execute(
+                    """
+                    UPDATE paper_orders
+                    SET status = %s,
+                        alpaca_limit_price = COALESCE(%s, alpaca_limit_price),
+                        raw_alpaca_order = %s
+                    WHERE alpaca_order_id = %s
+                    """,
+                    (
+                        status,
+                        order.get("limit_price"),
+                        Jsonb(order),
+                        order_id,
+                    ),
+                )
+                updated_count += cursor.rowcount
+    return updated_count

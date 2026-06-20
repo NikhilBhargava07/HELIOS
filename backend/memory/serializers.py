@@ -74,6 +74,7 @@ def decision_from_row(row):
 
 def order_from_row(row):
     """Convert a paper order row into an API-safe dictionary."""
+    raw_order = row.get("raw_alpaca_order") or {}
     return json_safe({
         "id": row["id"],
         "created_at": row["created_at"],
@@ -92,7 +93,12 @@ def order_from_row(row):
         "alpaca_client_order_id": row.get("alpaca_client_order_id"),
         "alpaca_limit_price": row.get("alpaca_limit_price"),
         "alpaca_submitted_at": row.get("alpaca_submitted_at"),
-        "raw_alpaca_order": row.get("raw_alpaca_order"),
+        "order_type": raw_order.get("type"),
+        "position_intent": raw_order.get("position_intent"),
+        "filled_qty": raw_order.get("filled_qty"),
+        "filled_avg_price": raw_order.get("filled_avg_price"),
+        "canceled_at": raw_order.get("canceled_at"),
+        "raw_alpaca_order": raw_order,
     })
 
 

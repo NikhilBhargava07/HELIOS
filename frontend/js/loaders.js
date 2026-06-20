@@ -111,9 +111,15 @@ async function loadMarketTake() {
 }
 
 /** Refresh live Alpaca positions whenever the Capital tab opens. */
-async function loadDashboard() {
-    dashboardEl.classList.remove("empty");
-    dashboardEl.textContent = "Loading current Alpaca positions...";
+async function loadDashboard(showLoading = true) {
+    if (dashboardRequestInFlight) {
+        return;
+    }
+    dashboardRequestInFlight = true;
+    if (showLoading) {
+        dashboardEl.classList.remove("empty");
+        dashboardEl.textContent = "Loading current Alpaca positions and orders...";
+    }
 
     try {
         const response = await fetch("/api/dashboard");
@@ -125,5 +131,24 @@ async function loadDashboard() {
         renderDashboard(await response.json());
     } catch (error) {
         dashboardEl.textContent = `Could not load positions: ${error.message}`;
+    } finally {
+        dashboardRequestInFlight = false;
+    }
+}
+
+/** Poll Alpaca order and position state while the Capital tab is visible. */
+function startDashboardRefresh() {
+    stopDashboardRefresh();
+    dashboardRefreshIntervalId = setInterval(
+        () => loadDashboard(false),
+        DASHBOARD_REFRESH_MS,
+    );
+}
+
+/** Stop portfolio polling after the user leaves the Capital tab. */
+function stopDashboardRefresh() {
+    if (dashboardRefreshIntervalId) {
+        clearInterval(dashboardRefreshIntervalId);
+        dashboardRefreshIntervalId = null;
     }
 }

@@ -14,6 +14,9 @@ function showTab(tabName) {
 
     if (tabName === "capital") {
         loadDashboard();
+        startDashboardRefresh();
+    } else {
+        stopDashboardRefresh();
     }
 }
 

@@ -178,6 +178,31 @@ function formatDecision(value) {
         .replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
+/** Describe whether an order filled, was canceled, or is still pending. */
+function orderStatusText(order) {
+    const status = String(order.status || "unknown").toLowerCase();
+    if (status === "filled") {
+        return "Filled";
+    }
+    if (["canceled", "expired", "rejected"].includes(status)) {
+        return formatDecision(status);
+    }
+    return `${formatDecision(status)} · Awaiting fill`;
+}
+
+/** Return the actual fill price or requested limit credit per share. */
+function orderCreditText(order) {
+    const filledPrice = Number(order.filled_avg_price);
+    if (Number.isFinite(filledPrice) && filledPrice > 0) {
+        return `Filled credit ${money(filledPrice)} per share`;
+    }
+    const limitPrice = Number(order.alpaca_limit_price);
+    if (Number.isFinite(limitPrice) && limitPrice > 0) {
+        return `Limit credit ${money(limitPrice)} per share`;
+    }
+    return `Quoted contract credit ${money(order.premium_received)}`;
+}
+
 /** Escape untrusted text before inserting it into HTML templates. */
 function escapeHtml(value) {
     return String(value ?? "")

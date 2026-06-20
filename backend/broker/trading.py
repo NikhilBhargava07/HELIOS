@@ -5,8 +5,14 @@ import re
 from uuid import uuid4
 
 from alpaca.trading.client import TradingClient
-from alpaca.trading.enums import OrderClass, OrderSide, PositionIntent, TimeInForce
-from alpaca.trading.requests import LimitOrderRequest
+from alpaca.trading.enums import (
+    OrderClass,
+    OrderSide,
+    PositionIntent,
+    QueryOrderStatus,
+    TimeInForce,
+)
+from alpaca.trading.requests import GetOrdersRequest, LimitOrderRequest
 from dotenv import load_dotenv
 
 from backend.config import PROJECT_ROOT
@@ -170,6 +176,15 @@ def get_paper_csp_positions():
         )
 
     return positions
+
+
+def get_paper_orders(limit=500):
+    """Return recent open and closed Alpaca paper orders for reconciliation."""
+    request = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=limit)
+    return [
+        serialize_alpaca_order(order)
+        for order in get_trading_client().get_orders(filter=request)
+    ]
 
 
 def submit_cash_secured_put_order(candidate):

@@ -1,6 +1,10 @@
 """Shared API orchestration for candidates, Alpaca state, and dashboard data."""
 
-from backend.broker.trading import get_paper_account_summary, get_paper_csp_positions
+from backend.broker.trading import (
+    get_paper_account_summary,
+    get_paper_csp_positions,
+    get_paper_orders,
+)
 from backend.config import (
     COMPANY_NAMES,
     MAX_CSP_CAPITAL_PERCENT,
@@ -9,6 +13,7 @@ from backend.config import (
 )
 from backend.memory.dashboard import get_dashboard_data
 from backend.memory.recommendations import find_candidate, get_recommendation_run
+from backend.memory.trades import reconcile_paper_orders
 
 
 def require_recommendation_run(run_id):
@@ -62,6 +67,14 @@ def get_safe_paper_csp_positions():
         return None, str(error)
 
 
+def reconcile_orders_safely():
+    """Synchronize Postgres order history without failing the dashboard route."""
+    try:
+        return reconcile_paper_orders(get_paper_orders()), None
+    except Exception as error:
+        return 0, str(error)
+
+
 def get_effective_available_csp_cash(capital_summary, alpaca_account):
     """Use the lower of strategy allocation and Alpaca options buying power."""
     alpaca_available = (alpaca_account or {}).get("available_csp_cash")
@@ -82,6 +95,7 @@ def attach_alpaca_cash_context(capital_summary, alpaca_account):
 
 def get_dashboard_with_cash_context(alpaca_account=None):
     """Combine Postgres history with live Alpaca positions and buying power."""
+    reconciled_orders, order_sync_error = reconcile_orders_safely()
     dashboard = get_dashboard_data(TOTAL_CAPITAL, MAX_CSP_CAPITAL_PERCENT, MAX_OPEN_POSITIONS)
     safe_account = alpaca_account or get_safe_paper_account_summary()
     alpaca_positions, position_error = get_safe_paper_csp_positions()
@@ -101,6 +115,8 @@ def get_dashboard_with_cash_context(alpaca_account=None):
         "alpaca_account": safe_account,
         "position_source": "alpaca" if alpaca_positions is not None else "postgres",
         "position_error": position_error,
+        "reconciled_orders": reconciled_orders,
+        "order_sync_error": order_sync_error,
         "company_names": COMPANY_NAMES,
     })
     return dashboard

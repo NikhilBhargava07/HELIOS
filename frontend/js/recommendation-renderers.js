@@ -71,12 +71,16 @@ function renderDashboard(dashboard) {
     const capital = dashboard.capital || dashboard;
     const positions = dashboard.open_positions || capital.open_positions || [];
     const orders = dashboard.paper_orders || [];
+    const visibleOrders = orders.filter(order => {
+        const status = String(order.status || "").toLowerCase();
+        return status !== "canceled" && status !== "cancelled";
+    });
 
     dashboardEl.classList.remove("empty");
     dashboardEl.innerHTML = `
         <p class="ledger-note">
             ${dashboard.position_source === "alpaca"
-                ? "Open positions and buying power are synced from Alpaca paper trading. Decisions and order history are saved in Postgres."
+                ? "Open positions, buying power, and order statuses are synced from Alpaca paper trading. Decisions and history are saved in Postgres."
                 : "Alpaca positions could not be loaded, so open positions are temporarily shown from the Postgres paper ledger."}
         </p>
         <div class="dashboard-grid">
@@ -103,12 +107,12 @@ function renderDashboard(dashboard) {
             </div>
         `).join("") : "<p>No open paper positions.</p>"}
         <h3>Recent Paper Orders</h3>
-        ${orders.length ? orders.slice().reverse().map(order => `
+        ${visibleOrders.length ? visibleOrders.slice().reverse().map(order => `
             <div class="history-row">
-                ${order.status}: ${tickerTooltip(order.ticker_symbol)} ${money(order.strike)} CSP ·
-                Premium ${money(order.premium_received)}
+                <strong>${orderStatusText(order)}:</strong>
+                Sell-to-open ${tickerTooltip(order.ticker_symbol)} ${money(order.strike)} put ·
+                ${orderCreditText(order)}
             </div>
-        `).join("") : "<p>No paper orders yet.</p>"}
+        `).join("") : "<p>No active paper orders.</p>"}
     `;
 }
-
