@@ -7,10 +7,24 @@ from backend.strategy.recommender import get_recommendation_results
 def print_recommendations(candidates):
     """Print ranked CSP candidates in a beginner-readable terminal format."""
     for number, candidate in enumerate(candidates.itertuples(), start=1):
-        print(f"{number}. Sell 1 {candidate.tickerSymbol} ${candidate.strike:.2f} put expiring {candidate.expiration} ({candidate.DTE} DTE)")
-        print(f"   Price: ${candidate.currentStockPrice:.2f} | Delta: {candidate.delta:.3f} | IV: {candidate.ivPercent:.2f}% | Spread: ${candidate.spread:.2f}")
-        print(f"   Premium: ${candidate.premiumIfSoldAtBid:.2f} | Cash: ${candidate.cashRequired:.2f} | Breakeven: ${candidate.breakevenPrice:.2f} | ROC: {candidate.returnOnCashPercent:.2f}%")
-        print(f"   Why: close to {TARGET_DELTA} delta, tight spread, reasonable IV, and breakeven below the current price.\n")
+        print(
+            f"{number}. Sell 1 {candidate.tickerSymbol} ${candidate.strike:.2f} put "
+            f"expiring {candidate.expiration} ({candidate.DTE} DTE)"
+        )
+        print(
+            f"   Price: ${candidate.currentStockPrice:.2f} | Delta: {candidate.delta:.3f} | "
+            f"IV: {candidate.ivPercent:.2f}% | Spread: ${candidate.spread:.2f}"
+        )
+        print(
+            f"   Premium: ${candidate.premiumIfSoldAtBid:.2f} | "
+            f"Cash: ${candidate.cashRequired:.2f} | "
+            f"Breakeven: ${candidate.breakevenPrice:.2f} | "
+            f"ROC: {candidate.returnOnCashPercent:.2f}%"
+        )
+        print(
+            f"   Why: close to {TARGET_DELTA} delta, tight spread, reasonable IV, "
+            "and breakeven below the current price.\n"
+        )
 
 
 def print_ai_review(review):

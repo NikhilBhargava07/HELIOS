@@ -5,9 +5,15 @@ hard screening thresholds. Keeping these values together makes strategy
 changes auditable and prevents route or broker modules from defining policy.
 """
 
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
+
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 
 APPROVED_TICKERS = [
     "SPY", "QQQ", "IWM", "DIA", "XLF", "XLK", "XLV", "XLE", "XLY",

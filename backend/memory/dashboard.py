@@ -2,10 +2,8 @@
 
 from backend.memory.database import ensure_schema, get_connection
 from backend.memory.serializers import (
-    decision_from_row,
     order_from_row,
     position_from_row,
-    recommendation_from_row,
 )
 
 
@@ -47,10 +45,6 @@ def get_dashboard_data(total_capital, max_csp_capital_percent, max_open_position
         with connection.cursor() as cursor:
             cursor.execute("SELECT * FROM paper_orders ORDER BY created_at DESC LIMIT 20")
             paper_orders = [order_from_row(row) for row in cursor.fetchall()]
-            cursor.execute("SELECT * FROM user_decisions ORDER BY created_at DESC LIMIT 20")
-            decisions = [decision_from_row(row) for row in cursor.fetchall()]
-            cursor.execute("SELECT * FROM recommendation_runs ORDER BY created_at DESC LIMIT 10")
-            runs = [recommendation_from_row(row, []) for row in cursor.fetchall()]
 
     return {
         "capital": get_capital_summary(
@@ -61,6 +55,4 @@ def get_dashboard_data(total_capital, max_csp_capital_percent, max_open_position
         ),
         "open_positions": open_positions,
         "paper_orders": list(reversed(paper_orders)),
-        "user_decisions": list(reversed(decisions)),
-        "recommendation_runs": list(reversed(runs)),
     }

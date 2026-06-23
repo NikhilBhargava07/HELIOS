@@ -1,6 +1,6 @@
 """Recommendation generation and user-decision HTTP routes."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 
 from backend.api.schemas import UserDecisionAction, UserDecisionRequest
 from backend.api.services import (
@@ -15,6 +15,7 @@ from backend.api.services import (
 from backend.broker.trading import submit_cash_secured_put_order
 from backend.config import APPROVED_TICKERS, COMPANY_NAMES, STRATEGY_RULES
 from backend.memory.recommendations import save_recommendation_run
+from backend.memory.observations import capture_due_candidate_observations
 from backend.memory.trades import record_user_decision
 from backend.strategy.recommender import get_recommendation_results
 
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/api", tags=["recommendations"])
 
 
 @router.get("/recommendations")
-def get_recommendations():
+def get_recommendations(background_tasks: BackgroundTasks):
     """Generate, review, persist, and return affordable CSP candidates."""
     alpaca_account = get_safe_paper_account_summary()
     dashboard = get_dashboard_with_cash_context(alpaca_account)
@@ -32,21 +33,34 @@ def get_recommendations():
         current_open_positions=capital["open_position_count"],
         current_csp_capital_committed=capital["committed_capital"],
         external_available_csp_capital=effective_cash,
+        portfolio_context={
+            "capital": capital,
+            "open_csp_positions": dashboard["open_positions"],
+        },
     )
     if effective_cash <= 0 and alpaca_account.get("available_csp_cash") == 0:
         results["review"] = {
             "decision": "reject_all", "selected_contract": None,
             "summary": "Alpaca reports $0 options buying power, so no CSP can be backed right now.",
             "risk_note": "Options approval, open orders, or broker collateral rules may be limiting buying power.",
+            "candidate_reviews": [],
         }
 
     candidates = candidates_to_records(results["candidates"])
-    run = save_recommendation_run(candidates, results["review"])
+    run = save_recommendation_run(
+        candidates,
+        results["review"],
+        market_context=results.get("market_context"),
+        strategy_rules=STRATEGY_RULES,
+        portfolio_context=results.get("portfolio_context"),
+        memory_context=results.get("memory_context"),
+    )
+    background_tasks.add_task(capture_due_candidate_observations)
     return {
         "recommendation_run_id": run["id"], "approved_tickers": APPROVED_TICKERS,
         "company_names": COMPANY_NAMES, "strategy_rules": STRATEGY_RULES,
         "capital": attach_alpaca_cash_context(capital, alpaca_account),
-        "alpaca_account": alpaca_account, "dashboard": dashboard,
+        "dashboard": dashboard,
         "candidates": candidates, "review": results["review"],
     }
 

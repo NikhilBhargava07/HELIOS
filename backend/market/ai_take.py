@@ -1,15 +1,14 @@
 """Produce a portfolio-aware market take with OpenAI or a local fallback."""
 
 import json
+import logging
 import os
 import re
 
-from dotenv import load_dotenv
+from backend.config import OPENAI_MODEL
 
-from backend.config import PROJECT_ROOT
 
-load_dotenv(PROJECT_ROOT / ".env")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
+logger = logging.getLogger(__name__)
 
 
 def local_market_take(context):
@@ -111,8 +110,9 @@ def ai_market_take(context):
         take = parse_market_take_json(response.output_text)
         return _normalize_market_take(take)
     except Exception as error:
+        logger.warning("OpenAI market take failed: %s", type(error).__name__)
         fallback = local_market_take(context)
-        fallback["reasoned_take"] = f"AI failed, so local fallback was used: {error}"
+        fallback["reasoned_take"] = "AI was unavailable, so the local market summary was used."
         return fallback
 
 
@@ -136,6 +136,15 @@ Do not pretend to know the future. Return only valid JSON with these keys:
 The portfolio and latest recommendations are the center of the response. Explain difficult terms,
 use could/may rather than certainty, connect relevant news to named companies, and do not invent
 user patterns that are absent from the context.
+
+Include relevant geopolitical and political developments only through their plausible economic
+and market effects. Trace specific channels such as oil and energy costs, inflation and rates,
+currencies, tariffs or sanctions, supply chains, regional revenue, consumer demand, government
+spending, and investor risk appetite. Explain why each channel matters to named positions or
+recommended tickers, distinguish verified events from scenarios, and avoid political advocacy.
+Do not assume that broad instability affects every company in the same direction.
+Give greater weight to established reporting and corroborated events. Treat a single unrated,
+opinion-based, or speculative headline as weak evidence rather than established market context.
 
 Context:
 {json.dumps(context, indent=2)}

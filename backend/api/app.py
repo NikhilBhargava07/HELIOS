@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.api.routes.market import router as market_router
+from backend.api.routes.memory import router as memory_router
 from backend.api.routes.portfolio import router as portfolio_router
 from backend.api.routes.recommendations import router as recommendation_router
 from backend.config import PROJECT_ROOT
@@ -32,6 +33,7 @@ def create_app():
     application.include_router(portfolio_router)
     application.include_router(recommendation_router)
     application.include_router(market_router)
+    application.include_router(memory_router)
 
     frontend_path = PROJECT_ROOT / "frontend"
     if frontend_path.exists():

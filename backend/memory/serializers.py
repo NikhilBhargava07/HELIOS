@@ -52,23 +52,10 @@ def recommendation_from_row(row, candidates):
         "created_at": row["created_at"],
         "candidates": candidates,
         "agent_review": row["agent_review"],
-    })
-
-
-def decision_from_row(row):
-    """Convert a user decision row into an API-safe dictionary."""
-    return json_safe({
-        "id": row["id"],
-        "created_at": row["created_at"],
-        "recommendation_run_id": row["recommendation_run_id"],
-        "contract_symbol": row["contract_symbol"],
-        "ticker_symbol": row["ticker_symbol"],
-        "action": row["action"],
-        "note": row["note"] or "",
-        "agent_selected_contract": row["agent_selected_contract"],
-        "agent_decision": row["agent_decision"],
-        "alpaca_order_id": row.get("alpaca_order_id"),
-        "order_error": row.get("order_error"),
+        "market_context": row.get("market_context") or {},
+        "strategy_rules": row.get("strategy_rules") or {},
+        "portfolio_context": row.get("portfolio_context") or {},
+        "memory_context": row.get("memory_context") or {},
     })
 
 
@@ -98,7 +85,6 @@ def order_from_row(row):
         "filled_qty": raw_order.get("filled_qty"),
         "filled_avg_price": raw_order.get("filled_avg_price"),
         "canceled_at": raw_order.get("canceled_at"),
-        "raw_alpaca_order": raw_order,
     })
 
 

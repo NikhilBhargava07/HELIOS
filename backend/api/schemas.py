@@ -19,3 +19,16 @@ class UserDecisionRequest(BaseModel):
     contract_symbol: str
     action: UserDecisionAction
     note: str = ""
+
+
+class TradeOutcomeRequest(BaseModel):
+    """Validated realized outcome supplied by broker sync or later UI tooling."""
+
+    decision_id: str
+    status: str = "complete"
+    outcome_label: str
+    closing_cost: float | None = None
+    realized_pnl: float | None = None
+    assigned: bool | None = None
+    expired_worthless: bool | None = None
+    notes: str = ""

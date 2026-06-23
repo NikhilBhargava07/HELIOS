@@ -30,21 +30,6 @@ def get_latest_stock_price(ticker_symbol):
     return latest_trades[ticker_symbol].price
 
 
-def get_latest_stock_prices(ticker_symbols):
-    """Fetch latest IEX prices for several tickers in one request."""
-    request = StockLatestTradeRequest(
-        symbol_or_symbols=ticker_symbols,
-        feed=DataFeed.IEX,
-    )
-    latest_trades = stock_data_client.get_stock_latest_trade(request)
-
-    return {
-        ticker_symbol: latest_trades[ticker_symbol].price
-        for ticker_symbol in ticker_symbols
-        if ticker_symbol in latest_trades
-    }
-
-
 def build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price):
     """Convert Alpaca option snapshots into calculated candidate rows."""
     rows = []
@@ -236,6 +221,8 @@ def find_csp_candidates(
         "delta",
         "bid",
         "ask",
+        "bidSize",
+        "askSize",
         "spread",
         "ivPercent",
         "breakevenPrice",

@@ -10,11 +10,16 @@ Install Docker Desktop for Mac and open it once. Wait until Docker says it is ru
 
 Keep your real keys in `.env`. Do not commit that file.
 
-The app container reads `.env`, and Docker Compose also provides:
+The app container and Postgres service read these local-only values from `.env`:
 
 ```text
-DATABASE_URL=postgresql://csp_agent:csp_agent_dev_password@db:5432/csp_agent
+POSTGRES_DB=your_database_name
+POSTGRES_USER=your_database_user
+POSTGRES_PASSWORD=your_local_database_password
+DATABASE_URL=postgresql://your_database_user:your_local_database_password@db:5432/your_database_name
 ```
+
+Use matching values in `POSTGRES_*` and `DATABASE_URL`. The `.env` file is ignored by Git.
 
 ## 3. Start the app and database
 
@@ -41,7 +46,7 @@ In Docker Desktop:
 ## 5. Connect to Postgres from terminal
 
 ```bash
-docker compose exec db psql -U csp_agent -d csp_agent
+docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
 
 Useful checks:

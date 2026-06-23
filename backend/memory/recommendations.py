@@ -43,16 +43,32 @@ def get_latest_recommendation_run():
     return get_recommendation_run(str(row["id"])) if row else None
 
 
-def save_recommendation_run(candidates, review):
-    """Save an AI review and immutable snapshot of its candidate list."""
+def save_recommendation_run(
+    candidates,
+    review,
+    market_context=None,
+    strategy_rules=None,
+    portfolio_context=None,
+    memory_context=None,
+):
+    """Save an AI review and the complete evidence snapshot it received."""
     ensure_schema()
     run_id = str(uuid4())
     created_at = utc_now()
     with get_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO recommendation_runs (id, created_at, agent_review) VALUES (%s, %s, %s)",
-                (run_id, created_at, Jsonb(review)),
+                """
+                INSERT INTO recommendation_runs (
+                    id, created_at, agent_review, market_context, strategy_rules,
+                    portfolio_context, memory_context
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    run_id, created_at, Jsonb(review), Jsonb(market_context or {}),
+                    Jsonb(strategy_rules or {}), Jsonb(portfolio_context or {}),
+                    Jsonb(memory_context or {}),
+                ),
             )
             for candidate in candidates:
                 cursor.execute(
@@ -81,4 +97,8 @@ def save_recommendation_run(candidates, review):
         "created_at": created_at.isoformat(),
         "candidates": candidates,
         "agent_review": review,
+        "market_context": market_context or {},
+        "strategy_rules": strategy_rules or {},
+        "portfolio_context": portfolio_context or {},
+        "memory_context": memory_context or {},
     }

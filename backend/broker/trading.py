@@ -1,6 +1,5 @@
 """Read Alpaca paper-account state and submit CSP paper orders."""
 
-import os
 import re
 from uuid import uuid4
 
@@ -13,27 +12,11 @@ from alpaca.trading.enums import (
     TimeInForce,
 )
 from alpaca.trading.requests import GetOrdersRequest, LimitOrderRequest
-from dotenv import load_dotenv
-
-from backend.config import PROJECT_ROOT
-
-
-load_dotenv(PROJECT_ROOT / ".env")
+from backend.broker.clients import get_alpaca_credentials
 
 OPTION_SYMBOL_PATTERN = re.compile(
     r"^(?P<ticker>[A-Z.]+)(?P<expiration>\d{6})(?P<type>[CP])(?P<strike>\d{8})$"
 )
-
-
-def get_alpaca_credentials():
-    """Load Alpaca credentials from supported environment variable names."""
-    api_key = os.getenv("APCA_API_KEY_ID") or os.getenv("ALPACA_API_KEY")
-    secret_key = os.getenv("APCA_API_SECRET_KEY") or os.getenv("ALPACA_SECRET_KEY")
-
-    if not api_key or not secret_key:
-        raise ValueError("Missing Alpaca API credentials in .env")
-
-    return api_key, secret_key
 
 
 def get_trading_client():
@@ -112,9 +95,6 @@ def get_paper_account_summary():
     cash = first_number(raw_account, "cash")
 
     return {
-        "id": raw_account.get("id"),
-        "status": raw_account.get("status"),
-        "currency": raw_account.get("currency"),
         "cash": cash,
         "buying_power": first_number(raw_account, "buying_power"),
         "options_buying_power": first_number(raw_account, "options_buying_power"),

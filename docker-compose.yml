@@ -5,9 +5,9 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://csp_agent:csp_agent_dev_password@db:5432/csp_agent
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -19,16 +19,14 @@ services:
     image: postgres:17
     container_name: csp-agent-db
     environment:
-      POSTGRES_DB: csp_agent
-      POSTGRES_USER: csp_agent
-      POSTGRES_PASSWORD: csp_agent_dev_password
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U csp_agent -d csp_agent"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5

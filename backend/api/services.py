@@ -1,5 +1,7 @@
 """Shared API orchestration for candidates, Alpaca state, and dashboard data."""
 
+import logging
+
 from backend.broker.trading import (
     get_paper_account_summary,
     get_paper_csp_positions,
@@ -14,6 +16,9 @@ from backend.config import (
 from backend.memory.dashboard import get_dashboard_data
 from backend.memory.recommendations import find_candidate, get_recommendation_run
 from backend.memory.trades import reconcile_paper_orders
+
+
+logger = logging.getLogger(__name__)
 
 
 def require_recommendation_run(run_id):
@@ -56,7 +61,8 @@ def get_safe_paper_account_summary():
     try:
         return get_paper_account_summary()
     except Exception as error:
-        return {"available_csp_cash": None, "account_error": str(error)}
+        logger.warning("Paper account lookup failed: %s", type(error).__name__)
+        return {"available_csp_cash": None, "account_error": "Paper account unavailable."}
 
 
 def get_safe_paper_csp_positions():
@@ -64,7 +70,8 @@ def get_safe_paper_csp_positions():
     try:
         return get_paper_csp_positions(), None
     except Exception as error:
-        return None, str(error)
+        logger.warning("Paper position lookup failed: %s", type(error).__name__)
+        return None, "Paper positions unavailable."
 
 
 def reconcile_orders_safely():
@@ -72,7 +79,8 @@ def reconcile_orders_safely():
     try:
         return reconcile_paper_orders(get_paper_orders()), None
     except Exception as error:
-        return 0, str(error)
+        logger.warning("Paper order synchronization failed: %s", type(error).__name__)
+        return 0, "Paper order synchronization unavailable."
 
 
 def get_effective_available_csp_cash(capital_summary, alpaca_account):
@@ -112,7 +120,6 @@ def get_dashboard_with_cash_context(alpaca_account=None):
 
     dashboard["capital"] = attach_alpaca_cash_context(dashboard["capital"], safe_account)
     dashboard.update({
-        "alpaca_account": safe_account,
         "position_source": "alpaca" if alpaca_positions is not None else "postgres",
         "position_error": position_error,
         "reconciled_orders": reconciled_orders,

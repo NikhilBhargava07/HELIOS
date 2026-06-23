@@ -25,18 +25,6 @@ def get_start_date(period):
     return today - timedelta(days=TREND_PERIODS[period] + 7)
 
 
-def get_price_trend(ticker_symbol, period):
-    """Fetch and calculate one ticker's movement for one period."""
-    request = StockBarsRequest(
-        symbol_or_symbols=ticker_symbol,
-        timeframe=TimeFrame.Day,
-        start=get_start_date(period),
-        feed=DataFeed.IEX,
-    )
-    bars = stock_data_client.get_stock_bars(request)
-    return build_price_trend(ticker_symbol, period, bars.data.get(ticker_symbol, []))
-
-
 def build_price_trend(ticker_symbol, period, ticker_bars):
     """Calculate one trend from already-fetched daily bars."""
     if len(ticker_bars) < 2:

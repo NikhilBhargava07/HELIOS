@@ -7,22 +7,21 @@ from threading import Lock
 from uuid import UUID
 
 import psycopg
-from dotenv import load_dotenv
 from psycopg.rows import dict_row
 
 from backend.config import PROJECT_ROOT
 
-load_dotenv(PROJECT_ROOT / ".env")
-
-DEFAULT_DATABASE_URL = "postgresql://csp_agent:csp_agent_dev_password@localhost:5432/csp_agent"
 SCHEMA_PATH = PROJECT_ROOT / "db" / "init.sql"
 _schema_ready = False
 _schema_lock = Lock()
 
 
 def get_database_url():
-    """Return the configured Postgres URL or the local development default."""
-    return os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+    """Return the required Postgres URL without embedding credentials in code."""
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL must be configured in .env")
+    return database_url
 
 
 def get_connection():
