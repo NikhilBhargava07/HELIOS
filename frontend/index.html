@@ -10,31 +10,91 @@
 </head>
 <body>
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-    <button id="menu-toggle" class="menu-toggle">☰</button>
-    <aside id="sidebar" class="sidebar">
-        <div class="brand">
-            <span class="eyebrow">CSP Agent</span>
-            <strong>Dashboard</strong>
+    <div id="explore-overlay" class="explore-overlay hidden" aria-hidden="true">
+        <div class="explore-grid">
+            <a class="explore-card nav-link" data-tab="recommendations" data-load="recommendations" href="#recommendations">
+                <span>01</span>
+                <strong>Get CSP Recs</strong>
+                <small>Scan the market and review the strongest cash-secured put idea.</small>
+            </a>
+            <a class="explore-card nav-link" data-tab="trends" href="#trends">
+                <span>02</span>
+                <strong>Market Trends</strong>
+                <small>Check approved tickers before judging risk.</small>
+            </a>
+            <a class="explore-card nav-link" data-tab="news" href="#news">
+                <span>03</span>
+                <strong>News</strong>
+                <small>Read current headlines feeding market context.</small>
+            </a>
+            <a class="explore-card nav-link" data-tab="market-take" href="#market-take">
+                <span>04</span>
+                <strong>AI Market Take</strong>
+                <small>Ask the agent for a concise CSP-focused view.</small>
+            </a>
+            <a class="explore-card nav-link" data-tab="capital" href="#capital">
+                <span>05</span>
+                <strong>Capital & Positions</strong>
+                <small>Track paper orders, open puts, and cash usage.</small>
+            </a>
         </div>
-        <nav class="nav">
-            <a class="nav-link active" data-tab="home" href="#home">Home</a>
-            <a class="nav-link" data-tab="trends" href="#trends">Market Trends</a>
-            <a class="nav-link" data-tab="news" href="#news">News</a>
-            <a class="nav-link" data-tab="market-take" href="#market-take">AI Market Take</a>
-            <a class="nav-link" data-tab="capital" href="#capital">Capital & Positions</a>
+        <div class="explore-footer">
+            <button id="close-explore" class="secondary" type="button">Close</button>
+            <span>HELIOS dashboard</span>
+        </div>
+    </div>
+
+    <header class="app-topbar" aria-label="App navigation">
+        <a class="topbar-brand" data-tab="home" href="#home">HELIOS</a>
+        <nav class="topbar-actions">
+            <a class="topbar-link" data-tab="home" href="#home">Home</a>
+            <button id="explore-dashboard-secondary" class="topbar-explore" type="button">Explore</button>
         </nav>
-    </aside>
+    </header>
 
     <main class="page app-shell">
-        <section id="home" class="panel tab-panel active" data-panel="home">
-            <div class="page-header">
+        <section id="home" class="panel tab-panel active home-panel" data-panel="home">
+            <div class="home-hero">
+                <a class="home-logo" href="#home" aria-label="HELIOS home">
+                    <svg viewBox="0 0 64 64" role="img" aria-label="HELIOS logo">
+                        <circle cx="32" cy="32" r="25"></circle>
+                        <path d="M32 12c8 9 8 31 0 40M32 12c-8 9-8 31 0 40"></path>
+                        <path d="M14 25c11-5 25-5 36 0M14 39c11 5 25 5 36 0"></path>
+                        <circle cx="32" cy="32" r="5"></circle>
+                    </svg>
+                </a>
+                <div class="hero-copy">
+                    <h1 class="helios-title" aria-label="HELIOS">
+                        <span>H</span><span>E</span><span>L</span><span>I</span><span>O</span><span>S</span>
+                    </h1>
+                    <p class="hero-subhead">your personal AI stock trading agent</p>
+                    <div class="hero-actions single-action">
+                        <button id="explore-dashboard" class="secondary" type="button">
+                            <span>Explore</span>
+                            <span class="menu-lines" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <p id="recommendation-status" class="status">Ready.</p>
+                </div>
+                <div class="hero-workflow" aria-label="AI workflow">
+                    <p>AI workflow</p>
+                    <ol>
+                        <li>scan tickers</li>
+                        <li>filter risk</li>
+                        <li>review context</li>
+                        <li>paper trade</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <section id="recommendations" class="panel tab-panel" data-panel="recommendations">
+            <div class="page-header compact">
                 <p class="eyebrow">Paper-trading prototype</p>
-                <h1>CSP Recommendation Agent</h1>
+                <h1>CSP Recommendations</h1>
                 <p class="subhead">
                     Scans approved tickers, applies hard safety filters, then asks the agent to review the top CSP candidates.
                 </p>
-                <button id="load-recommendations">Get recommendations</button>
-                <p id="recommendation-status" class="status">Ready.</p>
             </div>
             <h2>Agent Review</h2>
             <div id="agent-review" class="agent-review empty">

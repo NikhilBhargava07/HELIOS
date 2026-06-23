@@ -38,6 +38,7 @@ function renderVisibleCandidates() {
 
     candidateList.innerHTML = visibleCandidates.map(candidate => `
         <article class="candidate-card" data-contract="${candidate.contractSymbol}">
+            <p class="eyebrow">Top candidate</p>
             <h3>Sell 1 ${tickerTooltip(candidate.tickerSymbol)} ${money(candidate.strike)} put</h3>
             <div class="stats">
                 <div><span class="label">Expiration:</span> ${candidate.expiration} (${candidate.DTE} DTE)</div>

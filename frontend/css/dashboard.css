@@ -2,8 +2,8 @@
 
 .candidate-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 16px;
+    grid-template-columns: minmax(320px, 980px);
+    gap: 14px;
 }
 
 .trend-grid {
@@ -15,12 +15,13 @@
 .candidate-card,
 .trend-card,
 .news-item {
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 18px;
+    border: 1px solid rgba(247, 251, 255, 0.10);
+    border-radius: 22px;
+    padding: clamp(18px, 2vw, 26px);
     background:
-        linear-gradient(145deg, rgba(88, 166, 255, 0.05), transparent 40%),
-        #0d1117;
+        linear-gradient(145deg, rgba(241, 255, 0, 0.07), transparent 42%),
+        rgba(5, 8, 12, 0.76);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
     transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
 }
 
@@ -28,7 +29,7 @@
 .trend-card:hover,
 .news-item:hover,
 .take-card:hover {
-    border-color: rgba(126, 231, 135, 0.45);
+    border-color: rgba(241, 255, 0, 0.48);
     transform: translateY(-2px);
 }
 
@@ -40,7 +41,7 @@
 .candidate-card h3,
 .trend-card h3 {
     margin: 0 0 12px;
-    font-size: 1rem;
+    font-size: 1.08rem;
 }
 
 .trend-card-header {
@@ -58,10 +59,10 @@
 .price-pill {
     display: inline-flex;
     align-items: center;
-    border: 1px solid rgba(126, 231, 135, 0.28);
+    border: 1px solid rgba(241, 255, 0, 0.28);
     border-radius: 999px;
     padding: 4px 8px;
-    background: rgba(126, 231, 135, 0.08);
+    background: rgba(241, 255, 0, 0.08);
     color: #d8dee9;
     font-size: 0.78rem;
     font-weight: 800;
@@ -133,7 +134,7 @@
 
 .news-item a {
     display: inline-block;
-    color: #58a6ff;
+    color: #f1ff00;
     font-weight: 700;
     text-decoration: none;
     margin-bottom: 8px;
@@ -147,9 +148,9 @@
 
 .stats {
     display: grid;
-    gap: 8px;
+    gap: 11px;
     color: #c9d1d9;
-    font-size: 0.95rem;
+    font-size: 1rem;
 }
 
 .label {
@@ -188,10 +189,10 @@
 }
 
 .history-row {
-    border: 1px solid var(--border);
+    border: 1px solid rgba(247, 251, 255, 0.10);
     border-radius: 12px;
     padding: 10px 12px;
     margin-bottom: 8px;
-    background: #0d1117;
+    background: rgba(5, 8, 12, 0.72);
     color: #c9d1d9;
 }

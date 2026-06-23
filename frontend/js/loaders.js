@@ -2,7 +2,9 @@
 
 /** Request a new recommendation run and update all related panels. */
 async function loadRecommendations() {
-    button.disabled = true;
+    if (button) {
+        button.disabled = true;
+    }
     recommendationStatus.textContent = "Scanning approved tickers and asking the agent...";
 
     try {
@@ -30,7 +32,9 @@ async function loadRecommendations() {
     } catch (error) {
         recommendationStatus.textContent = `Error: ${error.message}`;
     } finally {
-        button.disabled = false;
+        if (button) {
+            button.disabled = false;
+        }
     }
 }
 

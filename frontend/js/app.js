@@ -10,7 +10,7 @@ function showTab(tabName) {
         link.classList.toggle("active", link.dataset.tab === tabName);
     });
 
-    sidebar.classList.remove("open");
+    closeExplore();
 
     if (tabName === "capital") {
         loadDashboard();
@@ -22,13 +22,41 @@ function showTab(tabName) {
 
 window.showTab = showTab;
 
-button.addEventListener("click", loadRecommendations);
+if (button) {
+    button.addEventListener("click", () => {
+        showTab("recommendations");
+        loadRecommendations();
+    });
+}
 trendsButton.addEventListener("click", loadTrends);
 newsButton.addEventListener("click", loadNews);
 summarizeMarketButton.addEventListener("click", loadMarketTake);
-menuToggle.addEventListener("click", () => sidebar.classList.toggle("open"));
+function openExplore() {
+    document.body.classList.add("explore-open");
+    exploreOverlay.classList.remove("hidden");
+    requestAnimationFrame(() => exploreOverlay.classList.add("visible"));
+    exploreOverlay.setAttribute("aria-hidden", "false");
+}
 
-sidebar.addEventListener("click", (event) => {
+function closeExplore() {
+    exploreOverlay.classList.remove("visible");
+    document.body.classList.remove("explore-open");
+    exploreOverlay.setAttribute("aria-hidden", "true");
+    setTimeout(() => {
+        if (!exploreOverlay.classList.contains("visible")) {
+            exploreOverlay.classList.add("hidden");
+        }
+    }, 220);
+}
+
+exploreDashboardButton.addEventListener("click", openExplore);
+exploreDashboardSecondaryButton?.addEventListener("click", openExplore);
+closeExploreButton.addEventListener("click", closeExplore);
+document.querySelectorAll(".topbar-link, .topbar-brand").forEach(link => {
+    link.addEventListener("click", () => showTab(link.dataset.tab));
+});
+
+exploreOverlay.addEventListener("click", (event) => {
     const clickedLink = event.target.closest(".nav-link");
 
     if (!clickedLink) {
@@ -36,7 +64,12 @@ sidebar.addEventListener("click", (event) => {
     }
 
     showTab(clickedLink.dataset.tab);
+
+    if (clickedLink.dataset.load === "recommendations") {
+        loadRecommendations();
+    }
 });
+
 
 toggleTrendsButton.addEventListener("click", () => {
     showAllTrends = !showAllTrends;
