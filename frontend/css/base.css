@@ -3,7 +3,6 @@
 :root {
     color-scheme: dark;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #090d14;
     color: #e6edf3;
     --bg: #090d14;
     --panel: rgba(22, 27, 34, 0.9);
@@ -16,6 +15,12 @@
     --yellow: #f2cc60;
     --muted: #8b949e;
     --soft-white: #f7fbff;
+    --page-background:
+        radial-gradient(circle at 12% 8%, rgba(82, 180, 90, 0.22), transparent 28rem),
+        radial-gradient(circle at 82% 18%, rgba(88, 166, 255, 0.15), transparent 28rem),
+        radial-gradient(circle at 40% 100%, rgba(167, 139, 250, 0.10), transparent 32rem),
+        var(--bg);
+    background: var(--page-background);
 }
 
 * {
@@ -27,14 +32,7 @@ body {
     margin: 0;
     width: 100%;
     min-height: 100vh;
-}
-
-body {
-    background:
-        radial-gradient(circle at 12% 8%, rgba(82, 180, 90, 0.22), transparent 28rem),
-        radial-gradient(circle at 82% 18%, rgba(88, 166, 255, 0.15), transparent 28rem),
-        radial-gradient(circle at 40% 100%, rgba(167, 139, 250, 0.10), transparent 32rem),
-        var(--bg);
+    background: var(--page-background);
 }
 
 .toast {
@@ -204,11 +202,6 @@ body.explore-open .app-topbar {
     opacity: 0.72;
 }
 
-body:has(#home.active) {
-    height: 100vh;
-    overflow: hidden;
-}
-
 .panel {
     position: relative;
     overflow: visible;
@@ -218,228 +211,6 @@ body:has(#home.active) {
         linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 32%),
         var(--panel);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-}
-
-.home-panel {
-    min-height: 100vh;
-    overflow: hidden;
-    border: 0;
-    border-radius: 0;
-    padding: 0;
-    margin: 0;
-}
-
-.home-hero {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 100vw;
-    height: 100vh;
-    min-height: 100vh;
-    padding: clamp(28px, 5vw, 72px);
-    background:
-        linear-gradient(90deg, rgba(3, 7, 10, 0.80), rgba(3, 7, 10, 0.28) 42%, rgba(3, 7, 10, 0.82)),
-        radial-gradient(circle at 18% 18%, rgba(241, 255, 0, 0.20), transparent 18rem),
-        radial-gradient(circle at 82% 18%, rgba(49, 214, 255, 0.18), transparent 22rem),
-        radial-gradient(circle at 52% 92%, rgba(82, 180, 90, 0.18), transparent 28rem),
-        linear-gradient(135deg, #0d1517 0%, #162322 36%, #111827 70%, #070a0e 100%);
-}
-
-.home-hero::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-        radial-gradient(circle at 35% 42%, rgba(241, 255, 0, 0.05), transparent 18rem),
-        radial-gradient(circle at 72% 48%, rgba(49, 214, 255, 0.055), transparent 22rem);
-}
-
-.home-hero::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.34));
-}
-
-.home-logo {
-    position: absolute;
-    top: clamp(26px, 4vw, 62px);
-    left: clamp(26px, 5vw, 76px);
-    z-index: 1;
-    display: grid;
-    place-items: center;
-    width: clamp(70px, 7.2vw, 104px);
-    height: clamp(70px, 7.2vw, 104px);
-    border-radius: 20px;
-    background: rgba(2, 4, 8, 0.86);
-    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.32);
-}
-
-.home-logo svg {
-    width: 58%;
-    height: 58%;
-    fill: none;
-    stroke: #f7fbff;
-    stroke-width: 3.2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-.hero-copy {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    justify-items: center;
-    width: min(900px, 90vw);
-    text-align: center;
-}
-
-.helios-title {
-    display: flex;
-    align-items: baseline;
-    justify-content: center;
-    gap: clamp(0.02em, 0.42vw, 0.07em);
-    margin: 0 0 14px;
-    color: var(--soft-white);
-    font-size: clamp(5rem, 12.4vw, 11.2rem);
-    letter-spacing: 0;
-    line-height: 0.82;
-    text-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
-}
-
-.helios-title span {
-    display: inline-block;
-}
-
-.helios-title span:nth-child(4) {
-    margin-left: clamp(0.02em, 0.22vw, 0.05em);
-}
-
-.hero-subhead {
-    max-width: 720px;
-    margin-bottom: 24px;
-    color: rgba(247, 251, 255, 0.86);
-    font-size: clamp(1.15rem, 2vw, 1.65rem);
-    font-weight: 500;
-    line-height: 1.35;
-}
-
-.hero-actions {
-    display: grid;
-    grid-template-columns: minmax(230px, 1fr) minmax(230px, 1fr);
-    width: min(560px, 88vw);
-    gap: 12px;
-}
-
-.hero-actions button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 58px;
-    padding: 16px 24px;
-    font-size: 0.98rem;
-    letter-spacing: -0.01em;
-}
-
-.hero-actions button.secondary {
-    justify-content: space-between;
-    border: 1px solid rgba(247, 251, 255, 0.16);
-    background: rgba(8, 11, 15, 0.86);
-    color: var(--soft-white);
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
-}
-
-.menu-lines,
-.menu-lines::before,
-.menu-lines::after {
-    display: block;
-    width: 20px;
-    height: 2px;
-    border-radius: 999px;
-    background: currentColor;
-}
-
-.menu-lines {
-    position: relative;
-}
-
-.menu-lines::before,
-.menu-lines::after {
-    content: "";
-    position: absolute;
-    right: 0;
-}
-
-.menu-lines::before {
-    top: -6px;
-}
-
-.menu-lines::after {
-    top: 6px;
-}
-
-.home-panel .status {
-    margin-top: 18px;
-    color: rgba(247, 251, 255, 0.68);
-}
-
-.hero-workflow {
-    position: absolute;
-    top: clamp(28px, 4vw, 62px);
-    right: clamp(28px, 5vw, 76px);
-    z-index: 1;
-    width: min(250px, 24vw);
-    border: 1px solid rgba(247, 251, 255, 0.09);
-    border-radius: 16px;
-    padding: 16px;
-    background:
-        linear-gradient(145deg, rgba(241, 255, 0, 0.13), transparent 46%),
-        rgba(8, 11, 15, 0.86);
-    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.24);
-}
-
-.hero-workflow p {
-    margin: 0 0 14px;
-    color: #f1ff00;
-    font-size: 0.72rem;
-    font-weight: 900;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-}
-
-.hero-workflow ol {
-    display: grid;
-    gap: 8px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    counter-reset: workflow;
-}
-
-.hero-workflow li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: rgba(247, 251, 255, 0.82);
-    font-size: 0.82rem;
-    font-weight: 700;
-    text-transform: lowercase;
-}
-
-.hero-workflow li::before {
-    counter-increment: workflow;
-    content: "0" counter(workflow);
-    display: inline-grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 999px;
-    background: rgba(241, 255, 0, 0.12);
-    color: #f1ff00;
-    font-size: 0.62rem;
-    font-weight: 900;
 }
 
 .panel::before {
@@ -592,38 +363,15 @@ body:has(#capital:target) .nav-link[href="#capital"] {
 }
 
 @media (max-width: 920px) {
-    .hero-actions {
-        grid-template-columns: 1fr;
-    }
-
     .explore-grid {
         grid-template-columns: 1fr;
         grid-auto-rows: minmax(126px, auto);
         overflow: auto;
     }
 
-    .hero-workflow {
-        display: none;
-    }
-
     .explore-card:first-child {
         grid-row: span 1;
     }
-}
-
-.hero-actions.single-action {
-    grid-template-columns: minmax(260px, 360px);
-    justify-content: center;
-    width: min(360px, 88vw);
-}
-
-body:has(#home.active) .home-panel {
-    width: 100vw;
-    height: 100vh;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    box-shadow: none;
 }
 
 
@@ -636,7 +384,7 @@ body:has(#home.active) .home-panel {
     align-items: center;
     justify-content: space-between;
     width: min(1480px, calc(100% - 28px));
-    margin: 14px auto -10px;
+    margin: 14px auto 0;
     border: 1px solid rgba(247, 251, 255, 0.10);
     border-radius: 999px;
     padding: 10px 12px 10px 18px;
@@ -776,42 +524,4 @@ body:has(#home.active) .app-topbar {
         padding: 22px;
         border-radius: 22px;
     }
-}
-
-
-/* Recommendations page compact workspace. */
-#recommendations {
-    padding: clamp(26px, 3.2vw, 46px);
-}
-
-#recommendations .page-header.compact {
-    max-width: 1180px;
-    margin-bottom: clamp(24px, 3vw, 36px);
-}
-
-#recommendations .page-header.compact h1 {
-    max-width: 1180px;
-    font-size: clamp(2.7rem, 5vw, 5.1rem);
-}
-
-#recommendations .subhead {
-    max-width: 760px;
-}
-
-#recommendations .page-header + h2 {
-    margin-top: 4px;
-    padding-top: 22px;
-}
-
-#recommendations .agent-review {
-    margin: 14px 0 24px;
-    padding: clamp(18px, 2vw, 26px);
-}
-
-#recommendations .section-divider {
-    margin: 24px 0 18px;
-}
-
-#recommendations .candidate-grid {
-    margin-top: 14px;
 }

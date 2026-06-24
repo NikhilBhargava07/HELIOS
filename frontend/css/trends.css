@@ -1,10 +1,4 @@
-/* Recommendation cards, trend cards, news lists, and portfolio dashboard. */
-
-.candidate-grid {
-    display: grid;
-    grid-template-columns: minmax(320px, 980px);
-    gap: 14px;
-}
+/* Market trends page: ticker cards, price pills, and metric animation. */
 
 .trend-grid {
     display: grid;
@@ -12,9 +6,7 @@
     gap: 12px;
 }
 
-.candidate-card,
-.trend-card,
-.news-item {
+.trend-card {
     border: 1px solid rgba(247, 251, 255, 0.10);
     border-radius: 22px;
     padding: clamp(18px, 2vw, 26px);
@@ -25,20 +17,11 @@
     transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
 }
 
-.candidate-card:hover,
-.trend-card:hover,
-.news-item:hover,
-.take-card:hover {
+.trend-card:hover {
     border-color: rgba(241, 255, 0, 0.48);
     transform: translateY(-2px);
 }
 
-.candidate-card.discarding {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-}
-
-.candidate-card h3,
 .trend-card h3 {
     margin: 0 0 12px;
     font-size: 1.08rem;
@@ -124,75 +107,4 @@
 
 #toggle-trends {
     margin-top: 18px;
-}
-
-.news-list {
-    display: grid;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.news-item a {
-    display: inline-block;
-    color: #f1ff00;
-    font-weight: 700;
-    text-decoration: none;
-    margin-bottom: 8px;
-}
-
-.news-item p {
-    color: #c9d1d9;
-    line-height: 1.5;
-    margin: 8px 0 0;
-}
-
-.stats {
-    display: grid;
-    gap: 11px;
-    color: #c9d1d9;
-    font-size: 1rem;
-}
-
-.label {
-    color: var(--muted);
-}
-
-.warning {
-    color: var(--yellow);
-}
-
-.actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 16px;
-}
-
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.dashboard h3 {
-    margin: 18px 0 10px;
-    font-size: 1rem;
-}
-
-.ledger-note {
-    border: 1px solid rgba(88, 166, 255, 0.28);
-    border-radius: 14px;
-    padding: 12px 14px;
-    background: rgba(88, 166, 255, 0.08);
-    color: #c9d1d9;
-    line-height: 1.45;
-}
-
-.history-row {
-    border: 1px solid rgba(247, 251, 255, 0.10);
-    border-radius: 12px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    background: rgba(5, 8, 12, 0.72);
-    color: #c9d1d9;
 }

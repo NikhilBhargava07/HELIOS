@@ -1,0 +1,31 @@
+/* Capital and positions page: paper ledger, open positions, and order history. */
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.dashboard h3 {
+    margin: 18px 0 10px;
+    font-size: 1rem;
+}
+
+.ledger-note {
+    border: 1px solid rgba(88, 166, 255, 0.28);
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: rgba(88, 166, 255, 0.08);
+    color: #c9d1d9;
+    line-height: 1.45;
+}
+
+.history-row {
+    border: 1px solid rgba(247, 251, 255, 0.10);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: rgba(5, 8, 12, 0.72);
+    color: #c9d1d9;
+}

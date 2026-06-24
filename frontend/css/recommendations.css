@@ -1,0 +1,90 @@
+/* CSP recommendation page: agent review, candidate cards, and action buttons. */
+
+#recommendations {
+    padding: clamp(26px, 3.2vw, 46px);
+}
+
+#recommendations .page-header.compact {
+    max-width: 1180px;
+    margin-bottom: clamp(24px, 3vw, 36px);
+}
+
+#recommendations .page-header.compact h1 {
+    max-width: 1180px;
+    font-size: clamp(2.7rem, 5vw, 5.1rem);
+}
+
+#recommendations .subhead {
+    max-width: 760px;
+}
+
+#recommendations .page-header + h2 {
+    margin-top: 4px;
+    padding-top: 22px;
+}
+
+#recommendations .agent-review {
+    margin: 14px 0 24px;
+    padding: clamp(18px, 2vw, 26px);
+}
+
+#recommendations .section-divider {
+    margin: 24px 0 18px;
+}
+
+#recommendations .candidate-grid {
+    margin-top: 14px;
+}
+
+.candidate-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 980px);
+    gap: 14px;
+}
+
+.candidate-card {
+    border: 1px solid rgba(247, 251, 255, 0.10);
+    border-radius: 22px;
+    padding: clamp(18px, 2vw, 26px);
+    background:
+        linear-gradient(145deg, rgba(241, 255, 0, 0.07), transparent 42%),
+        rgba(5, 8, 12, 0.76);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
+    transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
+}
+
+.candidate-card:hover {
+    border-color: rgba(241, 255, 0, 0.48);
+    transform: translateY(-2px);
+}
+
+.candidate-card.discarding {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+}
+
+.candidate-card h3 {
+    margin: 0 0 12px;
+    font-size: 1.08rem;
+}
+
+.stats {
+    display: grid;
+    gap: 11px;
+    color: #c9d1d9;
+    font-size: 1rem;
+}
+
+.label {
+    color: var(--muted);
+}
+
+.warning {
+    color: var(--yellow);
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}

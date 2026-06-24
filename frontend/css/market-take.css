@@ -17,6 +17,11 @@
     transition: border-color 140ms ease, transform 140ms ease;
 }
 
+.take-card:hover {
+    border-color: rgba(241, 255, 0, 0.48);
+    transform: translateY(-2px);
+}
+
 .take-card-primary {
     background:
         linear-gradient(135deg, rgba(241, 255, 0, 0.16), rgba(241, 255, 0, 0.07)),
