@@ -9,7 +9,7 @@ from alpaca.data.requests import OptionChainRequest
 from alpaca.trading.enums import ContractType
 from psycopg.types.json import Jsonb
 
-from backend.broker.clients import option_data_client
+from backend.broker.clients import get_option_data_client
 from backend.market.trends import get_latest_stock_prices
 from backend.memory.database import ensure_schema, get_connection, json_safe, utc_now
 
@@ -42,6 +42,7 @@ def _due_candidates(limit):
 
 def _option_quotes(candidates):
     """Fetch current option quotes in one chain request per underlying ticker."""
+    option_data_client = get_option_data_client()
     grouped = defaultdict(list)
     for candidate in candidates:
         grouped[candidate["ticker_symbol"]].append(candidate)

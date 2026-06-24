@@ -1,6 +1,6 @@
 # Docker Desktop Setup
 
-This runs the CSP Agent API/frontend and a local Postgres database together.
+This runs the HELIOS API/frontend and a local Postgres database together.
 
 ## 1. Install Docker Desktop
 
@@ -40,8 +40,8 @@ http://127.0.0.1:8000
 In Docker Desktop:
 
 - Go to Containers
-- Open `csp-agent`
-- You should see `csp-agent-app` and `csp-agent-db`
+- Open `helios`
+- You should see `helios-app` and `helios-db`
 
 ## 5. Connect to Postgres from terminal
 

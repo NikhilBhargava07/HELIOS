@@ -181,7 +181,7 @@ def submit_cash_secured_put_order(candidate):
         limit_price=limit_price,
         order_class=OrderClass.SIMPLE,
         position_intent=PositionIntent.SELL_TO_OPEN,
-        client_order_id=f"csp-agent-{uuid4().hex[:24]}",
+        client_order_id=f"helios-{uuid4().hex[:24]}",
     )
 
     order = trading_client.submit_order(order_request)

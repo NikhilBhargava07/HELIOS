@@ -1,6 +1,13 @@
-"""Create authenticated Alpaca market-data clients shared by the application."""
+"""Create authenticated Alpaca market-data clients shared by the application.
+
+Clients are created lazily so importing backend modules does not immediately
+require broker credentials. That keeps local scripts, tests, and future Lambda
+cold starts easier to reason about.
+"""
 
 import os
+from functools import lru_cache
+
 from alpaca.data.historical import (
     StockHistoricalDataClient,
     OptionHistoricalDataClient,
@@ -15,7 +22,15 @@ def get_alpaca_credentials():
     return api_key, secret_key
 
 
-API_KEY, SECRET_KEY = get_alpaca_credentials()
+@lru_cache(maxsize=1)
+def get_stock_data_client():
+    """Return a cached Alpaca stock-data client."""
+    api_key, secret_key = get_alpaca_credentials()
+    return StockHistoricalDataClient(api_key, secret_key)
 
-stock_data_client = StockHistoricalDataClient(API_KEY, SECRET_KEY)
-option_data_client = OptionHistoricalDataClient(API_KEY, SECRET_KEY)
+
+@lru_cache(maxsize=1)
+def get_option_data_client():
+    """Return a cached Alpaca option-data client."""
+    api_key, secret_key = get_alpaca_credentials()
+    return OptionHistoricalDataClient(api_key, secret_key)

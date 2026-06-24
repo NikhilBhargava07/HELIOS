@@ -6,7 +6,7 @@ from alpaca.data.enums import DataFeed
 from alpaca.data.requests import StockBarsRequest, StockLatestTradeRequest
 from alpaca.data.timeframe import TimeFrame
 
-from backend.broker.clients import stock_data_client
+from backend.broker.clients import get_stock_data_client
 
 TREND_PERIODS = {"1d": 1, "5d": 5, "2w": 14, "1m": 30, "ytd": "ytd"}
 DEFAULT_TREND_PERIODS = ["1d", "5d", "2w", "1m", "ytd"]
@@ -53,6 +53,7 @@ def build_price_trend(ticker_symbol, period, ticker_bars):
 def get_market_trends(ticker_symbols, periods=None):
     """Fetch one batched YTD history request and calculate all requested periods."""
     periods = periods or DEFAULT_TREND_PERIODS
+    stock_data_client = get_stock_data_client()
     request = StockBarsRequest(
         symbol_or_symbols=ticker_symbols,
         timeframe=TimeFrame.Day,
@@ -85,6 +86,7 @@ def serialize_timestamp(value):
 
 def get_latest_stock_prices(ticker_symbols):
     """Fetch latest IEX trades for every requested symbol in one request."""
+    stock_data_client = get_stock_data_client()
     request = StockLatestTradeRequest(symbol_or_symbols=ticker_symbols, feed=DataFeed.IEX)
     latest_trades = stock_data_client.get_stock_latest_trade(request)
     prices = {}

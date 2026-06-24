@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from alpaca.data.enums import DataFeed, OptionsFeed
 from alpaca.data.requests import OptionChainRequest, StockLatestTradeRequest
 from alpaca.trading.enums import ContractType
-from backend.broker.clients import option_data_client, stock_data_client
+from backend.broker.clients import get_option_data_client, get_stock_data_client
 from backend.strategy.dates import calculate_dte
 
 def parse_option_symbol(contract_symbol):
@@ -20,6 +20,7 @@ def parse_option_symbol(contract_symbol):
 
 def get_latest_stock_price(ticker_symbol):
     """Fetch one ticker's latest IEX trade price."""
+    stock_data_client = get_stock_data_client()
     request = StockLatestTradeRequest(
         symbol_or_symbols=ticker_symbol,
         feed=DataFeed.IEX,
@@ -174,6 +175,7 @@ def find_csp_candidates(
     current_stock_price=None,
 ):
     """Fetch a put chain and return its filtered, ranked CSP candidates."""
+    option_data_client = get_option_data_client()
     today = datetime.today().date()
     min_expiration = (today + timedelta(days=min_dte)).strftime("%Y-%m-%d")
     max_expiration = (today + timedelta(days=max_dte)).strftime("%Y-%m-%d")

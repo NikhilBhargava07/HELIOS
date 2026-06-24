@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: csp-agent-app
+    container_name: helios-app
     env_file:
       - .env
     environment:
@@ -17,7 +17,7 @@ services:
 
   db:
     image: postgres:17
-    container_name: csp-agent-db
+    container_name: helios-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
