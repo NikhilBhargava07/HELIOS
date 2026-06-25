@@ -1,9 +1,8 @@
-"""Central configuration for the CSP recommendation prototype.
-
-This module owns the approved universe, display names, portfolio limits, and
-hard screening thresholds. Keeping these values together makes strategy
-changes auditable and prevents route or broker modules from defining policy.
-"""
+## Central configuration for the CSP recommendation prototype.
+##
+## This module owns the approved universe, display names, portfolio limits, and
+## hard screening thresholds. Keeping these values together makes strategy
+## changes auditable and prevents route or broker modules from defining policy.
 
 import os
 from pathlib import Path

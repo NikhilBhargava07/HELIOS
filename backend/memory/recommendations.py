@@ -1,4 +1,4 @@
-"""Persist and retrieve recommendation runs and their candidate snapshots."""
+## Persist and retrieve recommendation runs and their candidate snapshots.
 
 from uuid import uuid4
 
@@ -9,7 +9,7 @@ from backend.memory.serializers import candidate_from_row, recommendation_from_r
 
 
 def find_candidate(run, contract_symbol):
-    """Find a contract inside a previously saved recommendation run."""
+    ## Find a contract inside a previously saved recommendation run.
     return next(
         (candidate for candidate in run["candidates"] if candidate["contractSymbol"] == contract_symbol),
         None,
@@ -17,7 +17,7 @@ def find_candidate(run, contract_symbol):
 
 
 def get_recommendation_run(run_id):
-    """Load one recommendation run and all candidates using targeted SQL."""
+    ## Load one recommendation run and all candidates using targeted SQL.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -34,7 +34,7 @@ def get_recommendation_run(run_id):
 
 
 def get_latest_recommendation_run():
-    """Load the most recently generated recommendation run."""
+    ## Load the most recently generated recommendation run.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -51,7 +51,7 @@ def save_recommendation_run(
     portfolio_context=None,
     memory_context=None,
 ):
-    """Save an AI review and the complete evidence snapshot it received."""
+    ## Save an AI review and the complete evidence snapshot it received.
     ensure_schema()
     run_id = str(uuid4())
     created_at = utc_now()

@@ -1,1 +1,1 @@
-"""Market prices, trends, news, and AI context."""
+## Market prices, trends, news, and AI context.

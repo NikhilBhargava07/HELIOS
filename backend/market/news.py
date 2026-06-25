@@ -1,4 +1,4 @@
-"""Retrieve, sanitize, deduplicate, and age-filter Google News RSS items."""
+## Retrieve, sanitize, deduplicate, and age-filter Google News RSS items.
 
 import html
 import re
@@ -17,7 +17,7 @@ ESTABLISHED_NEWS_SOURCES = (
 
 
 def classify_source(source_name):
-    """Tag established reporting while leaving unfamiliar sources available."""
+    ## Tag established reporting while leaving unfamiliar sources available.
     normalized = (source_name or "").lower()
     return (
         "established_reporting"
@@ -27,18 +27,18 @@ def classify_source(source_name):
 
 
 def build_google_news_rss_url(query):
-    """Build a localized Google News RSS search URL."""
+    ## Build a localized Google News RSS search URL.
     encoded_query = urllib.parse.quote(query)
     return f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
 
 
 def clean_html_text(text):
-    """Remove embedded tags and decode HTML entities from RSS text."""
+    ## Remove embedded tags and decode HTML entities from RSS text.
     return html.unescape(re.sub(r"<[^>]+>", "", text or "")).strip()
 
 
 def parse_news_datetime(value):
-    """Parse an RSS publication date and normalize it to UTC."""
+    ## Parse an RSS publication date and normalize it to UTC.
     if not value:
         return None
     try:
@@ -51,14 +51,14 @@ def parse_news_datetime(value):
 
 
 def is_recent_news_item(item, now=None, lookback_days=NEWS_LOOKBACK_DAYS):
-    """Return whether an item falls inside the configured news window."""
+    ## Return whether an item falls inside the configured news window.
     published_at = parse_news_datetime(item.get("created_at"))
     current_time = now or datetime.now(timezone.utc)
     return bool(published_at and published_at >= current_time - timedelta(days=lookback_days))
 
 
 def fetch_rss_news(query, limit=8):
-    """Fetch and normalize a bounded set of RSS results for one query."""
+    ## Fetch and normalize a bounded set of RSS results for one query.
     request = urllib.request.Request(
         build_google_news_rss_url(query),
         headers={"User-Agent": "Mozilla/5.0"},
@@ -84,7 +84,7 @@ def fetch_rss_news(query, limit=8):
 
 
 def dedupe_news_items(news_items):
-    """Remove repeated RSS results by URL while preserving order."""
+    ## Remove repeated RSS results by URL while preserving order.
     seen_urls = set()
     deduped = []
     for item in news_items:
@@ -95,7 +95,7 @@ def dedupe_news_items(news_items):
 
 
 def get_recent_news(ticker_symbols, limit=12):
-    """Collect current broad-market and company-specific headlines."""
+    ## Collect current broad-market and company-specific headlines.
     specs = [
         ("US stock market latest news when:14d", []),
         ("Federal Reserve inflation stocks latest when:14d", []),
@@ -120,7 +120,7 @@ def get_recent_news(ticker_symbols, limit=12):
 
 
 def _fetch_news_spec(spec):
-    """Fetch one query and attach its related ticker symbols."""
+    ## Fetch one query and attach its related ticker symbols.
     query, symbols = spec
     try:
         items = fetch_rss_news(query, limit=4)
@@ -132,7 +132,7 @@ def _fetch_news_spec(spec):
 
 
 def get_candidate_news(ticker_symbols, lookback_days=10, limit=36):
-    """Return ticker-tagged news and earnings evidence for CSP review."""
+    ## Return ticker-tagged news and earnings evidence for CSP review.
     unique_tickers = list(dict.fromkeys(ticker_symbols))
     specs = [
         (f"US stock market latest news when:{lookback_days}d", []),

@@ -1,4 +1,4 @@
-"""Assemble price trends and current news into one AI-ready market context."""
+## Assemble price trends and current news into one AI-ready market context.
 
 import logging
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_market_context(ticker_symbols):
-    """Return current trends and news while preserving a recoverable news error."""
+    ## Return current trends and news while preserving a recoverable news error.
     trends = get_market_trends(ticker_symbols)
     try:
         news = get_recent_news(ticker_symbols)
@@ -24,7 +24,7 @@ def build_market_context(ticker_symbols):
 
 
 def build_candidate_review_context(ticker_symbols):
-    """Build ten-day company evidence plus benchmark and ticker trends."""
+    ## Build ten-day company evidence plus benchmark and ticker trends.
     candidate_tickers = list(dict.fromkeys(ticker_symbols))
     trend_tickers = list(dict.fromkeys([*MARKET_BENCHMARKS, *candidate_tickers]))
     try:

@@ -1,4 +1,4 @@
-"""Provide Postgres connections, schema initialization, and JSON conversion."""
+## Provides Postgres connections, schema initialization, and JSON conversion.
 
 import os
 from datetime import date, datetime, timezone
@@ -17,7 +17,7 @@ _schema_lock = Lock()
 
 
 def get_database_url():
-    """Return the required Postgres URL without embedding credentials in code."""
+    ## Return the required Postgres URL without embedding credentials in code.
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise ValueError("DATABASE_URL must be configured in .env")
@@ -25,12 +25,12 @@ def get_database_url():
 
 
 def get_connection():
-    """Open a dictionary-row Postgres connection."""
+    ## Open a dictionary-row Postgres connection.
     return psycopg.connect(get_database_url(), row_factory=dict_row)
 
 
 def json_safe(value):
-    """Recursively convert database-specific values into JSON-safe types."""
+    ## Recursively convert database-specific values into JSON-safe types.
     if isinstance(value, Decimal):
         return float(value)
     if isinstance(value, UUID):
@@ -45,12 +45,12 @@ def json_safe(value):
 
 
 def utc_now():
-    """Return the current timezone-aware UTC timestamp."""
+    ## Return the current timezone-aware UTC timestamp.
     return datetime.now(timezone.utc)
 
 
 def ensure_schema():
-    """Apply the idempotent SQL schema once per application process."""
+    ## Apply the idempotent SQL schema once per application process.
     global _schema_ready
     if _schema_ready:
         return

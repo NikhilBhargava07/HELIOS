@@ -1,4 +1,4 @@
-"""Review hard-filtered CSP candidates with OpenAI or a local fallback."""
+## Review hard-filtered CSP candidates with OpenAI or a local fallback.
 
 import json
 import logging
@@ -59,7 +59,7 @@ CSP_REVIEW_SCHEMA = {
 
 
 def build_candidate_summary(candidate):
-    """Convert one DataFrame candidate row into compact AI input."""
+    ## Convert one DataFrame candidate row into compact AI input.
     return {
         "ticker_symbol": candidate.tickerSymbol,
         "contract_symbol": candidate.contractSymbol,
@@ -82,7 +82,7 @@ def build_candidate_summary(candidate):
 
 
 def prepare_candidates_for_ai(candidates):
-    """Convert all filtered candidates into JSON-friendly AI input."""
+    ## Convert all filtered candidates into JSON-friendly AI input.
     return [
         build_candidate_summary(candidate)
         for candidate in candidates.itertuples()
@@ -90,10 +90,10 @@ def prepare_candidates_for_ai(candidates):
 
 
 def local_review_csp_candidates(ticker_symbol, candidates):
-    """
-    Deterministic fallback used when OpenAI is unavailable.
-    This keeps recommendations usable without bypassing hard strategy rules.
-    """
+    ##
+    ##     Deterministic fallback used when OpenAI is unavailable.
+    ##     This keeps recommendations usable without bypassing hard strategy rules.
+    ##     
     if candidates.empty:
         return {
             "decision": "reject_all",
@@ -147,7 +147,7 @@ def build_ai_prompt(
     portfolio_context=None,
     memory_context=None,
 ):
-    """Build a candidate-centered prompt grounded in supplied market evidence."""
+    ## Build a candidate-centered prompt grounded in supplied market evidence.
     candidate_summaries = prepare_candidates_for_ai(candidates)
 
     return f"""
@@ -241,7 +241,7 @@ def openai_review_csp_candidates(
     portfolio_context=None,
     memory_context=None,
 ):
-    """Request a schema-validated CSP review from OpenAI."""
+    ## Request a schema-validated CSP review from OpenAI.
     try:
         from openai import OpenAI
     except ImportError:
@@ -307,12 +307,12 @@ def review_csp_candidates(
     portfolio_context=None,
     memory_context=None,
 ):
-    """
-    Select OpenAI review when configured, otherwise use deterministic fallback.
-
-    The LLM should only review candidates that already passed hard rules.
-    It can rank, explain, or veto, but it should never override filters.
-    """
+    ##
+    ##     Select OpenAI review when configured, otherwise use deterministic fallback.
+    ##
+    ##     The LLM should only review candidates that already passed hard rules.
+    ##     It can rank, explain, or veto, but it should never override filters.
+    ##     
     if not os.getenv("OPENAI_API_KEY"):
         return local_review_csp_candidates(ticker_symbol, candidates)
 

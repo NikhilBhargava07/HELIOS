@@ -1,4 +1,4 @@
-"""Capture candidate checkpoints and persist finalized trade outcomes."""
+## Capture candidate checkpoints and persist finalized trade outcomes.
 
 from collections import defaultdict
 from datetime import date
@@ -18,7 +18,7 @@ OBSERVATION_HORIZONS = (1, 5, 10, 30)
 
 
 def _due_candidates(limit):
-    """Return candidate/horizon pairs whose calendar-day checkpoint is due."""
+    ## Return candidate/horizon pairs whose calendar-day checkpoint is due.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -41,7 +41,7 @@ def _due_candidates(limit):
 
 
 def _option_quotes(candidates):
-    """Fetch current option quotes in one chain request per underlying ticker."""
+    ## Fetch current option quotes in one chain request per underlying ticker.
     option_data_client = get_option_data_client()
     grouped = defaultdict(list)
     for candidate in candidates:
@@ -84,7 +84,7 @@ def _option_quotes(candidates):
 
 
 def _price_zone(stock_price, strike, breakeven):
-    """Describe where the underlying sits relative to CSP expiration levels."""
+    ## Describe where the underlying sits relative to CSP expiration levels.
     if stock_price is None:
         return "unknown"
     if stock_price >= strike:
@@ -95,7 +95,7 @@ def _price_zone(stock_price, strike, breakeven):
 
 
 def _observation_values(candidate, stock_price, quote):
-    """Calculate hypothetical CSP performance from current market evidence."""
+    ## Calculate hypothetical CSP performance from current market evidence.
     strike = float(candidate["strike"])
     breakeven = (
         float(candidate["breakeven_price"])
@@ -133,7 +133,7 @@ def _observation_values(candidate, stock_price, quote):
 
 
 def capture_due_candidate_observations(limit=200):
-    """Capture due 1/5/10/30-day hypothetical candidate checkpoints."""
+    ## Capture due 1/5/10/30-day hypothetical candidate checkpoints.
     candidates = _due_candidates(limit)
     if not candidates:
         return {"captured": 0, "due": 0, "errors": {}}
@@ -207,7 +207,7 @@ def record_trade_outcome(
     notes="",
     raw_outcome=None,
 ):
-    """Create or update a realized outcome without confusing it with a forecast."""
+    ## Create or update a realized outcome without confusing it with a forecast.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -276,5 +276,5 @@ def record_trade_outcome(
 
 
 def _float_or_none(value):
-    """Convert optional numeric request values to floats."""
+    ## Convert optional numeric request values to floats.
     return None if value is None else float(value)

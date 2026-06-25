@@ -1,4 +1,4 @@
-"""Persist user decisions, paper orders, and locally observed filled positions."""
+## Persist user decisions, paper orders, and locally observed filled positions.
 
 from uuid import uuid4
 
@@ -18,7 +18,7 @@ def record_user_decision(
     alpaca_order=None,
     order_error=None,
 ):
-    """Record a discard, failed order, or successful order submission."""
+    ## Record a discard, failed order, or successful order submission.
     ensure_schema()
     run = get_recommendation_run(run_id)
     if run is None:
@@ -54,7 +54,7 @@ def record_user_decision(
 
 
 def _insert_decision(cursor, decision):
-    """Insert one normalized user decision using the active transaction."""
+    ## Insert one normalized user decision using the active transaction.
     cursor.execute(
         """
         INSERT INTO user_decisions (
@@ -73,7 +73,7 @@ def _insert_decision(cursor, decision):
 
 
 def create_paper_order(decision, candidate, alpaca_order=None):
-    """Build the database representation of a submitted Alpaca paper order."""
+    ## Build the database representation of a submitted Alpaca paper order.
     alpaca_order = alpaca_order or {}
     return {
         "id": str(uuid4()),
@@ -98,7 +98,7 @@ def create_paper_order(decision, candidate, alpaca_order=None):
 
 
 def insert_paper_order(cursor, order):
-    """Insert one paper order using the active decision transaction."""
+    ## Insert one paper order using the active decision transaction.
     cursor.execute(
         """
         INSERT INTO paper_orders (
@@ -122,12 +122,12 @@ def insert_paper_order(cursor, order):
 
 
 def should_track_open_position(order):
-    """Return true only when Alpaca already reports the order as filled."""
+    ## Return true only when Alpaca already reports the order as filled.
     return str(order.get("status", "")).lower() in FILLED_ORDER_STATUSES
 
 
 def create_open_position(order, candidate):
-    """Build a local position record from a filled paper order."""
+    ## Build a local position record from a filled paper order.
     return {
         "id": str(uuid4()), "opened_at": utc_now().isoformat(), "status": "open",
         "order_id": order["id"], "strategy": order["strategy"],
@@ -140,7 +140,7 @@ def create_open_position(order, candidate):
 
 
 def insert_position(cursor, position):
-    """Insert one locally tracked filled position."""
+    ## Insert one locally tracked filled position.
     cursor.execute(
         """
         INSERT INTO positions (
@@ -159,7 +159,7 @@ def insert_position(cursor, position):
 
 
 def reconcile_paper_orders(alpaca_orders):
-    """Update saved order statuses and broker details from Alpaca snapshots."""
+    ## Update saved order statuses and broker details from Alpaca snapshots.
     ensure_schema()
     updated_count = 0
     with get_connection() as connection:

@@ -1,4 +1,4 @@
-"""Shared API orchestration for candidates, Alpaca state, and dashboard data."""
+## Shared API orchestration for candidates, Alpaca state, and dashboard data.
 
 import logging
 
@@ -13,7 +13,7 @@ from backend.config import (
     MAX_OPEN_POSITIONS,
     TOTAL_CAPITAL,
 )
-from backend.memory.dashboard import get_dashboard_data
+from backend.memory.capital_and_positions import get_dashboard_data
 from backend.memory.recommendations import find_candidate, get_recommendation_run
 from backend.memory.trades import reconcile_paper_orders
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def require_recommendation_run(run_id):
-    """Load a saved recommendation or raise a clear validation error."""
+    ## Load a saved recommendation or raise a clear validation error.
     run = get_recommendation_run(run_id)
     if run is None:
         raise ValueError("Recommendation run not found.")
@@ -30,7 +30,7 @@ def require_recommendation_run(run_id):
 
 
 def require_candidate(run, contract_symbol):
-    """Verify that a contract belongs to a saved recommendation run."""
+    ## Verify that a contract belongs to a saved recommendation run.
     candidate = find_candidate(run, contract_symbol)
     if candidate is None:
         raise ValueError("Candidate not found in recommendation run.")
@@ -38,7 +38,7 @@ def require_candidate(run, contract_symbol):
 
 
 def candidates_to_records(candidates):
-    """Convert ranked candidate DataFrame rows into JSON-ready records."""
+    ## Convert ranked candidate DataFrame rows into JSON-ready records.
     if candidates.empty:
         return []
     columns = [
@@ -57,7 +57,7 @@ def candidates_to_records(candidates):
 
 
 def get_safe_paper_account_summary():
-    """Return Alpaca account data without allowing broker errors to crash a route."""
+    ## Return Alpaca account data without allowing broker errors to crash a route.
     try:
         return get_paper_account_summary()
     except Exception as error:
@@ -66,7 +66,7 @@ def get_safe_paper_account_summary():
 
 
 def get_safe_paper_csp_positions():
-    """Return normalized Alpaca CSP positions plus any recoverable error."""
+    ## Return normalized Alpaca CSP positions plus any recoverable error.
     try:
         return get_paper_csp_positions(), None
     except Exception as error:
@@ -75,7 +75,7 @@ def get_safe_paper_csp_positions():
 
 
 def reconcile_orders_safely():
-    """Synchronize Postgres order history without failing the dashboard route."""
+    ## Synchronize Postgres order history without failing the dashboard route.
     try:
         return reconcile_paper_orders(get_paper_orders()), None
     except Exception as error:
@@ -84,7 +84,7 @@ def reconcile_orders_safely():
 
 
 def get_effective_available_csp_cash(capital_summary, alpaca_account):
-    """Use the lower of strategy allocation and Alpaca options buying power."""
+    ## Use the lower of strategy allocation and Alpaca options buying power.
     alpaca_available = (alpaca_account or {}).get("available_csp_cash")
     if alpaca_available is None:
         return capital_summary["available_csp_capital"]
@@ -92,7 +92,7 @@ def get_effective_available_csp_cash(capital_summary, alpaca_account):
 
 
 def attach_alpaca_cash_context(capital_summary, alpaca_account):
-    """Add broker and effective buying-power fields to a capital summary."""
+    ## Add broker and effective buying-power fields to a capital summary.
     capital_summary["alpaca_available_csp_cash"] = (alpaca_account or {}).get("available_csp_cash")
     capital_summary["effective_available_csp_capital"] = get_effective_available_csp_cash(
         capital_summary,
@@ -102,7 +102,7 @@ def attach_alpaca_cash_context(capital_summary, alpaca_account):
 
 
 def get_dashboard_with_cash_context(alpaca_account=None):
-    """Combine Postgres history with live Alpaca positions and buying power."""
+    ## Combine Postgres history with live Alpaca positions and buying power.
     reconciled_orders, order_sync_error = reconcile_orders_safely()
     dashboard = get_dashboard_data(TOTAL_CAPITAL, MAX_CSP_CAPITAL_PERCENT, MAX_OPEN_POSITIONS)
     safe_account = alpaca_account or get_safe_paper_account_summary()

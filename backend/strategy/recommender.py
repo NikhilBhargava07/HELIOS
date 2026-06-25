@@ -1,9 +1,8 @@
-"""Orchestrate CSP scanning, ranking, and AI review.
-
-The module applies account-level limits before asking the candidate engine to
-scan each approved ticker. The AI receives only contracts that already passed
-the deterministic strategy rules.
-"""
+## Orchestrate CSP scanning, ranking, and AI review.
+##
+## The module applies account-level limits before asking the candidate engine to
+## scan each approved ticker. The AI receives only contracts that already passed
+## the deterministic strategy rules.
 
 import logging
 
@@ -19,14 +18,14 @@ from backend.strategy.ai_review import review_csp_candidates
 from backend.strategy.candidates import find_csp_candidates
 from backend.market.context import build_candidate_review_context
 from backend.market.trends import get_latest_stock_prices
-from backend.memory.learning import build_memory_context
+from backend.memory.learning_user import build_memory_context
 
 
 logger = logging.getLogger(__name__)
 
 
 def can_open_new_position(current_open_positions, max_open_positions):
-    """Return whether the account remains below its position-count limit."""
+    ## Return whether the account remains below its position-count limit.
     return current_open_positions < max_open_positions
 
 
@@ -35,7 +34,7 @@ def calculate_available_csp_capital(
     max_csp_capital_percent,
     current_csp_capital_committed,
 ):
-    """Calculate uncommitted collateral under the configured CSP allocation."""
+    ## Calculate uncommitted collateral under the configured CSP allocation.
     max_csp_capital = total_capital * max_csp_capital_percent
     return max(0, max_csp_capital - current_csp_capital_committed)
 
@@ -46,7 +45,7 @@ def get_recommendation_results(
     external_available_csp_capital=None,
     portfolio_context=None,
 ):
-    """Scan approved tickers and return ranked candidates plus an AI review."""
+    ## Scan approved tickers and return ranked candidates plus an AI review.
     if not can_open_new_position(current_open_positions, MAX_OPEN_POSITIONS):
         return _rejection(f"Max open positions reached ({MAX_OPEN_POSITIONS}).", "Position limits prevent overcommitting the account.")
 
@@ -116,7 +115,7 @@ def get_recommendation_results(
 
 
 def _rejection(summary, risk_note):
-    """Build the common empty recommendation response."""
+    ## Build the common empty recommendation response.
     return {
         "candidates": pd.DataFrame(),
         "review": {

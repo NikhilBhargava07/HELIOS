@@ -1,4 +1,4 @@
-"""Assemble the FastAPI application, middleware, routes, and static frontend."""
+## Assemble the FastAPI application, middleware, routes, and static frontend.
 
 import os
 
@@ -14,7 +14,7 @@ from backend.config import PROJECT_ROOT
 
 
 def create_app():
-    """Build and configure the CSP Agent FastAPI application."""
+    ## Build and configure the CSP Agent FastAPI application.
     application = FastAPI(title="CSP Agent API")
     allowed_origins = [
         origin.strip()

@@ -1,4 +1,4 @@
-"""Read Alpaca paper-account state and submit CSP paper orders."""
+## Read Alpaca paper-account state and submit CSP paper orders.
 
 import re
 from uuid import uuid4
@@ -20,14 +20,14 @@ OPTION_SYMBOL_PATTERN = re.compile(
 
 
 def get_trading_client():
-    """Create an authenticated client pinned to Alpaca paper trading."""
+    ## Create an authenticated client pinned to Alpaca paper trading.
     api_key, secret_key = get_alpaca_credentials()
 
     return TradingClient(api_key, secret_key, paper=True)
 
 
 def option_limit_price_from_candidate(candidate):
-    """Convert total contract premium into Alpaca's per-share limit price."""
+    ## Convert total contract premium into Alpaca's per-share limit price.
     premium_total = candidate.get("premiumIfSoldAtBid")
 
     if premium_total is None:
@@ -38,7 +38,7 @@ def option_limit_price_from_candidate(candidate):
 
 
 def serialize_alpaca_order(order):
-    """Convert an Alpaca order model into a JSON-compatible dictionary."""
+    ## Convert an Alpaca order model into a JSON-compatible dictionary.
     if hasattr(order, "model_dump"):
         return order.model_dump(mode="json")
 
@@ -49,7 +49,7 @@ def serialize_alpaca_order(order):
 
 
 def serialize_alpaca_model(model):
-    """Convert a general Alpaca SDK model into a dictionary."""
+    ## Convert a general Alpaca SDK model into a dictionary.
     if hasattr(model, "model_dump"):
         return model.model_dump(mode="json")
 
@@ -60,7 +60,7 @@ def serialize_alpaca_model(model):
 
 
 def number_or_none(value):
-    """Parse a numeric broker field without raising on absent values."""
+    ## Parse a numeric broker field without raising on absent values.
     if value is None:
         return None
 
@@ -71,7 +71,7 @@ def number_or_none(value):
 
 
 def first_number(raw_data, *keys):
-    """Return the first numeric value found among ordered account keys."""
+    ## Return the first numeric value found among ordered account keys.
     for key in keys:
         value = raw_data.get(key)
         number = number_or_none(value)
@@ -83,7 +83,7 @@ def first_number(raw_data, *keys):
 
 
 def get_paper_account_summary():
-    """Return the paper account fields needed for CSP buying-power checks."""
+    ## Return the paper account fields needed for CSP buying-power checks.
     account = get_trading_client().get_account()
     raw_account = serialize_alpaca_model(account)
     buying_power = first_number(
@@ -103,7 +103,7 @@ def get_paper_account_summary():
 
 
 def parse_option_contract_symbol(contract_symbol):
-    """Parse an OCC option symbol into ticker, expiration, type, and strike."""
+    ## Parse an OCC option symbol into ticker, expiration, type, and strike.
     match = OPTION_SYMBOL_PATTERN.match(contract_symbol or "")
 
     if not match:
@@ -120,7 +120,7 @@ def parse_option_contract_symbol(contract_symbol):
 
 
 def get_paper_csp_positions():
-    """Return normalized short-put positions from the Alpaca paper account."""
+    ## Return normalized short-put positions from the Alpaca paper account.
     positions = []
 
     for model in get_trading_client().get_all_positions():
@@ -159,7 +159,7 @@ def get_paper_csp_positions():
 
 
 def get_paper_orders(limit=500):
-    """Return recent open and closed Alpaca paper orders for reconciliation."""
+    ## Return recent open and closed Alpaca paper orders for reconciliation.
     request = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=limit)
     return [
         serialize_alpaca_order(order)
@@ -168,7 +168,7 @@ def get_paper_orders(limit=500):
 
 
 def submit_cash_secured_put_order(candidate):
-    """Submit one sell-to-open CSP limit order to Alpaca paper trading."""
+    ## Submit one sell-to-open CSP limit order to Alpaca paper trading.
     trading_client = get_trading_client()
     contract_symbol = candidate["contractSymbol"]
     limit_price = option_limit_price_from_candidate(candidate)

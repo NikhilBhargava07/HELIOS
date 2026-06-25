@@ -1,4 +1,4 @@
-"""Build, filter, and rank cash-secured put candidates from Alpaca data."""
+## Build, filter, and rank cash-secured put candidates from Alpaca data.
 
 import pandas as pd
 from datetime import datetime, timedelta
@@ -10,7 +10,7 @@ from backend.broker.clients import get_option_data_client, get_stock_data_client
 from backend.strategy.dates import calculate_dte
 
 def parse_option_symbol(contract_symbol):
-    """Extract expiration and strike from an OCC option contract symbol."""
+    ## Extract expiration and strike from an OCC option contract symbol.
     option_code = contract_symbol[-15:]
     expiration = datetime.strptime(option_code[:6], "%y%m%d").date()
     strike = int(option_code[7:]) / 1000
@@ -19,7 +19,7 @@ def parse_option_symbol(contract_symbol):
 
 
 def get_latest_stock_price(ticker_symbol):
-    """Fetch one ticker's latest IEX trade price."""
+    ## Fetch one ticker's latest IEX trade price.
     stock_data_client = get_stock_data_client()
     request = StockLatestTradeRequest(
         symbol_or_symbols=ticker_symbol,
@@ -32,7 +32,7 @@ def get_latest_stock_price(ticker_symbol):
 
 
 def build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price):
-    """Convert Alpaca option snapshots into calculated candidate rows."""
+    ## Convert Alpaca option snapshots into calculated candidate rows.
     rows = []
 
     for contract_symbol, snapshot in snapshots.items():
@@ -82,7 +82,7 @@ def build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price)
 
 
 def add_recommendation_score(puts, target_delta):
-    """Score filtered puts using return, cushion, delta distance, and spread."""
+    ## Score filtered puts using return, cushion, delta distance, and spread.
     puts = puts.copy()
     puts["deltaDistance"] = (puts["delta"] - target_delta).abs()
     puts["spreadPercentOfBid"] = (puts["spread"] / puts["bid"]) * 100
@@ -99,7 +99,7 @@ def add_recommendation_score(puts, target_delta):
 
 
 def filter_valid_quotes(puts, max_spread, min_quote_size):
-    """Remove missing, crossed, wide, or undersized option quotes."""
+    ## Remove missing, crossed, wide, or undersized option quotes.
     return puts[
         (puts["bid"] > 0)
         & (puts["ask"] > 0)
@@ -111,7 +111,7 @@ def filter_valid_quotes(puts, max_spread, min_quote_size):
 
 
 def filter_by_delta(puts, target_delta, delta_tolerance):
-    """Keep contracts inside the configured delta range."""
+    ## Keep contracts inside the configured delta range.
     min_delta = target_delta - delta_tolerance
     max_delta = target_delta + delta_tolerance
 
@@ -122,7 +122,7 @@ def filter_by_delta(puts, target_delta, delta_tolerance):
 
 
 def filter_by_iv(puts, min_iv_percent, max_iv_percent):
-    """Keep contracts inside the acceptable implied-volatility range."""
+    ## Keep contracts inside the acceptable implied-volatility range.
     return puts[
         (puts["ivPercent"] >= min_iv_percent)
         & (puts["ivPercent"] <= max_iv_percent)
@@ -130,12 +130,12 @@ def filter_by_iv(puts, min_iv_percent, max_iv_percent):
 
 
 def filter_by_cash_required(puts, available_capital):
-    """Keep contracts whose full cash collateral is affordable."""
+    ## Keep contracts whose full cash collateral is affordable.
     return puts[puts["cashRequired"] <= available_capital]
 
 
 def filter_by_roc(puts, min_roc_percent):
-    """Keep contracts meeting the minimum return-on-cash threshold."""
+    ## Keep contracts meeting the minimum return-on-cash threshold.
     return puts[puts["returnOnCashPercent"] >= min_roc_percent]
 
 
@@ -150,7 +150,7 @@ def apply_csp_filters(
     min_roc_percent,
     available_capital,
 ):
-    """Apply all deterministic quote, risk, return, and capital filters."""
+    ## Apply all deterministic quote, risk, return, and capital filters.
     filtered_puts = filter_valid_quotes(puts, max_spread, min_quote_size)
     filtered_puts = filter_by_delta(filtered_puts, target_delta, delta_tolerance)
     filtered_puts = filter_by_iv(filtered_puts, min_iv_percent, max_iv_percent)
@@ -174,7 +174,7 @@ def find_csp_candidates(
     available_capital,
     current_stock_price=None,
 ):
-    """Fetch a put chain and return its filtered, ranked CSP candidates."""
+    ## Fetch a put chain and return its filtered, ranked CSP candidates.
     option_data_client = get_option_data_client()
     today = datetime.today().date()
     min_expiration = (today + timedelta(days=min_dte)).strftime("%Y-%m-%d")

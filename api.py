@@ -1,4 +1,4 @@
-"""Uvicorn entry point exposing the configured FastAPI application."""
+## Uvicorn entry point exposing the configured FastAPI application.
 
 from backend.api.app import app
 

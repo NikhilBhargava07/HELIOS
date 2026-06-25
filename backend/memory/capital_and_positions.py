@@ -1,4 +1,4 @@
-"""Read portfolio summaries and recent history for the dashboard."""
+## Reads portfolio summaries and recent history for the capital/positions page.
 
 from backend.memory.database import ensure_schema, get_connection
 from backend.memory.serializers import (
@@ -8,7 +8,7 @@ from backend.memory.serializers import (
 
 
 def get_open_positions():
-    """Return locally tracked positions still marked open."""
+    ## Return locally tracked positions still marked open.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -22,7 +22,7 @@ def get_capital_summary(
     max_open_positions,
     open_positions=None,
 ):
-    """Calculate local CSP collateral usage and position capacity."""
+    ## Calculate local CSP collateral usage and position capacity.
     positions = get_open_positions() if open_positions is None else open_positions
     committed_capital = sum(position["cash_required"] for position in positions)
     max_csp_capital = total_capital * max_csp_capital_percent
@@ -38,7 +38,7 @@ def get_capital_summary(
 
 
 def get_dashboard_data(total_capital, max_csp_capital_percent, max_open_positions):
-    """Load local capital calculations and bounded recent history lists."""
+    ## Load local capital calculations and bounded recent history lists.
     ensure_schema()
     open_positions = get_open_positions()
     with get_connection() as connection:

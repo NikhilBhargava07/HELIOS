@@ -1,4 +1,4 @@
-"""Recommendation generation and user-decision HTTP routes."""
+## Recommendation generation and user-decision HTTP routes.
 
 from fastapi import APIRouter, BackgroundTasks
 
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api", tags=["recommendations"])
 
 @router.get("/recommendations")
 def get_recommendations(background_tasks: BackgroundTasks):
-    """Generate, review, persist, and return affordable CSP candidates."""
+    ## Generate, review, persist, and return affordable CSP candidates.
     alpaca_account = get_safe_paper_account_summary()
     dashboard = get_dashboard_with_cash_context(alpaca_account)
     capital = dashboard["capital"]
@@ -67,7 +67,7 @@ def get_recommendations(background_tasks: BackgroundTasks):
 
 @router.post("/decisions")
 def post_user_decision(request: UserDecisionRequest):
-    """Record a discard or submit and persist an Alpaca paper order."""
+    ## Record a discard or submit and persist an Alpaca paper order.
     alpaca_order = None
     alpaca_account = None
     order_error = None
