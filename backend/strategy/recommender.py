@@ -24,28 +24,28 @@ from backend.memory.learning_user import build_memory_context
 logger = logging.getLogger(__name__)
 
 
+## Return whether the account remains below its position-count limit.
 def can_open_new_position(current_open_positions, max_open_positions):
-    ## Return whether the account remains below its position-count limit.
     return current_open_positions < max_open_positions
 
 
+## Calculate uncommitted collateral under the configured CSP allocation.
 def calculate_available_csp_capital(
     total_capital,
     max_csp_capital_percent,
     current_csp_capital_committed,
 ):
-    ## Calculate uncommitted collateral under the configured CSP allocation.
     max_csp_capital = total_capital * max_csp_capital_percent
     return max(0, max_csp_capital - current_csp_capital_committed)
 
 
+## Scan approved tickers and return ranked candidates plus an AI review.
 def get_recommendation_results(
     current_open_positions=0,
     current_csp_capital_committed=0,
     external_available_csp_capital=None,
     portfolio_context=None,
 ):
-    ## Scan approved tickers and return ranked candidates plus an AI review.
     if not can_open_new_position(current_open_positions, MAX_OPEN_POSITIONS):
         return _rejection(f"Max open positions reached ({MAX_OPEN_POSITIONS}).", "Position limits prevent overcommitting the account.")
 
@@ -114,8 +114,8 @@ def get_recommendation_results(
     }
 
 
+## Build the common empty recommendation response.
 def _rejection(summary, risk_note):
-    ## Build the common empty recommendation response.
     return {
         "candidates": pd.DataFrame(),
         "review": {

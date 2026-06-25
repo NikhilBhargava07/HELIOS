@@ -10,8 +10,8 @@ MARKET_BENCHMARKS = ["SPY", "QQQ", "IWM"]
 logger = logging.getLogger(__name__)
 
 
+## Return current trends and news while preserving a recoverable news error.
 def build_market_context(ticker_symbols):
-    ## Return current trends and news while preserving a recoverable news error.
     trends = get_market_trends(ticker_symbols)
     try:
         news = get_recent_news(ticker_symbols)
@@ -23,8 +23,8 @@ def build_market_context(ticker_symbols):
     return {"trends": trends, "news": news, "news_error": news_error}
 
 
+## Build ten-day company evidence plus benchmark and ticker trends.
 def build_candidate_review_context(ticker_symbols):
-    ## Build ten-day company evidence plus benchmark and ticker trends.
     candidate_tickers = list(dict.fromkeys(ticker_symbols))
     trend_tickers = list(dict.fromkeys([*MARKET_BENCHMARKS, *candidate_tickers]))
     try:

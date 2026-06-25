@@ -16,21 +16,21 @@ _schema_ready = False
 _schema_lock = Lock()
 
 
+## Return the required Postgres URL without embedding credentials in code.
 def get_database_url():
-    ## Return the required Postgres URL without embedding credentials in code.
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise ValueError("DATABASE_URL must be configured in .env")
     return database_url
 
 
+## Open a dictionary-row Postgres connection.
 def get_connection():
-    ## Open a dictionary-row Postgres connection.
     return psycopg.connect(get_database_url(), row_factory=dict_row)
 
 
+## Recursively convert database-specific values into JSON-safe types.
 def json_safe(value):
-    ## Recursively convert database-specific values into JSON-safe types.
     if isinstance(value, Decimal):
         return float(value)
     if isinstance(value, UUID):
@@ -44,13 +44,13 @@ def json_safe(value):
     return value
 
 
+## Return the current timezone-aware UTC timestamp.
 def utc_now():
-    ## Return the current timezone-aware UTC timestamp.
     return datetime.now(timezone.utc)
 
 
+## Apply the idempotent SQL schema once per application process.
 def ensure_schema():
-    ## Apply the idempotent SQL schema once per application process.
     global _schema_ready
     if _schema_ready:
         return

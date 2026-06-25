@@ -99,6 +99,15 @@ function startTrendMetricRotation() {
     }, TREND_METRIC_ROTATE_MS);
 }
 
+/** Stop periodic latest-price refreshes when the Trends tab is hidden. */
+function stopPriceRefresh() {
+    if (priceRefreshIntervalId) {
+        clearInterval(priceRefreshIntervalId);
+    }
+
+    priceRefreshIntervalId = null;
+}
+
 /** Stop trend rotation when no trend cards are displayed. */
 function stopTrendMetricRotation() {
     if (trendMetricRotateIntervalId) {

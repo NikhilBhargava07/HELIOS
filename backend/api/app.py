@@ -13,9 +13,9 @@ from backend.api.routes.recommendations import router as recommendation_router
 from backend.config import PROJECT_ROOT
 
 
+## Build and configure the HELIOS FastAPI application.
 def create_app():
-    ## Build and configure the CSP Agent FastAPI application.
-    application = FastAPI(title="CSP Agent API")
+    application = FastAPI(title="HELIOS API")
     allowed_origins = [
         origin.strip()
         for origin in os.getenv(

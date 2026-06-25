@@ -4,8 +4,8 @@ from backend.config import APPROVED_TICKERS, TARGET_DELTA
 from backend.strategy.recommender import get_recommendation_results
 
 
+## Print ranked CSP candidates in a beginner-readable terminal format.
 def print_recommendations(candidates):
-    ## Print ranked CSP candidates in a beginner-readable terminal format.
     for number, candidate in enumerate(candidates.itertuples(), start=1):
         print(
             f"{number}. Sell 1 {candidate.tickerSymbol} ${candidate.strike:.2f} put "
@@ -27,16 +27,16 @@ def print_recommendations(candidates):
         )
 
 
+## Print the structured AI decision and risk explanation.
 def print_ai_review(review):
-    ## Print the structured AI decision and risk explanation.
     print(f"Agent review:\nDecision: {review['decision']}")
     if review["selected_contract"]:
         print(f"Selected contract: {review['selected_contract']}")
     print(f"Summary: {review['summary']}\nRisk note: {review['risk_note']}\n")
 
 
+## Run the recommendation pipeline from the terminal.
 def main():
-    ## Run the recommendation pipeline from the terminal.
     print(f"Scanning approved tickers: {', '.join(APPROVED_TICKERS)}\n")
     results = get_recommendation_results()
     if results["candidates"].empty:

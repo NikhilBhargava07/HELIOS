@@ -8,12 +8,12 @@ router = APIRouter(prefix="/api", tags=["portfolio"])
 
 
 @router.get("/health")
+## Confirm that the FastAPI process is accepting requests.
 def health_check():
-    ## Confirm that the FastAPI process is accepting requests.
     return {"status": "ok"}
 
 
 @router.get("/dashboard")
+## Return live Alpaca positions combined with Postgres history.
 def get_dashboard():
-    ## Return live Alpaca positions combined with Postgres history.
     return get_dashboard_with_cash_context()

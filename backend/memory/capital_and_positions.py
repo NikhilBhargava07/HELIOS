@@ -7,8 +7,8 @@ from backend.memory.serializers import (
 )
 
 
+## Return locally tracked positions still marked open.
 def get_open_positions():
-    ## Return locally tracked positions still marked open.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -16,13 +16,13 @@ def get_open_positions():
             return [position_from_row(row) for row in cursor.fetchall()]
 
 
+## Calculate local CSP collateral usage and position capacity.
 def get_capital_summary(
     total_capital,
     max_csp_capital_percent,
     max_open_positions,
     open_positions=None,
 ):
-    ## Calculate local CSP collateral usage and position capacity.
     positions = get_open_positions() if open_positions is None else open_positions
     committed_capital = sum(position["cash_required"] for position in positions)
     max_csp_capital = total_capital * max_csp_capital_percent
@@ -37,8 +37,8 @@ def get_capital_summary(
     }
 
 
+## Load local capital calculations and bounded recent history lists.
 def get_dashboard_data(total_capital, max_csp_capital_percent, max_open_positions):
-    ## Load local capital calculations and bounded recent history lists.
     ensure_schema()
     open_positions = get_open_positions()
     with get_connection() as connection:

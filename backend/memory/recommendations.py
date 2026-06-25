@@ -8,16 +8,16 @@ from backend.memory.database import ensure_schema, get_connection, utc_now
 from backend.memory.serializers import candidate_from_row, recommendation_from_row
 
 
+## Find a contract inside a previously saved recommendation run.
 def find_candidate(run, contract_symbol):
-    ## Find a contract inside a previously saved recommendation run.
     return next(
         (candidate for candidate in run["candidates"] if candidate["contractSymbol"] == contract_symbol),
         None,
     )
 
 
+## Load one recommendation run and all candidates using targeted SQL.
 def get_recommendation_run(run_id):
-    ## Load one recommendation run and all candidates using targeted SQL.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -33,8 +33,8 @@ def get_recommendation_run(run_id):
     return recommendation_from_row(run_row, candidates)
 
 
+## Load the most recently generated recommendation run.
 def get_latest_recommendation_run():
-    ## Load the most recently generated recommendation run.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -43,6 +43,7 @@ def get_latest_recommendation_run():
     return get_recommendation_run(str(row["id"])) if row else None
 
 
+## Save an AI review and the complete evidence snapshot it received.
 def save_recommendation_run(
     candidates,
     review,
@@ -51,7 +52,6 @@ def save_recommendation_run(
     portfolio_context=None,
     memory_context=None,
 ):
-    ## Save an AI review and the complete evidence snapshot it received.
     ensure_schema()
     run_id = str(uuid4())
     created_at = utc_now()

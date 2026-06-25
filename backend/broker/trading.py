@@ -1,6 +1,7 @@
 ## Read Alpaca paper-account state and submit CSP paper orders.
 
 import re
+from functools import lru_cache
 from uuid import uuid4
 
 from alpaca.trading.client import TradingClient
@@ -19,15 +20,16 @@ OPTION_SYMBOL_PATTERN = re.compile(
 )
 
 
+## Create a cached authenticated client pinned to Alpaca paper trading.
+@lru_cache(maxsize=1)
 def get_trading_client():
-    ## Create an authenticated client pinned to Alpaca paper trading.
     api_key, secret_key = get_alpaca_credentials()
 
     return TradingClient(api_key, secret_key, paper=True)
 
 
+## Convert total contract premium into Alpaca's per-share limit price.
 def option_limit_price_from_candidate(candidate):
-    ## Convert total contract premium into Alpaca's per-share limit price.
     premium_total = candidate.get("premiumIfSoldAtBid")
 
     if premium_total is None:
@@ -37,19 +39,8 @@ def option_limit_price_from_candidate(candidate):
     return round(float(premium_total) / 100, 2)
 
 
-def serialize_alpaca_order(order):
-    ## Convert an Alpaca order model into a JSON-compatible dictionary.
-    if hasattr(order, "model_dump"):
-        return order.model_dump(mode="json")
-
-    if hasattr(order, "dict"):
-        return order.dict()
-
-    return dict(order)
-
-
+## Convert an Alpaca SDK model into a JSON-compatible dictionary.
 def serialize_alpaca_model(model):
-    ## Convert a general Alpaca SDK model into a dictionary.
     if hasattr(model, "model_dump"):
         return model.model_dump(mode="json")
 
@@ -59,8 +50,8 @@ def serialize_alpaca_model(model):
     return dict(model)
 
 
+## Parse a numeric broker field without raising on absent values.
 def number_or_none(value):
-    ## Parse a numeric broker field without raising on absent values.
     if value is None:
         return None
 
@@ -70,8 +61,8 @@ def number_or_none(value):
         return None
 
 
+## Return the first numeric value found among ordered account keys.
 def first_number(raw_data, *keys):
-    ## Return the first numeric value found among ordered account keys.
     for key in keys:
         value = raw_data.get(key)
         number = number_or_none(value)
@@ -82,8 +73,8 @@ def first_number(raw_data, *keys):
     return None
 
 
+## Return the paper account fields needed for CSP buying-power checks.
 def get_paper_account_summary():
-    ## Return the paper account fields needed for CSP buying-power checks.
     account = get_trading_client().get_account()
     raw_account = serialize_alpaca_model(account)
     buying_power = first_number(
@@ -102,8 +93,8 @@ def get_paper_account_summary():
     }
 
 
+## Parse an OCC option symbol into ticker, expiration, type, and strike.
 def parse_option_contract_symbol(contract_symbol):
-    ## Parse an OCC option symbol into ticker, expiration, type, and strike.
     match = OPTION_SYMBOL_PATTERN.match(contract_symbol or "")
 
     if not match:
@@ -119,8 +110,8 @@ def parse_option_contract_symbol(contract_symbol):
     }
 
 
+## Return normalized short-put positions from the Alpaca paper account.
 def get_paper_csp_positions():
-    ## Return normalized short-put positions from the Alpaca paper account.
     positions = []
 
     for model in get_trading_client().get_all_positions():
@@ -158,17 +149,17 @@ def get_paper_csp_positions():
     return positions
 
 
+## Return recent open and closed Alpaca paper orders for reconciliation.
 def get_paper_orders(limit=500):
-    ## Return recent open and closed Alpaca paper orders for reconciliation.
     request = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=limit)
     return [
-        serialize_alpaca_order(order)
+        serialize_alpaca_model(order)
         for order in get_trading_client().get_orders(filter=request)
     ]
 
 
+## Submit one sell-to-open CSP limit order to Alpaca paper trading.
 def submit_cash_secured_put_order(candidate):
-    ## Submit one sell-to-open CSP limit order to Alpaca paper trading.
     trading_client = get_trading_client()
     contract_symbol = candidate["contractSymbol"]
     limit_price = option_limit_price_from_candidate(candidate)
@@ -185,7 +176,7 @@ def submit_cash_secured_put_order(candidate):
     )
 
     order = trading_client.submit_order(order_request)
-    serialized_order = serialize_alpaca_order(order)
+    serialized_order = serialize_alpaca_model(order)
 
     return {
         "id": serialized_order.get("id"),

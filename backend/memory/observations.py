@@ -17,8 +17,8 @@ from backend.memory.database import ensure_schema, get_connection, json_safe, ut
 OBSERVATION_HORIZONS = (1, 5, 10, 30)
 
 
+## Return candidate/horizon pairs whose calendar-day checkpoint is due.
 def _due_candidates(limit):
-    ## Return candidate/horizon pairs whose calendar-day checkpoint is due.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -40,8 +40,8 @@ def _due_candidates(limit):
             return cursor.fetchall()
 
 
+## Fetch current option quotes in one chain request per underlying ticker.
 def _option_quotes(candidates):
-    ## Fetch current option quotes in one chain request per underlying ticker.
     option_data_client = get_option_data_client()
     grouped = defaultdict(list)
     for candidate in candidates:
@@ -83,8 +83,8 @@ def _option_quotes(candidates):
     return quotes, errors
 
 
+## Describe where the underlying sits relative to CSP expiration levels.
 def _price_zone(stock_price, strike, breakeven):
-    ## Describe where the underlying sits relative to CSP expiration levels.
     if stock_price is None:
         return "unknown"
     if stock_price >= strike:
@@ -94,8 +94,8 @@ def _price_zone(stock_price, strike, breakeven):
     return "below_breakeven"
 
 
+## Calculate hypothetical CSP performance from current market evidence.
 def _observation_values(candidate, stock_price, quote):
-    ## Calculate hypothetical CSP performance from current market evidence.
     strike = float(candidate["strike"])
     breakeven = (
         float(candidate["breakeven_price"])
@@ -132,8 +132,8 @@ def _observation_values(candidate, stock_price, quote):
     }
 
 
+## Capture due 1/5/10/30-day hypothetical candidate checkpoints.
 def capture_due_candidate_observations(limit=200):
-    ## Capture due 1/5/10/30-day hypothetical candidate checkpoints.
     candidates = _due_candidates(limit)
     if not candidates:
         return {"captured": 0, "due": 0, "errors": {}}
@@ -196,6 +196,7 @@ def capture_due_candidate_observations(limit=200):
     }
 
 
+## Create or update a realized outcome without confusing it with a forecast.
 def record_trade_outcome(
     decision_id,
     status,
@@ -207,7 +208,6 @@ def record_trade_outcome(
     notes="",
     raw_outcome=None,
 ):
-    ## Create or update a realized outcome without confusing it with a forecast.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -275,6 +275,6 @@ def record_trade_outcome(
     return json_safe(outcome)
 
 
+## Convert optional numeric request values to floats.
 def _float_or_none(value):
-    ## Convert optional numeric request values to floats.
     return None if value is None else float(value)

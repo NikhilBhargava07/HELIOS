@@ -12,21 +12,21 @@ TREND_PERIODS = {"1d": 1, "5d": 5, "2w": 14, "1m": 30, "ytd": "ytd"}
 DEFAULT_TREND_PERIODS = ["1d", "5d", "2w", "1m", "ytd"]
 
 
+## Return percentage movement between two prices.
 def calculate_percent_change(start_price, end_price):
-    ## Return percentage movement between two prices.
     return None if not start_price else ((end_price - start_price) / start_price) * 100
 
 
+## Return a UTC history start date with enough buffer for a trend period.
 def get_start_date(period):
-    ## Return a UTC history start date with enough buffer for a trend period.
     today = datetime.now(timezone.utc)
     if period == "ytd":
         return datetime(today.year, 1, 1, tzinfo=timezone.utc)
     return today - timedelta(days=TREND_PERIODS[period] + 7)
 
 
+## Calculate one trend from already-fetched daily bars.
 def build_price_trend(ticker_symbol, period, ticker_bars):
-    ## Calculate one trend from already-fetched daily bars.
     if len(ticker_bars) < 2:
         return {
             "ticker": ticker_symbol, "period": period, "start_price": None,
@@ -50,8 +50,8 @@ def build_price_trend(ticker_symbol, period, ticker_bars):
     }
 
 
+## Fetch one batched YTD history request and calculate all requested periods.
 def get_market_trends(ticker_symbols, periods=None):
-    ## Fetch one batched YTD history request and calculate all requested periods.
     periods = periods or DEFAULT_TREND_PERIODS
     stock_data_client = get_stock_data_client()
     request = StockBarsRequest(
@@ -77,15 +77,15 @@ def get_market_trends(ticker_symbols, periods=None):
     return trends
 
 
+## Convert an Alpaca timestamp into JSON-safe text.
 def serialize_timestamp(value):
-    ## Convert an Alpaca timestamp into JSON-safe text.
     if value is None:
         return None
     return value.isoformat() if hasattr(value, "isoformat") else str(value)
 
 
+## Fetch latest IEX trades for every requested symbol in one request.
 def get_latest_stock_prices(ticker_symbols):
-    ## Fetch latest IEX trades for every requested symbol in one request.
     stock_data_client = get_stock_data_client()
     request = StockLatestTradeRequest(symbol_or_symbols=ticker_symbols, feed=DataFeed.IEX)
     latest_trades = stock_data_client.get_stock_latest_trade(request)

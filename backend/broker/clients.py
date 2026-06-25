@@ -12,8 +12,8 @@ from alpaca.data.historical import (
     OptionHistoricalDataClient,
 )
 
+## Return Alpaca credentials from either supported environment naming style.
 def get_alpaca_credentials():
-    ## Return Alpaca credentials from either supported environment naming style.
     api_key = os.getenv("APCA_API_KEY_ID") or os.getenv("ALPACA_API_KEY")
     secret_key = os.getenv("APCA_API_SECRET_KEY") or os.getenv("ALPACA_SECRET_KEY")
     if not api_key or not secret_key:
@@ -21,15 +21,15 @@ def get_alpaca_credentials():
     return api_key, secret_key
 
 
+## Return a cached Alpaca stock-data client.
 @lru_cache(maxsize=1)
 def get_stock_data_client():
-    ## Return a cached Alpaca stock-data client.
     api_key, secret_key = get_alpaca_credentials()
     return StockHistoricalDataClient(api_key, secret_key)
 
 
+## Return a cached Alpaca option-data client.
 @lru_cache(maxsize=1)
 def get_option_data_client():
-    ## Return a cached Alpaca option-data client.
     api_key, secret_key = get_alpaca_credentials()
     return OptionHistoricalDataClient(api_key, secret_key)

@@ -14,20 +14,20 @@ router = APIRouter(prefix="/api/memory", tags=["memory"])
 
 
 @router.get("/context")
+## Return the compact evidence package supplied to recommendation reviews.
 def get_memory_context(tickers: list[str] = Query(default=[])):
-    ## Return the compact evidence package supplied to recommendation reviews.
     return build_memory_context([ticker.upper() for ticker in tickers])
 
 
 @router.post("/observe")
+## Capture all currently due candidate checkpoints.
 def observe_due_candidates():
-    ## Capture all currently due candidate checkpoints.
     return capture_due_candidate_observations()
 
 
 @router.post("/outcomes")
+## Persist a verified realized trade result for future learning.
 def post_trade_outcome(request: TradeOutcomeRequest):
-    ## Persist a verified realized trade result for future learning.
     return record_trade_outcome(
         decision_id=request.decision_id,
         status=request.status,

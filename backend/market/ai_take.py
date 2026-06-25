@@ -11,8 +11,8 @@ from backend.config import OPENAI_MODEL
 logger = logging.getLogger(__name__)
 
 
+## Create a deterministic market summary when OpenAI is unavailable.
 def local_market_take(context):
-    ## Create a deterministic market summary when OpenAI is unavailable.
     if not context["trends"] and not context["news"]:
         return {
             "headline": "No market context yet.", "market_mood": "Neutral",
@@ -66,8 +66,8 @@ def local_market_take(context):
     }
 
 
+## Return the three strongest or weakest rows by five-day movement.
 def _rank_trends(trends, reverse):
-    ## Return the three strongest or weakest rows by five-day movement.
     missing_value = -999 if reverse else 999
     return sorted(
         trends,
@@ -76,8 +76,8 @@ def _rank_trends(trends, reverse):
     )[:3]
 
 
+## Parse JSON even when a model wraps it in Markdown fences or prose.
 def parse_market_take_json(text):
-    ## Parse JSON even when a model wraps it in Markdown fences or prose.
     cleaned = re.sub(r"^```(?:json)?", "", text.strip())
     cleaned = re.sub(r"```$", "", cleaned).strip()
     try:
@@ -89,8 +89,8 @@ def parse_market_take_json(text):
         return json.loads(match.group(0))
 
 
+## Ask OpenAI for a cautious take centered on positions and candidates.
 def ai_market_take(context):
-    ## Ask OpenAI for a cautious take centered on positions and candidates.
     if not os.getenv("OPENAI_API_KEY"):
         return local_market_take(context)
     try:
@@ -116,8 +116,8 @@ def ai_market_take(context):
         return fallback
 
 
+## Build instructions that prevent generic or unsupported market claims.
 def _build_market_take_prompt(context):
-    ## Build instructions that prevent generic or unsupported market claims.
     return f"""
 You are helping with an educational cash-secured put paper-trading dashboard.
 Do not pretend to know the future. Return only valid JSON with these keys:
@@ -151,8 +151,8 @@ Context:
 """
 
 
+## Return a stable response shape even if optional model fields are absent.
 def _normalize_market_take(take):
-    ## Return a stable response shape even if optional model fields are absent.
     return {
         "headline": take.get("headline", "Market risk check"),
         "market_mood": take.get("market_mood", "Mixed"),

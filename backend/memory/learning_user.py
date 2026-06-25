@@ -11,13 +11,13 @@ from psycopg.types.json import Jsonb
 from backend.memory.database import ensure_schema, get_connection, json_safe, utc_now
 
 
+## Convert nullable database numbers to floats.
 def _number(value):
-    ## Convert nullable database numbers to floats.
     return None if value is None else float(value)
 
 
+## Label how much evidence supports a derived memory.
 def _confidence(evidence_count):
-    ## Label how much evidence supports a derived memory.
     if evidence_count < 5:
         return "insufficient"
     if evidence_count < 20:
@@ -27,26 +27,26 @@ def _confidence(evidence_count):
     return "high"
 
 
+## Average one numeric candidate field when observations exist.
 def _average(rows, key):
-    ## Average one numeric candidate field when observations exist.
     values = [_number(row.get(key)) for row in rows if row.get(key) is not None]
     return round(mean(values), 4) if values else None
 
 
+## Return the observed minimum and maximum for one selected feature.
 def _range(rows, key):
-    ## Return the observed minimum and maximum for one selected feature.
     values = [_number(row.get(key)) for row in rows if row.get(key) is not None]
     return None if not values else {"min": min(values), "max": max(values)}
 
 
+## Return the most frequently observed categorical values.
 def _top_counts(rows, key, limit=5):
-    ## Return the most frequently observed categorical values.
     counts = Counter(row.get(key) for row in rows if row.get(key))
     return [{"value": value, "count": count} for value, count in counts.most_common(limit)]
 
 
+## Derive a transparent preference profile from decisions and outcomes.
 def build_user_profile():
-    ## Derive a transparent preference profile from decisions and outcomes.
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -125,8 +125,8 @@ def build_user_profile():
     }
 
 
+## Infer a coarse risk preference only after repeated selections.
 def _infer_risk_preference(placed):
-    ## Infer a coarse risk preference only after repeated selections.
     if len(placed) < 5:
         return {"label": "unknown", "evidence_count": len(placed), "confidence": "insufficient"}
     average_delta = abs(_average(placed, "delta") or 0)
@@ -144,8 +144,8 @@ def _infer_risk_preference(placed):
     }
 
 
+## Persist a profile only when its evidence-backed contents changed.
 def save_user_profile_version(profile_result):
-    ## Persist a profile only when its evidence-backed contents changed.
     ensure_schema()
     canonical = json.dumps(profile_result["profile"], sort_keys=True, separators=(",", ":"))
     fingerprint = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -174,8 +174,8 @@ def save_user_profile_version(profile_result):
     return json_safe(row)
 
 
+## Keep only ticker-relevant evidence from a historical context snapshot.
 def _compact_market_context(context, ticker_symbol):
-    ## Keep only ticker-relevant evidence from a historical context snapshot.
     context = context or {}
     trends = [
         trend for trend in context.get("trends", [])
@@ -188,8 +188,8 @@ def _compact_market_context(context, ticker_symbol):
     return {"trends": trends, "news_and_earnings": news}
 
 
+## Keep overall and contract-specific reasoning without unrelated candidates.
 def _compact_agent_review(review, contract_symbol):
-    ## Keep overall and contract-specific reasoning without unrelated candidates.
     review = review or {}
     candidate_review = next(
         (
@@ -207,8 +207,8 @@ def _compact_agent_review(review, contract_symbol):
     }
 
 
+## Retrieve recent decisions and outcomes involving candidate tickers.
 def get_relevant_episodes(ticker_symbols, limit=8):
-    ## Retrieve recent decisions and outcomes involving candidate tickers.
     ensure_schema()
     symbols = list(dict.fromkeys(ticker_symbols))
     if not symbols:
@@ -270,8 +270,8 @@ def get_relevant_episodes(ticker_symbols, limit=8):
     return episodes
 
 
+## Bucket the saved one-month ticker trend for pattern aggregation.
 def _trend_bucket(market_context, ticker_symbol):
-    ## Bucket the saved one-month ticker trend for pattern aggregation.
     for trend in (market_context or {}).get("trends", []):
         if trend.get("ticker") != ticker_symbol or trend.get("1m") is None:
             continue
@@ -284,8 +284,8 @@ def _trend_bucket(market_context, ticker_symbol):
     return "trend_unknown"
 
 
+## Bucket absolute put delta into interpretable strategy ranges.
 def _delta_bucket(delta):
-    ## Bucket absolute put delta into interpretable strategy ranges.
     if delta is None:
         return "delta_unknown"
     absolute = abs(float(delta))
@@ -296,8 +296,8 @@ def _delta_bucket(delta):
     return "delta_0.27_to_0.30"
 
 
+## Bucket implied volatility for interpretable outcome cohorts.
 def _iv_bucket(iv_percent):
-    ## Bucket implied volatility for interpretable outcome cohorts.
     if iv_percent is None:
         return "iv_unknown"
     value = float(iv_percent)
@@ -308,8 +308,8 @@ def _iv_bucket(iv_percent):
     return "iv_50_to_80"
 
 
+## Aggregate 30-day candidate observations without overstating small samples.
 def get_outcome_patterns(ticker_symbols=None, minimum_sample_size=5):
-    ## Aggregate 30-day candidate observations without overstating small samples.
     ensure_schema()
     symbols = list(dict.fromkeys(ticker_symbols or []))
     where = "AND c.ticker_symbol = ANY(%s)" if symbols else ""
@@ -386,8 +386,8 @@ def get_outcome_patterns(ticker_symbols=None, minimum_sample_size=5):
     return sorted(patterns, key=lambda item: item["sample_size"], reverse=True)[:12]
 
 
+## Assemble compact memory for one recommendation request.
 def build_memory_context(ticker_symbols):
-    ## Assemble compact memory for one recommendation request.
     profile_result = build_user_profile()
     profile_version = save_user_profile_version(profile_result)
     return {

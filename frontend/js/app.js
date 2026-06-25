@@ -18,6 +18,13 @@ function showTab(tabName) {
     } else {
         stopDashboardRefresh();
     }
+
+    if (tabName === "trends") {
+        return;
+    }
+
+    stopPriceRefresh();
+    stopTrendMetricRotation();
 }
 
 window.showTab = showTab;

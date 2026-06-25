@@ -3,8 +3,8 @@
 from backend.memory.database import json_safe
 
 
+## Return the stable candidate fields persisted and exposed by the API.
 def normalize_candidate(candidate):
-    ## Return the stable candidate fields persisted and exposed by the API.
     return {
         "tickerSymbol": candidate["tickerSymbol"],
         "contractSymbol": candidate["contractSymbol"],
@@ -23,8 +23,8 @@ def normalize_candidate(candidate):
     }
 
 
+## Convert a csp_candidates row into the frontend candidate shape.
 def candidate_from_row(row):
-    ## Convert a csp_candidates row into the frontend candidate shape.
     candidate = normalize_candidate({
         "tickerSymbol": row["ticker_symbol"],
         "contractSymbol": row["contract_symbol"],
@@ -45,8 +45,8 @@ def candidate_from_row(row):
     return json_safe(candidate)
 
 
+## Combine a recommendation run row with its saved candidates.
 def recommendation_from_row(row, candidates):
-    ## Combine a recommendation run row with its saved candidates.
     return json_safe({
         "id": row["id"],
         "created_at": row["created_at"],
@@ -59,8 +59,8 @@ def recommendation_from_row(row, candidates):
     })
 
 
+## Convert a paper order row into an API-safe dictionary.
 def order_from_row(row):
-    ## Convert a paper order row into an API-safe dictionary.
     raw_order = row.get("raw_alpaca_order") or {}
     return json_safe({
         "id": row["id"],
@@ -88,8 +88,8 @@ def order_from_row(row):
     })
 
 
+## Convert a locally tracked position row into an API-safe dictionary.
 def position_from_row(row):
-    ## Convert a locally tracked position row into an API-safe dictionary.
     return json_safe({
         "id": row["id"],
         "opened_at": row["opened_at"],

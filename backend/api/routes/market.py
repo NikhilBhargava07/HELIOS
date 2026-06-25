@@ -14,8 +14,8 @@ router = APIRouter(prefix="/api/market", tags=["market"])
 
 
 @router.get("/trends")
+## Return multi-period trends enriched with current prices and names.
 def get_trends():
-    ## Return multi-period trends enriched with current prices and names.
     trends = get_market_trends(APPROVED_TICKERS)
     prices = get_latest_stock_prices(APPROVED_TICKERS)
     for trend in trends:
@@ -29,8 +29,8 @@ def get_trends():
 
 
 @router.get("/prices")
+## Return latest batched prices for lightweight frontend refreshes.
 def get_prices():
-    ## Return latest batched prices for lightweight frontend refreshes.
     return {
         "prices": get_latest_stock_prices(APPROVED_TICKERS),
         "company_names": COMPANY_NAMES,
@@ -38,8 +38,8 @@ def get_prices():
 
 
 @router.get("/news")
+## Return recent sanitized RSS headlines within the configured window.
 def get_news():
-    ## Return recent sanitized RSS headlines within the configured window.
     return {
         "news": get_recent_news(APPROVED_TICKERS),
         "lookback_days": NEWS_LOOKBACK_DAYS,
@@ -47,14 +47,14 @@ def get_news():
 
 
 @router.get("/context")
+## Return the combined trend and news context used by the AI.
 def get_context():
-    ## Return the combined trend and news context used by the AI.
     return build_market_context(APPROVED_TICKERS)
 
 
 @router.post("/take")
+## Create an AI take centered on current positions and latest candidates.
 def post_market_take():
-    ## Create an AI take centered on current positions and latest candidates.
     context = build_market_context(APPROVED_TICKERS)
     dashboard = get_dashboard_with_cash_context()
     context["portfolio"] = {
