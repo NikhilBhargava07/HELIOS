@@ -124,9 +124,9 @@ Do not pretend to know the future. Return only valid JSON with these keys:
 - headline: max 8 words
 - market_mood: one of Calm, Mixed, Choppy, Risky
 - csp_stance: one of Favorable, Selective, Cautious, Wait
-- reasoned_take: 3 to 5 plain-language sentences using specific trends and news
-- csp_take: 1 to 2 sentences about CSP paper trading
-- portfolio_take: 2 to 4 sentences about every current CSP position and assignment risk
+- reasoned_take: 4 to 7 plain-language sentences using specific trends and news, along with their sources
+- csp_take: 1 to 3 sentences about CSP paper trading
+- portfolio_take: 1 to 3 sentences about every current CSP position and assignment risk
 - recommendation_take: 2 to 4 sentences comparing the latest recommended tickers
 - action: max 24 words stating whether to monitor, consider a candidate, or pass
 - avoid: max 24 words
@@ -137,8 +137,11 @@ The portfolio and latest recommendations are the center of the response. Explain
 use could/may rather than certainty, connect relevant news to named companies, and do not invent
 user patterns that are absent from the context.
 
-Include relevant geopolitical and political developments only through their plausible economic
-and market effects. Trace specific channels such as oil and energy costs, inflation and rates,
+Look at relevant geopolitical and political developments only through their plausible economic
+and market effects for reference as to what the state of the market is, without pushing a political agenda. 
+However, if certain political events are affecting a company or industry, do take that into account when
+making your assessment. Avoid generic statements about the market or economy, and do not make predictions.
+Trace specific channels such as oil and energy costs, inflation and rates,
 currencies, tariffs or sanctions, supply chains, regional revenue, consumer demand, government
 spending, and investor risk appetite. Explain why each channel matters to named positions or
 recommended tickers, distinguish verified events from scenarios, and avoid political advocacy.

@@ -1,7 +1,7 @@
 ## DynamoDB-backed memory store for Lambda deployment.
 ##
-## The table uses a single-table design with pk/sk keys. Postgres remains the
-## default local backend; this module is used when MEMORY_BACKEND=dynamodb.
+## The table uses a single-table design with pk/sk keys. This is the default
+## memory backend for the AWS deployment.
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -89,16 +89,6 @@ def query_items(pk, sk_prefix=None, limit=None, scan_forward=True):
     if limit:
         kwargs["Limit"] = limit
     response = get_table().query(**kwargs)
-    return [from_dynamodb_value(item) for item in response.get("Items", [])]
-
-
-## Scan a small prototype table for items matching one item type.
-def scan_items(item_type, limit=200):
-    response = get_table().scan(
-        FilterExpression="item_type = :item_type",
-        ExpressionAttributeValues={":item_type": item_type},
-        Limit=limit,
-    )
     return [from_dynamodb_value(item) for item in response.get("Items", [])]
 
 

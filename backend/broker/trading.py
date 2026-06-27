@@ -175,14 +175,6 @@ def get_paper_positions():
     ]
 
 
-## Return normalized short-put positions from the Alpaca paper account.
-def get_paper_csp_positions():
-    return [
-        position for position in get_paper_positions()
-        if position.get("strategy") == "cash-secured put" and position.get("signed_quantity", 0) < 0
-    ]
-
-
 ## Return recent open and closed Alpaca paper orders for reconciliation.
 def get_paper_orders(limit=500):
     request = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=limit)
