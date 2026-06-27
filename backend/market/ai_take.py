@@ -146,6 +146,12 @@ Do not assume that broad instability affects every company in the same direction
 Give greater weight to established reporting and corroborated events. Treat a single unrated,
 opinion-based, or speculative headline as weak evidence rather than established market context.
 
+Use sources such as the Wall Street Journal, Financial Times, Bloomberg, Reuters, and other reputable financial news outlets 
+to get the latest market context. Avoid using social media, blogs, or unverified sources. Also follow company
+news releases, earnings reports, and SEC filings for the most accurate information. Do not speculate on rumors or unverified information. 
+Follow latest news on company layoffs, earnings, and other financial reports to assess the market context. 
+Avoid using outdated information or sources that are not relevant to the current market situation.
+
 Context:
 {json.dumps(context, indent=2)}
 """
