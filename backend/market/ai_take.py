@@ -100,7 +100,7 @@ def ai_market_take(context):
 
     prompt = _build_market_take_prompt(context)
     try:
-        response = OpenAI(api_key=os.getenv("OPENAI_API_KEY")).responses.create(
+        response = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=45).responses.create(
             model=OPENAI_MODEL,
             input=[
                 {"role": "system", "content": "You are a cautious market-context assistant for CSP paper trading."},

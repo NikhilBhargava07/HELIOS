@@ -1,16 +1,35 @@
 ## Market trends, prices, news, context, and AI-take HTTP routes.
 
-from fastapi import APIRouter
+import json
+import os
+
+import boto3
+from fastapi import APIRouter, HTTPException
 
 from backend.api.services import get_dashboard_with_cash_context
 from backend.config import APPROVED_TICKERS, COMPANY_NAMES
 from backend.market.ai_take import ai_market_take
+from backend.market.ai_take_jobs import create_market_take_job, get_market_take_job
 from backend.market.context import build_market_context
 from backend.market.news import NEWS_LOOKBACK_DAYS, get_recent_news
 from backend.market.trends import get_latest_stock_prices, get_market_trends
 from backend.memory.recommendations import get_latest_recommendation_run
 
 router = APIRouter(prefix="/api/market", tags=["market"])
+
+
+## Ask Lambda to run the market-take job outside the API Gateway request.
+def enqueue_market_take_worker(job_id):
+    function_name = os.getenv("AWS_LAMBDA_FUNCTION_NAME")
+    if not function_name:
+        raise RuntimeError("AWS_LAMBDA_FUNCTION_NAME is required for async market-take jobs.")
+
+    boto3.client("lambda").invoke(
+        FunctionName=function_name,
+        InvocationType="Event",
+        Payload=json.dumps({"worker_action": "market_take", "job_id": job_id}).encode("utf-8"),
+    )
+
 
 
 @router.get("/trends")
@@ -66,3 +85,23 @@ def post_market_take():
     take = ai_market_take(context)
     take["company_names"] = COMPANY_NAMES
     return take
+
+@router.post("/take/jobs")
+## Create an async AI market-take job and return immediately for frontend polling.
+def create_market_take_job_route():
+    job = create_market_take_job()
+    try:
+        enqueue_market_take_worker(job["job_id"])
+    except Exception as error:
+        raise HTTPException(status_code=503, detail=f"Could not start AI job: {type(error).__name__}") from error
+    return job
+
+
+@router.get("/take/jobs/{job_id}")
+## Return current status or final result for one AI market-take job.
+def get_market_take_job_route(job_id):
+    job = get_market_take_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="AI market-take job not found.")
+    return job
+

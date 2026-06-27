@@ -89,13 +89,13 @@ async function loadNews() {
     }
 }
 
-/** Request an AI take using live positions and the latest recommendations. */
+/** Request an async AI take job and poll until the result is ready. */
 async function loadMarketTake() {
     summarizeMarketButton.disabled = true;
-    marketTakeStatus.textContent = "Asking AI for market take...";
+    marketTakeStatus.textContent = "Starting AI market take job...";
 
     try {
-        const response = await apiFetch("/api/market/take", {
+        const response = await apiFetch("/api/market/take/jobs", {
             method: "POST",
         });
 
@@ -103,13 +103,50 @@ async function loadMarketTake() {
             throw new Error(`Request failed with status ${response.status}`);
         }
 
-        const data = await response.json();
-        companyNames = data.company_names || companyNames;
-        renderMarketTake(data);
-        marketTakeStatus.textContent = "AI market take loaded.";
+        const job = await response.json();
+        marketTakeStatus.textContent = "AI job started. Waiting for result...";
+        await pollMarketTakeJob(job.job_id);
     } catch (error) {
         marketTakeStatus.textContent = `Error: ${error.message}`;
-    } finally {
+        summarizeMarketButton.disabled = false;
+    }
+}
+
+/** Poll one market-take job until it completes, fails, or times out in the UI. */
+async function pollMarketTakeJob(jobId, attempt = 1) {
+    const maxAttempts = 36;
+    const pollDelayMs = 2500;
+
+    try {
+        const response = await apiFetch(`/api/market/take/jobs/${jobId}`);
+
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const job = await response.json();
+
+        if (job.status === "complete") {
+            const result = job.result || {};
+            companyNames = result.company_names || companyNames;
+            renderMarketTake(result);
+            marketTakeStatus.textContent = "AI market take loaded.";
+            summarizeMarketButton.disabled = false;
+            return;
+        }
+
+        if (job.status === "failed") {
+            throw new Error(job.error?.message || "AI market take job failed.");
+        }
+
+        if (attempt >= maxAttempts) {
+            throw new Error("AI market take is still running. Try again in a moment.");
+        }
+
+        marketTakeStatus.textContent = `AI job ${job.status}. Checking again...`;
+        setTimeout(() => pollMarketTakeJob(jobId, attempt + 1), pollDelayMs);
+    } catch (error) {
+        marketTakeStatus.textContent = `Error: ${error.message}`;
         summarizeMarketButton.disabled = false;
     }
 }

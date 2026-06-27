@@ -4,8 +4,8 @@ import logging
 
 from backend.broker.trading import (
     get_paper_account_summary,
-    get_paper_csp_positions,
     get_paper_orders,
+    get_paper_positions,
 )
 from backend.config import (
     COMPANY_NAMES,
@@ -66,13 +66,38 @@ def get_safe_paper_account_summary():
         return {"available_csp_cash": None, "account_error": "Paper account unavailable."}
 
 
-## Return normalized Alpaca CSP positions plus any recoverable error.
-def get_safe_paper_csp_positions():
+## Return normalized Alpaca positions plus any recoverable error.
+def get_safe_paper_positions():
     try:
-        return get_paper_csp_positions(), None
+        return get_paper_positions(), None
     except Exception as error:
         logger.warning("Paper position lookup failed: %s", type(error).__name__)
         return None, "Paper positions unavailable."
+
+
+## Return only short-put CSP positions from a full Alpaca position list.
+def csp_positions_from_all_positions(positions):
+    return [
+        position for position in positions
+        if position.get("strategy") == "cash-secured put"
+    ]
+
+
+## Return non-CSP stock/option positions for general portfolio display.
+def non_csp_positions_from_all_positions(positions):
+    return [
+        position for position in positions
+        if position.get("strategy") != "cash-secured put"
+    ]
+
+
+## Choose live Alpaca portfolio value when available, otherwise local prototype capital.
+def account_total_capital(alpaca_account):
+    return (
+        (alpaca_account or {}).get("portfolio_value")
+        or (alpaca_account or {}).get("equity")
+        or TOTAL_CAPITAL
+    )
 
 
 ## Synchronize saved order history without failing the dashboard route.
@@ -105,22 +130,35 @@ def attach_alpaca_cash_context(capital_summary, alpaca_account):
 ## Combine saved history with live Alpaca positions and buying power.
 def get_dashboard_with_cash_context(alpaca_account=None):
     reconciled_orders, order_sync_error = reconcile_orders_safely()
-    dashboard = get_dashboard_data(TOTAL_CAPITAL, MAX_CSP_CAPITAL_PERCENT, MAX_OPEN_POSITIONS)
     safe_account = alpaca_account or get_safe_paper_account_summary()
-    alpaca_positions, position_error = get_safe_paper_csp_positions()
+    live_total_capital = account_total_capital(safe_account)
+    dashboard = get_dashboard_data(live_total_capital, MAX_CSP_CAPITAL_PERCENT, MAX_OPEN_POSITIONS)
+    alpaca_positions, position_error = get_safe_paper_positions()
 
     if alpaca_positions is not None:
-        committed = sum(position["cash_required"] for position in alpaca_positions)
-        dashboard["open_positions"] = alpaca_positions
+        csp_positions = csp_positions_from_all_positions(alpaca_positions)
+        non_csp_positions = non_csp_positions_from_all_positions(alpaca_positions)
+        committed = sum(position["cash_required"] for position in csp_positions)
+        max_csp_capital = live_total_capital * MAX_CSP_CAPITAL_PERCENT
+        dashboard["open_positions"] = csp_positions
+        dashboard["stock_positions"] = non_csp_positions
+        dashboard["all_positions"] = alpaca_positions
         dashboard["capital"].update({
-            "open_positions": alpaca_positions,
+            "total_capital": live_total_capital,
+            "max_csp_capital": max_csp_capital,
+            "open_positions": csp_positions,
             "committed_capital": committed,
-            "available_csp_capital": max(0, dashboard["capital"]["max_csp_capital"] - committed),
-            "open_position_count": len(alpaca_positions),
+            "available_csp_capital": max(0, max_csp_capital - committed),
+            "open_position_count": len(csp_positions),
+            "total_open_position_count": len(alpaca_positions),
         })
+    else:
+        dashboard["stock_positions"] = []
+        dashboard["all_positions"] = dashboard.get("open_positions", [])
 
     dashboard["capital"] = attach_alpaca_cash_context(dashboard["capital"], safe_account)
     dashboard.update({
+        "account": safe_account,
         "position_source": "alpaca" if alpaca_positions is not None else MEMORY_BACKEND,
         "position_error": position_error,
         "reconciled_orders": reconciled_orders,

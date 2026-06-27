@@ -70,7 +70,9 @@ function renderDashboard(dashboard) {
     }
 
     const capital = dashboard.capital || dashboard;
+    const account = dashboard.account || {};
     const positions = dashboard.open_positions || capital.open_positions || [];
+    const stockPositions = dashboard.stock_positions || [];
     const orders = dashboard.paper_orders || [];
     const visibleOrders = orders.filter(order => {
         const status = String(order.status || "").toLowerCase();
@@ -85,16 +87,21 @@ function renderDashboard(dashboard) {
                 : "Alpaca positions could not be loaded, so open positions are temporarily shown from saved HELIOS memory."}
         </p>
         <div class="dashboard-grid">
-            <div><span class="label">Total capital:</span> ${money(capital.total_capital)}</div>
+            <div><span class="label">Alpaca equity:</span> ${money(account.portfolio_value ?? capital.total_capital)}</div>
+            <div><span class="label">Alpaca cash:</span> ${money(account.cash)}</div>
+            <div><span class="label">Options buying power:</span> ${money(account.options_buying_power ?? account.buying_power)}</div>
             <div><span class="label">Max CSP capital:</span> ${money(capital.max_csp_capital)}</div>
-            <div><span class="label">Committed:</span> ${money(capital.committed_capital)}</div>
+            <div><span class="label">CSP committed:</span> ${money(capital.committed_capital)}</div>
             <div><span class="label">Available CSP capital:</span> ${money(capital.available_csp_capital)}</div>
             ${capital.effective_available_csp_capital !== undefined ? `
                 <div><span class="label">Effective CSP cash:</span> ${money(capital.effective_available_csp_capital)}</div>
             ` : ""}
-            <div><span class="label">Open positions:</span> ${capital.open_position_count}/${capital.max_open_positions}</div>
+            <div><span class="label">Open CSPs:</span> ${capital.open_position_count}/${capital.max_open_positions}</div>
+            ${capital.total_open_position_count !== undefined ? `
+                <div><span class="label">Total Alpaca positions:</span> ${capital.total_open_position_count}</div>
+            ` : ""}
         </div>
-        <h3>Open Positions</h3>
+        <h3>Open CSP Positions</h3>
         ${positions.length ? positions.map(position => `
             <div class="history-row">
                 <strong>${tickerTooltip(position.ticker_symbol)} ${money(position.strike)} CSP</strong> ·
@@ -106,7 +113,19 @@ function renderDashboard(dashboard) {
                 ${position.market_value !== undefined && position.market_value !== null ? ` · Market value ${money(position.market_value)}` : ""}
                 ${position.unrealized_pnl !== undefined && position.unrealized_pnl !== null ? ` · Unrealized P&amp;L ${signedMoney(position.unrealized_pnl)}` : ""}
             </div>
-        `).join("") : "<p>No open paper positions.</p>"}
+        `).join("") : "<p>No open CSP positions.</p>"}
+        <h3>Stock / Other Positions</h3>
+        ${stockPositions.length ? stockPositions.map(position => `
+            <div class="history-row">
+                <strong>${tickerTooltip(position.ticker_symbol)}</strong> ·
+                ${position.asset_class ? `${escapeHtml(String(position.asset_class))} · ` : ""}
+                ${position.quantity !== undefined && position.quantity !== null ? `Quantity ${Number(position.quantity)} · ` : ""}
+                ${position.average_entry_price !== undefined && position.average_entry_price !== null ? `Avg entry ${money(position.average_entry_price)} · ` : ""}
+                ${position.current_price !== undefined && position.current_price !== null ? `Current ${money(position.current_price)} · ` : ""}
+                ${position.market_value !== undefined && position.market_value !== null ? `Market value ${money(position.market_value)} · ` : ""}
+                ${position.unrealized_pnl !== undefined && position.unrealized_pnl !== null ? `Unrealized P&amp;L ${signedMoney(position.unrealized_pnl)}` : ""}
+            </div>
+        `).join("") : "<p>No stock or other open positions.</p>"}
         <h3>Recent Paper Orders</h3>
         ${visibleOrders.length ? visibleOrders.slice().reverse().map(order => `
             <div class="history-row">
