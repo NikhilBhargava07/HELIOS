@@ -13,6 +13,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
+MEMORY_BACKEND = os.getenv("MEMORY_BACKEND", "postgres").lower()
+DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME", "helios-memory")
+USER_ID = os.getenv("HELIOS_USER_ID", "default")
 
 APPROVED_TICKERS = [
     "SPY", "QQQ", "IWM", "DIA", "XLF", "XLK", "XLV", "XLE", "XLY",

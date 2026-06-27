@@ -6,9 +6,12 @@ from collections import Counter, defaultdict
 from statistics import mean
 from uuid import uuid4
 
-from psycopg.types.json import Jsonb
+from backend.config import MEMORY_BACKEND
+from backend.memory.database import ensure_schema, get_connection, json_safe, jsonb, utc_now
 
-from backend.memory.database import ensure_schema, get_connection, json_safe, utc_now
+
+def using_dynamodb():
+    return MEMORY_BACKEND == "dynamodb"
 
 
 ## Convert nullable database numbers to floats.
@@ -47,6 +50,9 @@ def _top_counts(rows, key, limit=5):
 
 ## Derive a transparent preference profile from decisions and outcomes.
 def build_user_profile():
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.build_user_profile()
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -146,6 +152,9 @@ def _infer_risk_preference(placed):
 
 ## Persist a profile only when its evidence-backed contents changed.
 def save_user_profile_version(profile_result):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.save_user_profile_version(profile_result)
     ensure_schema()
     canonical = json.dumps(profile_result["profile"], sort_keys=True, separators=(",", ":"))
     fingerprint = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -162,7 +171,7 @@ def save_user_profile_version(profile_result):
                 """,
                 (
                     profile_id, generated_at, profile_result["evidence_count"],
-                    profile_result["confidence"], Jsonb(profile_result["profile"]),
+                    profile_result["confidence"], jsonb(profile_result["profile"]),
                     fingerprint,
                 ),
             )
@@ -209,6 +218,9 @@ def _compact_agent_review(review, contract_symbol):
 
 ## Retrieve recent decisions and outcomes involving candidate tickers.
 def get_relevant_episodes(ticker_symbols, limit=8):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.get_relevant_episodes(ticker_symbols, limit=limit)
     ensure_schema()
     symbols = list(dict.fromkeys(ticker_symbols))
     if not symbols:
@@ -310,6 +322,9 @@ def _iv_bucket(iv_percent):
 
 ## Aggregate 30-day candidate observations without overstating small samples.
 def get_outcome_patterns(ticker_symbols=None, minimum_sample_size=5):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.get_outcome_patterns(ticker_symbols, minimum_sample_size=minimum_sample_size)
     ensure_schema()
     symbols = list(dict.fromkeys(ticker_symbols or []))
     where = "AND c.ticker_symbol = ANY(%s)" if symbols else ""
@@ -388,6 +403,9 @@ def get_outcome_patterns(ticker_symbols=None, minimum_sample_size=5):
 
 ## Assemble compact memory for one recommendation request.
 def build_memory_context(ticker_symbols):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.build_memory_context(ticker_symbols)
     profile_result = build_user_profile()
     profile_version = save_user_profile_version(profile_result)
     return {

@@ -116,3 +116,18 @@ reviewEl.addEventListener("click", (event) => {
         placeCandidate(clickedButton);
     }
 });
+/** Return the current hash tab if it maps to a real panel. */
+function tabFromHash() {
+    const hashTab = window.location.hash.replace("#", "");
+    const hasPanel = Array.from(panels).some(panel => panel.dataset.panel === hashTab);
+    return hasPanel ? hashTab : "home";
+}
+
+/** Initialize or repair routing after a direct reload/back-forward navigation. */
+function syncTabFromLocation() {
+    showTab(tabFromHash());
+}
+
+window.addEventListener("hashchange", syncTabFromLocation);
+syncTabFromLocation();
+

@@ -14,6 +14,6 @@ def health_check():
 
 
 @router.get("/dashboard")
-## Return live Alpaca positions combined with Postgres history.
+## Return live Alpaca positions combined with saved order history.
 def get_dashboard():
     return get_dashboard_with_cash_context()

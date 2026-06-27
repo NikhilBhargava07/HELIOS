@@ -63,7 +63,7 @@ function renderVisibleCandidates() {
     `).join("");
 }
 
-/** Render live Alpaca positions, capital usage, and Postgres order history. */
+/** Render live Alpaca positions, capital usage, and saved order history. */
 function renderDashboard(dashboard) {
     if (!dashboard) {
         return;
@@ -81,8 +81,8 @@ function renderDashboard(dashboard) {
     dashboardEl.innerHTML = `
         <p class="ledger-note">
             ${dashboard.position_source === "alpaca"
-                ? "Open positions, buying power, and order statuses are synced from Alpaca paper trading. Decisions and history are saved in Postgres."
-                : "Alpaca positions could not be loaded, so open positions are temporarily shown from the Postgres paper ledger."}
+                ? "Open positions, buying power, and order statuses are synced from Alpaca paper trading. Decisions and history are saved in HELIOS memory."
+                : "Alpaca positions could not be loaded, so open positions are temporarily shown from saved HELIOS memory."}
         </p>
         <div class="dashboard-grid">
             <div><span class="label">Total capital:</span> ${money(capital.total_capital)}</div>

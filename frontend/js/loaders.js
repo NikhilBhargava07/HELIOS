@@ -8,7 +8,7 @@ async function loadRecommendations() {
     recommendationStatus.textContent = "Scanning approved tickers and asking the agent...";
 
     try {
-        const response = await fetch("/api/recommendations");
+        const response = await apiFetch("/api/recommendations");
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
@@ -44,7 +44,7 @@ async function loadTrends() {
     trendStatus.textContent = "Loading market trends...";
 
     try {
-        const response = await fetch("/api/market/trends");
+        const response = await apiFetch("/api/market/trends");
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
@@ -73,7 +73,7 @@ async function loadNews() {
     newsStatus.textContent = "Loading recent news...";
 
     try {
-        const response = await fetch("/api/market/news");
+        const response = await apiFetch("/api/market/news");
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
@@ -95,7 +95,7 @@ async function loadMarketTake() {
     marketTakeStatus.textContent = "Asking AI for market take...";
 
     try {
-        const response = await fetch("/api/market/take", {
+        const response = await apiFetch("/api/market/take", {
             method: "POST",
         });
 
@@ -126,7 +126,7 @@ async function loadDashboard(showLoading = true) {
     }
 
     try {
-        const response = await fetch("/api/dashboard");
+        const response = await apiFetch("/api/dashboard");
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);

@@ -6,9 +6,6 @@ from decimal import Decimal
 from threading import Lock
 from uuid import UUID
 
-import psycopg
-from psycopg.rows import dict_row
-
 from backend.config import PROJECT_ROOT
 
 SCHEMA_PATH = PROJECT_ROOT / "db" / "init.sql"
@@ -26,7 +23,17 @@ def get_database_url():
 
 ## Open a dictionary-row Postgres connection.
 def get_connection():
+    import psycopg
+    from psycopg.rows import dict_row
+
     return psycopg.connect(get_database_url(), row_factory=dict_row)
+
+
+## Wrap values for JSONB insertion without importing psycopg in DynamoDB mode.
+def jsonb(value):
+    from psycopg.types.json import Jsonb
+
+    return Jsonb(value)
 
 
 ## Recursively convert database-specific values into JSON-safe types.

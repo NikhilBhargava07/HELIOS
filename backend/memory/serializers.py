@@ -1,4 +1,4 @@
-## Convert Postgres rows and database types into API-ready dictionaries.
+## Convert saved rows and database types into API-ready dictionaries.
 
 from backend.memory.database import json_safe
 

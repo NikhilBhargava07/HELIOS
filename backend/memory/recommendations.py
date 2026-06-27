@@ -2,14 +2,20 @@
 
 from uuid import uuid4
 
-from psycopg.types.json import Jsonb
-
-from backend.memory.database import ensure_schema, get_connection, utc_now
+from backend.config import MEMORY_BACKEND
+from backend.memory.database import ensure_schema, get_connection, jsonb, utc_now
 from backend.memory.serializers import candidate_from_row, recommendation_from_row
+
+
+def using_dynamodb():
+    return MEMORY_BACKEND == "dynamodb"
 
 
 ## Find a contract inside a previously saved recommendation run.
 def find_candidate(run, contract_symbol):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.find_candidate(run, contract_symbol)
     return next(
         (candidate for candidate in run["candidates"] if candidate["contractSymbol"] == contract_symbol),
         None,
@@ -18,6 +24,9 @@ def find_candidate(run, contract_symbol):
 
 ## Load one recommendation run and all candidates using targeted SQL.
 def get_recommendation_run(run_id):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.get_recommendation_run(run_id)
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -35,6 +44,9 @@ def get_recommendation_run(run_id):
 
 ## Load the most recently generated recommendation run.
 def get_latest_recommendation_run():
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.get_latest_recommendation_run()
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -52,6 +64,16 @@ def save_recommendation_run(
     portfolio_context=None,
     memory_context=None,
 ):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.save_recommendation_run(
+            candidates,
+            review,
+            market_context=market_context,
+            strategy_rules=strategy_rules,
+            portfolio_context=portfolio_context,
+            memory_context=memory_context,
+        )
     ensure_schema()
     run_id = str(uuid4())
     created_at = utc_now()
@@ -65,9 +87,9 @@ def save_recommendation_run(
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
-                    run_id, created_at, Jsonb(review), Jsonb(market_context or {}),
-                    Jsonb(strategy_rules or {}), Jsonb(portfolio_context or {}),
-                    Jsonb(memory_context or {}),
+                    run_id, created_at, jsonb(review), jsonb(market_context or {}),
+                    jsonb(strategy_rules or {}), jsonb(portfolio_context or {}),
+                    jsonb(memory_context or {}),
                 ),
             )
             for candidate in candidates:
@@ -89,7 +111,7 @@ def save_recommendation_run(
                         candidate.get("ivPercent"), candidate.get("spread"),
                         candidate.get("premiumIfSoldAtBid"), candidate.get("cashRequired"),
                         candidate.get("breakevenPrice"), candidate.get("returnOnCashPercent"),
-                        Jsonb(candidate), created_at,
+                        jsonb(candidate), created_at,
                     ),
                 )
     return {

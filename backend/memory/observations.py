@@ -7,11 +7,14 @@ from uuid import uuid4
 from alpaca.data.enums import OptionsFeed
 from alpaca.data.requests import OptionChainRequest
 from alpaca.trading.enums import ContractType
-from psycopg.types.json import Jsonb
-
 from backend.broker.clients import get_option_data_client
 from backend.market.trends import get_latest_stock_prices
-from backend.memory.database import ensure_schema, get_connection, json_safe, utc_now
+from backend.config import MEMORY_BACKEND
+from backend.memory.database import ensure_schema, get_connection, json_safe, jsonb, utc_now
+
+
+def using_dynamodb():
+    return MEMORY_BACKEND == "dynamodb"
 
 
 OBSERVATION_HORIZONS = (1, 5, 10, 30)
@@ -134,6 +137,9 @@ def _observation_values(candidate, stock_price, quote):
 
 ## Capture due 1/5/10/30-day hypothetical candidate checkpoints.
 def capture_due_candidate_observations(limit=200):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.capture_due_candidate_observations(limit=limit)
     candidates = _due_candidates(limit)
     if not candidates:
         return {"captured": 0, "due": 0, "errors": {}}
@@ -184,7 +190,7 @@ def capture_due_candidate_observations(limit=200):
                         values["stock_return_percent"], quote.get("bid"), quote.get("ask"),
                         quote.get("mark"), values["estimated_close_cost"],
                         values["estimated_pnl"], values["premium_retained_percent"],
-                        values["price_zone"], Jsonb(raw_snapshot),
+                        values["price_zone"], jsonb(raw_snapshot),
                     ),
                 )
                 captured += cursor.rowcount
@@ -208,6 +214,19 @@ def record_trade_outcome(
     notes="",
     raw_outcome=None,
 ):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.record_trade_outcome(
+            decision_id,
+            status,
+            outcome_label,
+            closing_cost=closing_cost,
+            realized_pnl=realized_pnl,
+            assigned=assigned,
+            expired_worthless=expired_worthless,
+            notes=notes,
+            raw_outcome=raw_outcome,
+        )
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -268,7 +287,7 @@ def record_trade_outcome(
                     outcome_label, premium, close_cost, pnl, retained, assigned,
                     expired_worthless, row.get("alpaca_submitted_at"),
                     now if status == "complete" else None, notes,
-                    Jsonb(raw_outcome or {}), now,
+                    jsonb(raw_outcome or {}), now,
                 ),
             )
             outcome = cursor.fetchone()

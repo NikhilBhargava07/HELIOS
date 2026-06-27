@@ -325,28 +325,6 @@ button.secondary {
     display: block;
 }
 
-.tab-panel:target {
-    display: block;
-}
-
-body:has(.tab-panel:target) .tab-panel.active:not(:target) {
-    display: none;
-}
-
-body:has(.tab-panel:target) .nav-link.active {
-    background: transparent;
-    color: #c9d1d9;
-}
-
-body:has(#recommendations:target) .nav-link[href="#recommendations"],
-body:has(#trends:target) .nav-link[href="#trends"],
-body:has(#news:target) .nav-link[href="#news"],
-body:has(#market-take:target) .nav-link[href="#market-take"],
-body:has(#capital:target) .nav-link[href="#capital"] {
-    background: rgba(241, 255, 0, 0.16);
-    color: #ffffff;
-}
-
 .agent-review {
     display: grid;
     gap: 8px;

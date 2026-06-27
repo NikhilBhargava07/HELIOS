@@ -9,6 +9,7 @@ from backend.broker.trading import (
 )
 from backend.config import (
     COMPANY_NAMES,
+    MEMORY_BACKEND,
     MAX_CSP_CAPITAL_PERCENT,
     MAX_OPEN_POSITIONS,
     TOTAL_CAPITAL,
@@ -74,7 +75,7 @@ def get_safe_paper_csp_positions():
         return None, "Paper positions unavailable."
 
 
-## Synchronize Postgres order history without failing the dashboard route.
+## Synchronize saved order history without failing the dashboard route.
 def reconcile_orders_safely():
     try:
         return reconcile_paper_orders(get_paper_orders()), None
@@ -101,7 +102,7 @@ def attach_alpaca_cash_context(capital_summary, alpaca_account):
     return capital_summary
 
 
-## Combine Postgres history with live Alpaca positions and buying power.
+## Combine saved history with live Alpaca positions and buying power.
 def get_dashboard_with_cash_context(alpaca_account=None):
     reconciled_orders, order_sync_error = reconcile_orders_safely()
     dashboard = get_dashboard_data(TOTAL_CAPITAL, MAX_CSP_CAPITAL_PERCENT, MAX_OPEN_POSITIONS)
@@ -120,7 +121,7 @@ def get_dashboard_with_cash_context(alpaca_account=None):
 
     dashboard["capital"] = attach_alpaca_cash_context(dashboard["capital"], safe_account)
     dashboard.update({
-        "position_source": "alpaca" if alpaca_positions is not None else "postgres",
+        "position_source": "alpaca" if alpaca_positions is not None else MEMORY_BACKEND,
         "position_error": position_error,
         "reconciled_orders": reconciled_orders,
         "order_sync_error": order_sync_error,

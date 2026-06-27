@@ -10,7 +10,7 @@ async function submitDecision(action, contractSymbol) {
     recommendationStatus.textContent = "Recording decision...";
 
     try {
-        const response = await fetch("/api/decisions", {
+        const response = await apiFetch("/api/decisions", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

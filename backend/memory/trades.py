@@ -2,12 +2,15 @@
 
 from uuid import uuid4
 
-from psycopg.types.json import Jsonb
-
-from backend.memory.database import ensure_schema, get_connection, utc_now
+from backend.config import MEMORY_BACKEND
+from backend.memory.database import ensure_schema, get_connection, jsonb, utc_now
 from backend.memory.recommendations import find_candidate, get_recommendation_run
 
 FILLED_ORDER_STATUSES = {"filled"}
+
+
+def using_dynamodb():
+    return MEMORY_BACKEND == "dynamodb"
 
 
 ## Record a discard, failed order, or successful order submission.
@@ -19,6 +22,16 @@ def record_user_decision(
     alpaca_order=None,
     order_error=None,
 ):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.record_user_decision(
+            run_id,
+            contract_symbol,
+            action,
+            note=note,
+            alpaca_order=alpaca_order,
+            order_error=order_error,
+        )
     ensure_schema()
     run = get_recommendation_run(run_id)
     if run is None:
@@ -116,7 +129,7 @@ def insert_paper_order(cursor, order):
             order["premium_received"], order["cash_required"], order["breakeven_price"],
             order["alpaca_order_id"], order["alpaca_client_order_id"],
             order["alpaca_limit_price"], order["alpaca_submitted_at"],
-            Jsonb(order["raw_alpaca_order"]),
+            jsonb(order["raw_alpaca_order"]),
         ),
     )
 
@@ -160,6 +173,9 @@ def insert_position(cursor, position):
 
 ## Update saved order statuses and broker details from Alpaca snapshots.
 def reconcile_paper_orders(alpaca_orders):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.reconcile_paper_orders(alpaca_orders)
     ensure_schema()
     updated_count = 0
     with get_connection() as connection:
@@ -180,7 +196,7 @@ def reconcile_paper_orders(alpaca_orders):
                     (
                         status,
                         order.get("limit_price"),
-                        Jsonb(order),
+                        jsonb(order),
                         order_id,
                     ),
                 )

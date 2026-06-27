@@ -1,1 +1,1 @@
-## Postgres persistence and historical memory operations.
+## Persistence and historical memory operations for Postgres or DynamoDB.

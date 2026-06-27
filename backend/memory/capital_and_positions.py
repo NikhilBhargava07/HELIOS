@@ -1,5 +1,6 @@
 ## Reads portfolio summaries and recent history for the capital/positions page.
 
+from backend.config import MEMORY_BACKEND
 from backend.memory.database import ensure_schema, get_connection
 from backend.memory.serializers import (
     order_from_row,
@@ -7,8 +8,15 @@ from backend.memory.serializers import (
 )
 
 
+def using_dynamodb():
+    return MEMORY_BACKEND == "dynamodb"
+
+
 ## Return locally tracked positions still marked open.
 def get_open_positions():
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.get_open_positions()
     ensure_schema()
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -23,6 +31,14 @@ def get_capital_summary(
     max_open_positions,
     open_positions=None,
 ):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.get_capital_summary(
+            total_capital,
+            max_csp_capital_percent,
+            max_open_positions,
+            open_positions=open_positions,
+        )
     positions = get_open_positions() if open_positions is None else open_positions
     committed_capital = sum(position["cash_required"] for position in positions)
     max_csp_capital = total_capital * max_csp_capital_percent
@@ -39,6 +55,9 @@ def get_capital_summary(
 
 ## Load local capital calculations and bounded recent history lists.
 def get_dashboard_data(total_capital, max_csp_capital_percent, max_open_positions):
+    if using_dynamodb():
+        from backend.memory import dynamodb_store
+        return dynamodb_store.get_dashboard_data(total_capital, max_csp_capital_percent, max_open_positions)
     ensure_schema()
     open_positions = get_open_positions()
     with get_connection() as connection:
