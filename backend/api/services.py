@@ -9,7 +9,6 @@ from backend.broker.trading import (
 )
 from backend.config import (
     COMPANY_NAMES,
-    MEMORY_BACKEND,
     MAX_CSP_CAPITAL_PERCENT,
     MAX_OPEN_POSITIONS,
     TOTAL_CAPITAL,
@@ -159,7 +158,7 @@ def get_dashboard_with_cash_context(alpaca_account=None):
     dashboard["capital"] = attach_alpaca_cash_context(dashboard["capital"], safe_account)
     dashboard.update({
         "account": safe_account,
-        "position_source": "alpaca" if alpaca_positions is not None else MEMORY_BACKEND,
+        "position_source": "alpaca" if alpaca_positions is not None else "dynamodb",
         "position_error": position_error,
         "reconciled_orders": reconciled_orders,
         "order_sync_error": order_sync_error,
