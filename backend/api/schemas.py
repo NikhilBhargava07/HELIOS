@@ -5,14 +5,16 @@ from enum import Enum
 from pydantic import BaseModel
 
 
-## Supported actions for a displayed recommendation candidate.
+## Enumerate the user actions HELIOS accepts from recommendation cards.
+## A strict enum prevents accidental or misspelled decision types from polluting memory.
 class UserDecisionAction(str, Enum):
 
     DISCARD = "discard"
     PLACE_PAPER_ORDER = "place_paper_order"
 
 
-## Required browser payload for recording a candidate decision.
+## Validate the payload sent when a user places or discards a recommendation.
+## The schema ties an action to the recommendation run and exact contract the user saw.
 class UserDecisionRequest(BaseModel):
 
     recommendation_run_id: str
@@ -21,7 +23,8 @@ class UserDecisionRequest(BaseModel):
     note: str = ""
 
 
-## Validated realized outcome supplied by broker sync or later UI tooling.
+## Validate manually supplied trade-outcome data.
+## Outcome records let the learning layer compare why a trade was recommended with what eventually happened.
 class TradeOutcomeRequest(BaseModel):
 
     decision_id: str

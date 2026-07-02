@@ -7,22 +7,26 @@
 from backend.memory import dynamodb_store
 
 
-## Find a contract inside a previously saved recommendation run.
+## Delegate candidate lookup to the active memory store.
+## This wrapper keeps route code independent from whether memory is DynamoDB or another backend later.
 def find_candidate(run, contract_symbol):
     return dynamodb_store.find_candidate(run, contract_symbol)
 
 
-## Load one recommendation run and all saved candidates.
+## Delegate recommendation-run retrieval to the active memory store.
+## Keeping this boundary thin makes future storage migrations easier.
 def get_recommendation_run(run_id):
     return dynamodb_store.get_recommendation_run(run_id)
 
 
-## Load the most recently generated recommendation run.
+## Delegate latest-run lookup to the active memory store.
+## The AI market take uses this to compare current conditions with the most recent recommendation set.
 def get_latest_recommendation_run():
     return dynamodb_store.get_latest_recommendation_run()
 
 
-## Save an AI review and the complete evidence snapshot it received.
+## Delegate recommendation-run persistence to the active memory store.
+## Saving through this wrapper avoids spreading DynamoDB details across strategy code.
 def save_recommendation_run(
     candidates,
     review,

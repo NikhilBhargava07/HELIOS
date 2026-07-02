@@ -13,7 +13,8 @@ from backend.api.routes.recommendations import router as recommendation_router
 from backend.config import PROJECT_ROOT
 
 
-## Build and configure the HELIOS FastAPI application.
+## Construct the shared FastAPI application used by local Uvicorn and AWS Lambda.
+## This wires CORS, all API route groups, and the static frontend mount so the same app object can serve development and deployed traffic.
 def create_app():
     application = FastAPI(title="HELIOS API")
     allowed_origins = [

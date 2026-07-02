@@ -58,7 +58,8 @@ CSP_REVIEW_SCHEMA = {
 }
 
 
-## Convert one DataFrame candidate row into compact AI input.
+## Create a compact numeric summary of one CSP candidate for the LLM.
+## The model receives only the fields it needs to compare risk, reward, and assignment context.
 def build_candidate_summary(candidate):
     return {
         "ticker_symbol": candidate.tickerSymbol,
@@ -81,7 +82,8 @@ def build_candidate_summary(candidate):
     }
 
 
-## Convert all filtered candidates into JSON-friendly AI input.
+## Convert candidate records into the structured list passed to the review agent.
+## This keeps the prompt focused on approved contracts instead of raw DataFrame noise.
 def prepare_candidates_for_ai(candidates):
     return [
         build_candidate_summary(candidate)
@@ -89,7 +91,8 @@ def prepare_candidates_for_ai(candidates):
     ]
 
 
-## Use deterministic fallback when OpenAI is unavailable.
+## Produce a deterministic recommendation when OpenAI is unavailable.
+## The fallback keeps the app usable for demonstrations while still respecting hard strategy rules.
 def local_review_csp_candidates(ticker_symbol, candidates):
     if candidates.empty:
         return {
@@ -136,7 +139,8 @@ def local_review_csp_candidates(ticker_symbol, candidates):
     }
 
 
-## Build a candidate-centered prompt grounded in supplied market evidence.
+## Build the CSP-review prompt sent to OpenAI.
+## It instructs the model to review only supplied candidates, consider reputable context, and return structured JSON.
 def build_ai_prompt(
     ticker_symbol,
     candidates,
@@ -253,7 +257,8 @@ Return JSON only.
 """
 
 
-## Request a schema-validated CSP review from OpenAI.
+## Ask OpenAI to choose, reject, or flag the supplied CSP candidates.
+## The response is parsed into the structured agent review shown on the recommendations page.
 def openai_review_csp_candidates(
     ticker_symbol,
     candidates,
@@ -319,7 +324,8 @@ def openai_review_csp_candidates(
         return review
 
 
-## Select OpenAI review when configured, otherwise use deterministic fallback.
+## Run the AI review with a local fallback if the model call fails.
+## This keeps recommendation generation resilient while preserving the same output shape.
 def review_csp_candidates(
     ticker_symbol,
     candidates,

@@ -9,7 +9,8 @@ from alpaca.trading.enums import ContractType
 from backend.broker.clients import get_option_data_client, get_stock_data_client
 from backend.strategy.dates import calculate_dte
 
-## Extract expiration and strike from an OCC option contract symbol.
+## Parse an OCC option contract symbol into ticker, expiration, option type, and strike.
+## Candidate rows use this to display readable contract details and compute DTE.
 def parse_option_symbol(contract_symbol):
     option_code = contract_symbol[-15:]
     expiration = datetime.strptime(option_code[:6], "%y%m%d").date()
@@ -18,7 +19,8 @@ def parse_option_symbol(contract_symbol):
     return expiration, strike
 
 
-## Fetch one ticker's latest IEX trade price.
+## Fetch the latest stock price for one ticker from Alpaca.
+## The current underlying price is needed for strike distance, breakeven context, and dashboard display.
 def get_latest_stock_price(ticker_symbol):
     stock_data_client = get_stock_data_client()
     request = StockLatestTradeRequest(
@@ -31,7 +33,8 @@ def get_latest_stock_price(ticker_symbol):
     return latest_trades[ticker_symbol].price
 
 
-## Convert Alpaca option snapshots into calculated candidate rows.
+## Convert Alpaca option-chain snapshots into candidate put rows.
+## This is where quotes, greeks, IV, premium, cash requirement, breakeven, and ROC become one table.
 def build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price):
     rows = []
 
@@ -81,7 +84,8 @@ def build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price)
     return pd.DataFrame(rows)
 
 
-## Score filtered puts using return, cushion, delta distance, and spread.
+## Add a ranking score after all hard metrics are present.
+## The score favors cleaner CSP setups near target delta, with tighter spreads, acceptable IV, and stronger ROC.
 def add_recommendation_score(puts, target_delta):
     puts = puts.copy()
     puts["deltaDistance"] = (puts["delta"] - target_delta).abs()
@@ -98,7 +102,8 @@ def add_recommendation_score(puts, target_delta):
     return puts
 
 
-## Remove missing, crossed, wide, or undersized option quotes.
+## Remove contracts without usable bid, ask, strike, or expiration data.
+## This prevents stale or incomplete option quotes from entering later safety filters.
 def filter_valid_quotes(puts, max_spread, min_quote_size):
     return puts[
         (puts["bid"] > 0)
@@ -110,7 +115,8 @@ def filter_valid_quotes(puts, max_spread, min_quote_size):
     ]
 
 
-## Keep contracts inside the configured delta range.
+## Keep puts near the strategy’s target delta range.
+## Delta is used as a proxy for assignment probability and option sensitivity.
 def filter_by_delta(puts, target_delta, delta_tolerance):
     min_delta = target_delta - delta_tolerance
     max_delta = target_delta + delta_tolerance
@@ -121,7 +127,8 @@ def filter_by_delta(puts, target_delta, delta_tolerance):
     ]
 
 
-## Keep contracts inside the acceptable implied-volatility range.
+## Keep implied volatility inside the strategy’s acceptable range.
+## The filter seeks enough premium to matter while avoiding extreme volatility that may signal outsized risk.
 def filter_by_iv(puts, min_iv_percent, max_iv_percent):
     return puts[
         (puts["ivPercent"] >= min_iv_percent)
@@ -129,17 +136,20 @@ def filter_by_iv(puts, min_iv_percent, max_iv_percent):
     ]
 
 
-## Keep contracts whose full cash collateral is affordable.
+## Keep only contracts the account can cash-secure.
+## A CSP requires enough reserved cash to buy 100 shares at the strike if assigned.
 def filter_by_cash_required(puts, available_capital):
     return puts[puts["cashRequired"] <= available_capital]
 
 
-## Keep contracts meeting the minimum return-on-cash threshold.
+## Keep contracts above the minimum return-on-cash threshold.
+## This ensures a candidate offers enough premium relative to the cash it locks up.
 def filter_by_roc(puts, min_roc_percent):
     return puts[puts["returnOnCashPercent"] >= min_roc_percent]
 
 
-## Apply all deterministic quote, risk, return, and capital filters.
+## Apply the full hard-filter pipeline to raw CSP candidates.
+## The LLM only reviews contracts that pass these deterministic strategy rules first.
 def apply_csp_filters(
     puts,
     target_delta,
@@ -160,7 +170,8 @@ def apply_csp_filters(
     return filtered_puts
 
 
-## Fetch a put chain and return its filtered, ranked CSP candidates.
+## Scan approved tickers and return ranked CSP candidates.
+## This is the main candidate-generation engine behind the recommendations page.
 def find_csp_candidates(
     ticker_symbol,
     min_dte,

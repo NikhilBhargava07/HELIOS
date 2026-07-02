@@ -82,7 +82,8 @@ CATALYST_KEYWORDS = {
 HIGH_PRIORITY_TAGS = {"layoffs", "earnings", "guidance", "regulation", "geopolitical"}
 
 
-## Return a quality bucket for the article source.
+## Label each news source by reputation tier.
+## HELIOS uses this to prioritize established sources and filter out low-quality feeds.
 def classify_source(source_name):
     normalized = (source_name or "").lower()
     if any(source in normalized for source in LOW_QUALITY_NEWS_SOURCES):
@@ -94,18 +95,21 @@ def classify_source(source_name):
     return "unrated"
 
 
-## Build a localized Google News RSS search URL.
+## Build a Google News RSS search URL for a market or ticker query.
+## RSS lets the prototype gather current headlines without storing API keys for a paid news provider yet.
 def build_google_news_rss_url(query):
     encoded_query = urllib.parse.quote(query)
     return f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
 
 
-## Remove embedded tags and decode HTML entities from RSS text.
+## Strip HTML markup and excess whitespace from RSS summaries.
+## Clean text improves both frontend readability and LLM prompt quality.
 def clean_html_text(text):
     return html.unescape(re.sub(r"<[^>]+>", "", text or "")).strip()
 
 
-## Parse an RSS publication date and normalize it to UTC.
+## Parse RSS publication timestamps into timezone-aware datetimes.
+## Recency checks depend on consistent datetime objects across news feeds.
 def parse_news_datetime(value):
     if not value:
         return None
@@ -118,19 +122,22 @@ def parse_news_datetime(value):
     return parsed.astimezone(timezone.utc)
 
 
-## Return whether an item falls inside the configured news window.
+## Decide whether a headline is fresh enough for market context.
+## The news tab focuses on current conditions, so older items are filtered unless the feed timestamp is missing.
 def is_recent_news_item(item, now=None, lookback_days=NEWS_LOOKBACK_DAYS):
     published_at = parse_news_datetime(item.get("created_at"))
     current_time = now or datetime.now(timezone.utc)
     return bool(published_at and published_at >= current_time - timedelta(days=lookback_days))
 
 
-## Convert a headline into a stable dedupe key.
+## Normalize a headline for deduplication.
+## RSS searches can return the same story through multiple query paths, so titles need a stable comparison key.
 def normalize_headline(headline):
     return re.sub(r"[^a-z0-9]+", " ", (headline or "").lower()).strip()
 
 
-## Infer related ticker symbols from the query, headline, summary, and company names.
+## Infer which approved tickers are connected to a headline.
+## The UI and prompts use these symbols to connect company-specific news with CSP candidates.
 def infer_related_symbols(item, query_symbols):
     related = set(query_symbols or [])
     text = f" {item.get('headline', '')} {item.get('summary', '')} ".lower()
@@ -145,7 +152,8 @@ def infer_related_symbols(item, query_symbols):
     return sorted(related)
 
 
-## Identify useful article tags for the UI and AI prompts.
+## Assign practical market-impact tags to a news item.
+## Tags such as earnings, layoffs, rates, or geopolitics help users quickly see why a headline matters.
 def classify_news_tags(item):
     text = f" {item.get('headline', '')} {item.get('summary', '')} ".lower()
     tags = [
@@ -155,7 +163,8 @@ def classify_news_tags(item):
     return tags or ["market_context"]
 
 
-## Give a short beginner-friendly note for why this article matters.
+## Create a short beginner-friendly explanation for why a headline matters.
+## This gives the News tab useful context without turning it into a long AI market take.
 def explain_news_relevance(item):
     tags = set(item.get("tags", []))
     symbols = item.get("symbols", [])
@@ -176,7 +185,8 @@ def explain_news_relevance(item):
     return "Use this as current context before trusting a CSP recommendation."
 
 
-## Score an item so stronger sources and clearer catalysts appear first.
+## Score one news item by source quality, recency, ticker relevance, and market-impact tags.
+## Higher-scoring articles appear first and are more likely to enter the LLM evidence package.
 def score_news_item(item, query_priority=1):
     source_score = {
         "trusted_reporting": 25,
@@ -193,7 +203,8 @@ def score_news_item(item, query_priority=1):
     return source_score + tag_score + symbol_score + recency_score + query_priority
 
 
-## Fetch and normalize a bounded set of RSS results for one query.
+## Fetch and normalize RSS items for one search specification.
+## Network and parsing failures return an empty list so the broader news request can continue.
 def fetch_rss_news(query, limit=8):
     request = urllib.request.Request(
         build_google_news_rss_url(query),
@@ -226,7 +237,8 @@ def fetch_rss_news(query, limit=8):
     return items
 
 
-## Remove repeated RSS results by URL and similar headline while preserving quality.
+## Remove duplicate headlines while keeping the highest-scored version.
+## This prevents the news page and LLM prompt from repeating the same story.
 def dedupe_news_items(news_items):
     seen_urls = set()
     seen_headlines = set()
@@ -242,7 +254,8 @@ def dedupe_news_items(news_items):
     return deduped
 
 
-## Fetch one query and attach its category, related tickers, tags, and score.
+## Worker helper for concurrently fetching one news search spec.
+## Keeping this tiny helper separate makes threaded RSS fetching easier to read.
 def _fetch_news_spec(spec):
     query, symbols, category, priority = spec
     try:
@@ -258,7 +271,8 @@ def _fetch_news_spec(spec):
     return items
 
 
-## Collect current broad-market and company-specific headlines.
+## Collect the current market news feed shown on the News tab.
+## Results are filtered to reputable, recent, market-relevant articles before being returned.
 def get_recent_news(ticker_symbols, limit=18):
     company_tickers = list(dict.fromkeys([
         ticker for ticker in (*MAJOR_NEWS_TICKERS, *ticker_symbols)
@@ -297,7 +311,8 @@ def get_recent_news(ticker_symbols, limit=18):
     return recent[:limit]
 
 
-## Return ticker-tagged news and earnings evidence for CSP review.
+## Collect recent news for the tickers currently being reviewed as CSP candidates.
+## The recommendation prompt uses this to discuss company-specific catalysts and risks.
 def get_candidate_news(ticker_symbols, lookback_days=CANDIDATE_NEWS_LOOKBACK_DAYS, limit=36):
     unique_tickers = list(dict.fromkeys(ticker_symbols))
     specs = [

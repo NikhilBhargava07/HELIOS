@@ -1,7 +1,8 @@
 ## Normalize memory payloads before persisting them to DynamoDB.
 
 
-## Return the stable candidate fields persisted and exposed by the API.
+## Convert candidate objects into simple dictionaries before storing them.
+## This strips pandas-specific values so DynamoDB and JSON responses receive predictable primitive fields.
 def normalize_candidate(candidate):
     return {
         "tickerSymbol": candidate["tickerSymbol"],

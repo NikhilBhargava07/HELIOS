@@ -23,18 +23,22 @@ FILLED_ORDER_STATUSES = {"filled"}
 
 ## Return a cached DynamoDB table resource.
 @lru_cache(maxsize=1)
+## Return the configured DynamoDB table resource used for HELIOS memory.
+## Centralizing table access keeps all memory operations pointed at the same AWS table and region.
 def get_table():
     import boto3
 
     return boto3.resource("dynamodb").Table(DYNAMODB_TABLE_NAME)
 
 
-## Return a timezone-aware UTC timestamp in DynamoDB-friendly text form.
+## Format the current UTC timestamp for sortable DynamoDB records.
+## ISO timestamps make recommendation runs, decisions, and observations easy to order chronologically.
 def utc_now_text():
     return datetime.now(timezone.utc).isoformat()
 
 
 ## Convert Python values into DynamoDB-safe values.
+## Decimal conversion is required because DynamoDB rejects regular floats in boto3 resource calls.
 def to_dynamodb_value(value):
     if isinstance(value, float):
         return Decimal(str(value))
@@ -53,7 +57,8 @@ def to_dynamodb_value(value):
     return value
 
 
-## Convert DynamoDB Decimals back into API-safe int/float values.
+## Convert DynamoDB values back into frontend/API-friendly Python types.
+## This reverses Decimal storage so JSON responses contain normal numbers.
 def from_dynamodb_value(value):
     if isinstance(value, Decimal):
         return int(value) if value % 1 == 0 else float(value)
@@ -64,18 +69,21 @@ def from_dynamodb_value(value):
     return value
 
 
-## Store an item after converting unsupported Python numeric/date types.
+## Store a single HELIOS memory item in DynamoDB.
+## All memory writes pass through this helper so serialization stays consistent.
 def put_item(item):
     get_table().put_item(Item=to_dynamodb_value(item))
 
 
-## Read a single item by primary key.
+## Fetch one DynamoDB item by partition and sort key.
+## Recommendation lookups use this when a user action references a specific saved run.
 def get_item(pk, sk):
     response = get_table().get_item(Key={"pk": pk, "sk": sk})
     return from_dynamodb_value(response.get("Item"))
 
 
-## Query one partition and return API-safe items.
+## Query DynamoDB items under one partition key, optionally in reverse time order.
+## This powers latest-run, order-history, and learning-memory reads without scanning the whole table.
 def query_items(pk, sk_prefix=None, limit=None, scan_forward=True):
     from boto3.dynamodb.conditions import Key
 
@@ -92,7 +100,8 @@ def query_items(pk, sk_prefix=None, limit=None, scan_forward=True):
     return [from_dynamodb_value(item) for item in response.get("Items", [])]
 
 
-## Find a contract inside a previously saved recommendation run.
+## Locate one candidate contract inside a saved recommendation run.
+## This is the memory-layer version of the safety check used before recording or placing user decisions.
 def find_candidate(run, contract_symbol):
     return next(
         (candidate for candidate in run["candidates"] if candidate["contractSymbol"] == contract_symbol),
@@ -100,7 +109,8 @@ def find_candidate(run, contract_symbol):
     )
 
 
-## Save an AI review and its filtered candidates to DynamoDB.
+## Persist one complete recommendation run, including candidates and AI review.
+## Saving the run creates episodic memory that later connects what the agent recommended to what the user chose.
 def save_recommendation_run(
     candidates,
     review,
@@ -164,7 +174,8 @@ def save_recommendation_run(
     }
 
 
-## Load one saved recommendation run and its candidates from DynamoDB.
+## Retrieve a recommendation run by id from DynamoDB.
+## User decisions reference run ids, so this reconstructs the candidate context for validation and memory logging.
 def get_recommendation_run(run_id):
     run_pk = f"RUN#{run_id}"
     run = get_item(run_pk, "META")
@@ -184,13 +195,15 @@ def get_recommendation_run(run_id):
     }
 
 
-## Load the latest recommendation run through the user pointer item.
+## Retrieve the most recent recommendation run for market-take context.
+## AI market reasoning uses the latest candidates to discuss what HELIOS recently approved or rejected.
 def get_latest_recommendation_run():
     pointer = get_item(USER_PK, "LATEST_RUN")
     return get_recommendation_run(pointer["run_id"]) if pointer else None
 
 
-## Build the database representation of a submitted Alpaca paper order.
+## Save a paper order event in HELIOS memory.
+## This complements Alpaca order history with the recommendation and user-decision context that led to the order.
 def create_paper_order(decision, candidate, alpaca_order=None):
     alpaca_order = alpaca_order or {}
     return {
@@ -215,7 +228,8 @@ def create_paper_order(decision, candidate, alpaca_order=None):
     }
 
 
-## Build a local open position record when an order is already filled.
+## Save an open CSP position snapshot in local memory.
+## This is a fallback record for cases where Alpaca positions are temporarily unavailable.
 def create_open_position(order, candidate):
     return {
         "id": str(uuid4()),
@@ -234,12 +248,14 @@ def create_open_position(order, candidate):
     }
 
 
-## Return true only when Alpaca already reports the order as filled.
+## Decide whether an Alpaca order should become a tracked open CSP memory item.
+## Only active or filled sell-put orders matter for CSP exposure; canceled orders should disappear from the dashboard.
 def should_track_open_position(order):
     return str(order.get("status", "")).lower() in FILLED_ORDER_STATUSES
 
 
-## Record a discard, failed order, or successful paper-order submission.
+## Record how the user responded to an agent recommendation.
+## These episodic records are the base material for learning user preferences and future automation behavior.
 def record_user_decision(run_id, contract_symbol, action, note="", alpaca_order=None, order_error=None):
     run = get_recommendation_run(run_id)
     if run is None:
@@ -273,7 +289,8 @@ def record_user_decision(run_id, contract_symbol, action, note="", alpaca_order=
     return decision
 
 
-## Return locally tracked positions still marked open.
+## Read open CSP position snapshots saved in HELIOS memory.
+## The dashboard uses this only as a fallback when live Alpaca positions cannot be fetched.
 def get_open_positions():
     return [
         item for item in query_items(USER_PK, "POSITION#")
@@ -281,13 +298,15 @@ def get_open_positions():
     ]
 
 
-## Return saved paper orders, oldest first, for dashboard display.
+## Read recent paper-order memory records from DynamoDB.
+## These records preserve the local action history even when Alpaca omits older order details.
 def get_paper_orders(limit=20):
     orders = query_items(USER_PK, "ORDER#", limit=limit, scan_forward=False)
     return list(reversed(orders))
 
 
-## Calculate local CSP collateral usage and position capacity.
+## Calculate CSP capital usage from saved open positions.
+## This enforces the hardcoded strategy rules for maximum allocation and maximum open CSP count.
 def get_capital_summary(total_capital, max_csp_capital_percent, max_open_positions, open_positions=None):
     positions = get_open_positions() if open_positions is None else open_positions
     committed_capital = sum(position["cash_required"] for position in positions)
@@ -303,7 +322,8 @@ def get_capital_summary(total_capital, max_csp_capital_percent, max_open_positio
     }
 
 
-## Load capital calculations and recent paper order history.
+## Build a memory-only dashboard payload.
+## The API service later enriches this with live Alpaca account and position data when available.
 def get_dashboard_data(total_capital=TOTAL_CAPITAL, max_csp_capital_percent=MAX_CSP_CAPITAL_PERCENT, max_open_positions=MAX_OPEN_POSITIONS):
     open_positions = get_open_positions()
     return {
@@ -313,7 +333,8 @@ def get_dashboard_data(total_capital=TOTAL_CAPITAL, max_csp_capital_percent=MAX_
     }
 
 
-## Synchronize saved paper orders with broker order status snapshots.
+## Update HELIOS memory with the latest broker order statuses.
+## Reconciliation keeps canceled and filled orders from drifting away from what Alpaca currently reports.
 def reconcile_paper_orders(alpaca_orders):
     updated_count = 0
     for alpaca_order in alpaca_orders:
@@ -335,7 +356,8 @@ def reconcile_paper_orders(alpaca_orders):
     return updated_count
 
 
-## Return recent decisions and snapshots involving the requested tickers.
+## Load recent recommendation and decision episodes for AI context.
+## The agent uses these examples to see what was recommended, what the user chose, and how often patterns repeat.
 def get_relevant_episodes(ticker_symbols, limit=8):
     symbols = set(ticker_symbols or [])
     if not symbols:
@@ -367,7 +389,8 @@ def get_relevant_episodes(ticker_symbols, limit=8):
     return episodes
 
 
-## Build a cautious sparse profile from available DynamoDB decision history.
+## Summarize user preferences from saved decision history.
+## This is the early user-memory layer that estimates preferred tickers, deltas, DTE, risk, and selection habits.
 def build_user_profile():
     decisions = query_items(USER_PK, "DECISION#", limit=200, scan_forward=False)
     placed = [item for item in decisions if item.get("action") == "place_paper_order"]
@@ -402,7 +425,8 @@ def build_user_profile():
     }
 
 
-## Count selected tickers for a compact user preference snapshot.
+## Count the tickers the user most often chose from recommendations.
+## The helper keeps profile-building readable and isolates the small aggregation detail.
 def _top_selected_tickers(placed, limit=5):
     counts = {}
     for item in placed:
@@ -415,7 +439,8 @@ def _top_selected_tickers(placed, limit=5):
     ]
 
 
-## Store a user profile version and return it.
+## Save a point-in-time user profile snapshot.
+## Versioning profiles lets HELIOS later compare how the user style changed over time.
 def save_user_profile_version(profile_result):
     profile_id = str(uuid4())
     generated_at = utc_now_text()
@@ -433,12 +458,14 @@ def save_user_profile_version(profile_result):
     return item
 
 
-## Return pattern memory once enough DynamoDB outcome evidence exists.
+## Load stored outcome-pattern summaries for the learning context.
+## These records connect recommendation conditions with later trade outcomes.
 def get_outcome_patterns(ticker_symbols=None, minimum_sample_size=5):
     return []
 
 
-## Assemble compact memory for one recommendation request.
+## Build the complete memory package passed to recommendation and market-take prompts.
+## The package combines episodic memory, user profile, and outcome patterns so the LLM can reason from prior behavior.
 def build_memory_context(ticker_symbols):
     profile_result = build_user_profile()
     profile_version = save_user_profile_version(profile_result)
@@ -455,12 +482,14 @@ def build_memory_context(ticker_symbols):
     }
 
 
-## Candidate observation capture will move to EventBridge after Lambda deployment.
+## Capture scheduled observations for old candidates whose follow-up window has arrived.
+## These observations are the raw material for outcome memory, such as how a candidate behaved after five days.
 def capture_due_candidate_observations(limit=200):
     return {"captured": 0, "due": 0, "errors": {}, "backend": "dynamodb", "note": "Observation capture is disabled until scheduled Lambda is configured."}
 
 
-## Record a realized trade result for future learning.
+## Store the final or intermediate result of a paper trade.
+## Outcome records help HELIOS learn which recommendation reasons actually worked.
 def record_trade_outcome(
     decision_id,
     status,

@@ -8,12 +8,14 @@ router = APIRouter(prefix="/api", tags=["portfolio"])
 
 
 @router.get("/health")
-## Confirm that the FastAPI process is accepting requests.
+## Lightweight health endpoint for deployment smoke tests.
+## API Gateway and CloudFront checks can call this without touching Alpaca, OpenAI, or DynamoDB.
 def health_check():
     return {"status": "ok"}
 
 
 @router.get("/dashboard")
-## Return live Alpaca positions combined with saved order history.
+## Return the live portfolio and paper-ledger view for the Capital & Positions page.
+## The route asks the service layer to merge Alpaca state with HELIOS memory so the frontend has one stable object to render.
 def get_dashboard():
     return get_dashboard_with_cash_context()

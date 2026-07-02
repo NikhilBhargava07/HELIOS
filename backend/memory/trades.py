@@ -3,7 +3,8 @@
 from backend.memory import dynamodb_store
 
 
-## Record a discard, failed order, or successful order submission.
+## Delegate user decision recording to the active memory store.
+## Recommendation routes call this wrapper after a user places or discards a paper trade.
 def record_user_decision(
     run_id,
     contract_symbol,
@@ -22,6 +23,7 @@ def record_user_decision(
     )
 
 
-## Update saved order statuses and broker details from Alpaca snapshots.
+## Delegate broker-order reconciliation to the active memory store.
+## The dashboard service calls this before rendering order history.
 def reconcile_paper_orders(alpaca_orders):
     return dynamodb_store.reconcile_paper_orders(alpaca_orders)

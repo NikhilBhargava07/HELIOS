@@ -1,6 +1,9 @@
 /** Wire navigation and user-interface events after shared scripts load. */
 
-/** Display one navigation panel and trigger tab-specific refresh behavior. */
+/**
+ * Show one top-level page panel and run the refresh behavior that page needs.
+ * Capital starts live portfolio polling, while other pages stop hidden timers so the app does not keep making unnecessary API calls.
+ */
 function showTab(tabName) {
     panels.forEach(panel => {
         panel.classList.toggle("active", panel.dataset.panel === tabName);
@@ -38,6 +41,10 @@ if (button) {
 trendsButton.addEventListener("click", loadTrends);
 newsButton.addEventListener("click", loadNews);
 summarizeMarketButton.addEventListener("click", loadMarketTake);
+/**
+ * Open the full-screen Explore menu over the current page.
+ * The overlay uses CSS transitions instead of heavy blur effects so navigation feels smooth without extra rendering cost.
+ */
 function openExplore() {
     document.body.classList.add("explore-open");
     exploreOverlay.classList.remove("hidden");
@@ -45,6 +52,10 @@ function openExplore() {
     exploreOverlay.setAttribute("aria-hidden", "false");
 }
 
+/**
+ * Close the Explore overlay after its fade-out animation completes.
+ * The short delay lets the transition finish before the overlay becomes hidden and non-interactive.
+ */
 function closeExplore() {
     exploreOverlay.classList.remove("visible");
     document.body.classList.remove("explore-open");
@@ -116,14 +127,20 @@ reviewEl.addEventListener("click", (event) => {
         placeCandidate(clickedButton);
     }
 });
-/** Return the current hash tab if it maps to a real panel. */
+/**
+ * Read the browser hash and map it to a valid HELIOS page.
+ * This lets direct reloads of links like #capital or #news reopen the correct panel instead of always showing Home.
+ */
 function tabFromHash() {
     const hashTab = window.location.hash.replace("#", "");
     const hasPanel = Array.from(panels).some(panel => panel.dataset.panel === hashTab);
     return hasPanel ? hashTab : "home";
 }
 
-/** Initialize or repair routing after a direct reload/back-forward navigation. */
+/**
+ * Keep the visible page synchronized with the current browser URL.
+ * Hash changes, reloads, and back/forward navigation all pass through this small routing helper.
+ */
 function syncTabFromLocation() {
     showTab(tabFromHash());
 }

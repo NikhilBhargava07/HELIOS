@@ -1,5 +1,6 @@
 /* AI market-take cards, glossary tooltips, and responsive layout rules. */
 
+/* Main AI Market Take grid. It balances the long reasoned take with smaller action cards users can scan quickly. */
 .take-grid {
     display: grid;
     grid-template-columns: minmax(220px, 0.95fr) minmax(280px, 1.15fr) minmax(240px, 1fr) minmax(240px, 1fr);
@@ -7,6 +8,7 @@
     margin-bottom: 20px;
 }
 
+/* Shared card style for each piece of AI reasoning: mood, stance, actions, portfolio notes, and scenarios. */
 .take-card {
     border: 1px solid rgba(247, 251, 255, 0.10);
     border-radius: 18px;
@@ -22,6 +24,7 @@
     transform: translateY(-2px);
 }
 
+/* Highlight card for the agent’s main thesis because it carries the full reasoning paragraph. */
 .take-card-primary {
     background:
         linear-gradient(135deg, rgba(241, 255, 0, 0.16), rgba(241, 255, 0, 0.07)),
@@ -36,6 +39,7 @@
     max-width: none;
 }
 
+/* Vertical stack for Market Mood and CSP Stance so those short labels stay grouped and readable. */
 .take-card-stack {
     display: grid;
     gap: 14px;
@@ -112,6 +116,7 @@
     margin: 10px 0 10px;
 }
 
+/* Optional company-watch grid shown when the model calls out ticker-specific context. */
 .company-note-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -157,6 +162,7 @@
     color: #d8dee9;
 }
 
+/* Hover-term row that defines difficult market/options words without cluttering the main take. */
 .glossary-row {
     display: flex;
     flex-wrap: wrap;

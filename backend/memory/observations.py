@@ -3,12 +3,14 @@
 from backend.memory import dynamodb_store
 
 
-## Capture due candidate checkpoints when scheduled observation support exists.
+## Delegate scheduled candidate observation capture to the active memory store.
+## This keeps future EventBridge jobs decoupled from the database implementation.
 def capture_due_candidate_observations(limit=200):
     return dynamodb_store.capture_due_candidate_observations(limit=limit)
 
 
-## Record a realized trade result for future learning.
+## Delegate manual trade-outcome recording to the active memory store.
+## The memory API calls this when the user supplies or confirms a trade result.
 def record_trade_outcome(
     decision_id,
     status,

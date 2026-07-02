@@ -24,7 +24,8 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-## Create a pending market-take job record and return its public status.
+## Create a pending AI market-take job record in DynamoDB.
+## The returned job id lets the browser poll while Lambda finishes the longer OpenAI call in the background.
 def create_market_take_job():
     if not put_item:
         raise RuntimeError("Async AI jobs require DynamoDB memory backend.")
@@ -47,7 +48,8 @@ def create_market_take_job():
     return _public_job(item)
 
 
-## Return one market-take job by id.
+## Fetch one market-take job and return only public fields.
+## This hides storage details while giving the UI status, result, or error information.
 def get_market_take_job(job_id):
     if not get_item:
         raise RuntimeError("Async AI jobs require DynamoDB memory backend.")
@@ -55,7 +57,8 @@ def get_market_take_job(job_id):
     return _public_job(item) if item else None
 
 
-## Run the expensive market-take work and persist its final status.
+## Execute the background AI market-take workflow for one job id.
+## Lambda invokes this internally after the API route creates the job record.
 def run_market_take_job(job_id):
     item = get_item(USER_PK, f"AI_TAKE_JOB#{job_id}")
     if not item:
@@ -91,14 +94,16 @@ def run_market_take_job(job_id):
         return {"ok": False, "job_id": job_id, "error": type(error).__name__}
 
 
-## Persist job status changes while preserving creation metadata.
+## Update a market-take job record with status, result, or error details.
+## All job state changes go through one helper so DynamoDB writes remain consistent.
 def _update_job(item, **changes):
     updated = {**item, **changes, "updated_at": utc_now_text()}
     put_item(updated)
     return updated
 
 
-## Hide internal DynamoDB keys from API responses.
+## Remove DynamoDB bookkeeping fields before returning a job to the frontend.
+## The UI only needs the job id, status, result, and any user-facing error.
 def _public_job(item):
     return {
         "job_id": item["job_id"],

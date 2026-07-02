@@ -1,6 +1,5 @@
 /** Coordinate candidate discard and Alpaca paper-order actions. */
 
-/** Record a discard or submit a selected Alpaca paper order. */
 async function submitDecision(action, contractSymbol) {
     if (!currentRecommendationRunId) {
         recommendationStatus.textContent = "Run recommendations before recording a decision.";
@@ -46,7 +45,10 @@ async function submitDecision(action, contractSymbol) {
     }
 }
 
-/** Remove a handled candidate and replace it in the same card position. */
+/**
+ * Remove a handled candidate and replace it in the same visible card position.
+ * This lets discard and paper-place actions cycle through queued candidates without confusing ranking numbers.
+ */
 function removeCandidateFromPool(contractSymbol) {
     const visibleIndex = visibleCandidates.findIndex(candidate => candidate.contractSymbol === contractSymbol);
     candidatePool = candidatePool.filter(candidate => candidate.contractSymbol !== contractSymbol);
@@ -67,7 +69,6 @@ function removeCandidateFromPool(contractSymbol) {
     renderVisibleCandidates();
 }
 
-/** Persist a discard and animate the replacement candidate. */
 async function discardCandidate(clickedButton) {
     const contractSymbol = clickedButton.dataset.contract;
     const card = clickedButton.closest(".candidate-card");
@@ -85,7 +86,6 @@ async function discardCandidate(clickedButton) {
     }
 }
 
-/** Submit a paper order, notify the user, and refresh buying power. */
 async function placeCandidate(clickedButton) {
     const contractSymbol = clickedButton.dataset.contract;
     const card = clickedButton.closest(".candidate-card");

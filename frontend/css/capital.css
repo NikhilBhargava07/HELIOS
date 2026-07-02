@@ -1,17 +1,24 @@
-/* Capital and positions page: paper ledger, open positions, and order history. */
-
+/*
+ * Lays out the dashboard summary cards in a responsive grid.
+ *
+ * The grid creates as many columns as can fit in the available page width,
+ * while keeping each dashboard card at least 220px wide. This lets capital
+ * stats, buying power, and position counts sit side-by-side on wide screens
+ * and wrap cleanly on smaller screens.
+ */
+/* Summary metric grid for Alpaca equity, cash, CSP allocation, and open-position counts. */
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
     margin-bottom: 20px;
 }
-
+/* Dashboard subsection headings for open CSPs, stock positions, and recent paper orders. */
 .dashboard h3 {
     margin: 18px 0 10px;
     font-size: 1rem;
 }
-
+/* Blue context banner explaining whether portfolio data came from Alpaca or HELIOS memory. */
 .ledger-note {
     border: 1px solid rgba(88, 166, 255, 0.28);
     border-radius: 14px;
@@ -20,7 +27,7 @@
     color: #c9d1d9;
     line-height: 1.45;
 }
-
+/* Compact row style for positions and paper orders, keeping long broker details readable. */
 .history-row {
     border: 1px solid rgba(247, 251, 255, 0.10);
     border-radius: 12px;

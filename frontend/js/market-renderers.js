@@ -1,6 +1,9 @@
 /** Render trend, news, and portfolio-aware AI market panels. */
 
-/** Render the current subset of multi-period trend cards. */
+/**
+ * Render recent price movement cards for approved tickers.
+ * The first view stays short for readability, while the stored full list supports the See More toggle.
+ */
 function renderTrends(trends) {
     latestTrends = trends;
 
@@ -35,7 +38,10 @@ function renderTrends(trends) {
     toggleTrendsButton.textContent = showAllTrends ? "Show fewer trends" : "See more trends";
 }
 
-/** Merge lightweight price refreshes into the loaded trend state. */
+/**
+ * Merge latest-price refresh data into the existing trend objects.
+ * This preserves already loaded historical changes while updating only the live price pill.
+ */
 function mergeLatestPrices(prices) {
     latestTrends = latestTrends.map(trend => {
         const latest = prices[trend.ticker];
@@ -52,7 +58,6 @@ function mergeLatestPrices(prices) {
     });
 }
 
-/** Refresh price pills without reloading full historical trends. */
 async function refreshLatestPrices() {
     if (!latestTrends.length) {
         return;
@@ -78,7 +83,10 @@ async function refreshLatestPrices() {
     }
 }
 
-/** Start or restart periodic price refreshes. */
+/**
+ * Start the latest-price polling timer for the Trends page.
+ * Restarting clears any old timer so repeated loads do not create duplicate refresh loops.
+ */
 function startPriceRefresh() {
     if (priceRefreshIntervalId) {
         clearInterval(priceRefreshIntervalId);
@@ -87,7 +95,10 @@ function startPriceRefresh() {
     priceRefreshIntervalId = setInterval(refreshLatestPrices, PRICE_REFRESH_MS);
 }
 
-/** Alternate trend displays between percentage and dollar movement. */
+/**
+ * Rotate trend cards between percent change and dollar change.
+ * This gives users both views without doubling the amount of visible text in each card.
+ */
 function startTrendMetricRotation() {
     if (trendMetricRotateIntervalId) {
         clearInterval(trendMetricRotateIntervalId);
@@ -99,7 +110,10 @@ function startTrendMetricRotation() {
     }, TREND_METRIC_ROTATE_MS);
 }
 
-/** Stop periodic latest-price refreshes when the Trends tab is hidden. */
+/**
+ * Stop the latest-price polling timer when trends are not visible.
+ * This keeps hidden tabs from making unnecessary market-data requests.
+ */
 function stopPriceRefresh() {
     if (priceRefreshIntervalId) {
         clearInterval(priceRefreshIntervalId);
@@ -108,7 +122,10 @@ function stopPriceRefresh() {
     priceRefreshIntervalId = null;
 }
 
-/** Stop trend rotation when no trend cards are displayed. */
+/**
+ * Stop the percent/dollar rotation animation and reset cards to percent view.
+ * Resetting the class keeps the next visit predictable for the user.
+ */
 function stopTrendMetricRotation() {
     if (trendMetricRotateIntervalId) {
         clearInterval(trendMetricRotateIntervalId);
@@ -118,7 +135,10 @@ function stopTrendMetricRotation() {
     trendList.classList.remove("show-dollar");
 }
 
-/** Render sanitized external news items with bounded initial results. */
+/**
+ * Render curated external news articles with source, date, ticker chips, and relevance notes.
+ * The UI shows a compact initial set so the News tab stays readable before the user expands it.
+ */
 function renderNews(news) {
     latestNews = news;
 
@@ -154,7 +174,10 @@ function renderNews(news) {
     toggleNewsButton.textContent = showAllNews ? "Show fewer news items" : "See more news";
 }
 
-/** Render portfolio-aware AI reasoning, actions, and scenarios. */
+/**
+ * Render the AI Market Take response into structured reasoning cards.
+ * The layout separates the detailed thesis, mood, CSP stance, actions, open positions, and latest recommendations so the user can scan quickly.
+ */
 function renderMarketTake(take) {
     const scenarios = take.scenarios || [];
     const companyNotes = take.company_notes || [];

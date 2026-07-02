@@ -3,6 +3,7 @@
  * Loaded first so formatter, renderer, and controller scripts share one state.
  */
 
+// DOM elements used by controllers and renderers. Keeping references here avoids repeated querySelector calls across files.
 const button = document.querySelector("#load-recommendations");
 const trendsButton = document.querySelector("#load-trends");
 const newsButton = document.querySelector("#load-news");
@@ -27,6 +28,7 @@ const toggleTrendsButton = document.querySelector("#toggle-trends");
 const toggleNewsButton = document.querySelector("#toggle-news");
 const toastEl = document.querySelector("#toast");
 
+// Mutable UI state shared across the simple script modules. These values track the active recommendation run, visible cards, loaded market data, and refresh timers.
 let currentRecommendationRunId = null;
 let companyNames = {};
 let candidatePool = [];
@@ -41,6 +43,7 @@ let priceRefreshIntervalId = null;
 let trendMetricRotateIntervalId = null;
 let dashboardRefreshIntervalId = null;
 let dashboardRequestInFlight = false;
+// UI sizing, refresh, and formatting constants. These control how much data appears by default and how frequently live sections refresh.
 const DEFAULT_TREND_COUNT = 6;
 const DEFAULT_NEWS_COUNT = 5;
 const PRICE_REFRESH_MS = 15000;
@@ -48,6 +51,7 @@ const DASHBOARD_REFRESH_MS = 10000;
 const TREND_METRIC_ROTATE_MS = 5000;
 const NEUTRAL_TREND_PERCENT_THRESHOLD = 0.2;
 const TOAST_TIMEOUT_MS = 5200;
+// Beginner glossary used by AI Market Take hover chips. The terms explain options and macro vocabulary without making the main take overly long.
 const GLOSSARY = {
     "assignment risk": "The chance you must buy 100 shares at the strike price if the put is assigned.",
     "cash-secured put": "A put option you sell while keeping enough cash to buy 100 shares if assigned.",

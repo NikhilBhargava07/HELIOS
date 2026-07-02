@@ -18,7 +18,8 @@ from backend.memory.recommendations import get_latest_recommendation_run
 router = APIRouter(prefix="/api/market", tags=["market"])
 
 
-## Ask Lambda to run the market-take job outside the API Gateway request.
+## Start the Lambda background worker for an AI market-take job.
+## This avoids API Gateway timeouts by returning a job id immediately while the OpenAI call continues asynchronously.
 def enqueue_market_take_worker(job_id):
     function_name = os.getenv("AWS_LAMBDA_FUNCTION_NAME")
     if not function_name:
@@ -33,7 +34,8 @@ def enqueue_market_take_worker(job_id):
 
 
 @router.get("/trends")
-## Return multi-period trends enriched with current prices and names.
+## Return recent price trends for the approved ticker universe.
+## The frontend uses this for Market Trends cards and the AI prompt uses it as market context for CSP risk.
 def get_trends():
     trends = get_market_trends(APPROVED_TICKERS)
     prices = get_latest_stock_prices(APPROVED_TICKERS)
@@ -48,7 +50,8 @@ def get_trends():
 
 
 @router.get("/prices")
-## Return latest batched prices for lightweight frontend refreshes.
+## Return lightweight latest-price updates for already loaded trend cards.
+## This keeps the UI feeling live without re-fetching full historical windows every few seconds.
 def get_prices():
     return {
         "prices": get_latest_stock_prices(APPROVED_TICKERS),
@@ -57,7 +60,8 @@ def get_prices():
 
 
 @router.get("/news")
-## Return recent sanitized RSS headlines within the configured window.
+## Return filtered current-news headlines from approved and reputable sources.
+## News items include relevance tags and ticker links so both the user and the AI market take can reason from the same evidence.
 def get_news():
     return {
         "news": get_recent_news(APPROVED_TICKERS),
@@ -66,13 +70,15 @@ def get_news():
 
 
 @router.get("/context")
-## Return the combined trend and news context used by the AI.
+## Return combined trend and news context for debugging or future UI panels.
+## Keeping this route separate lets HELIOS inspect the evidence package without triggering an AI review.
 def get_context():
     return build_market_context(APPROVED_TICKERS)
 
 
 @router.post("/take")
-## Create an AI take centered on current positions and latest candidates.
+## Produce a synchronous AI market take for local development.
+## The hosted frontend normally uses the async job route because OpenAI responses can exceed API Gateway timing limits.
 def post_market_take():
     context = build_market_context(APPROVED_TICKERS)
     dashboard = get_dashboard_with_cash_context()
@@ -87,7 +93,8 @@ def post_market_take():
     return take
 
 @router.post("/take/jobs")
-## Create an async AI market-take job and return immediately for frontend polling.
+## Create and enqueue an asynchronous AI market-take job.
+## The frontend receives a job id quickly, then polls the matching status endpoint until the result is ready.
 def create_market_take_job_route():
     job = create_market_take_job()
     try:
@@ -98,7 +105,8 @@ def create_market_take_job_route():
 
 
 @router.get("/take/jobs/{job_id}")
-## Return current status or final result for one AI market-take job.
+## Return the latest status or result for an AI market-take job.
+## This route supports the polling loop that keeps long reasoning calls from freezing the UI.
 def get_market_take_job_route(job_id):
     job = get_market_take_job(job_id)
     if not job:

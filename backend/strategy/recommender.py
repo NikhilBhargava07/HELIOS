@@ -24,12 +24,14 @@ from backend.memory.learning_user import build_memory_context
 logger = logging.getLogger(__name__)
 
 
-## Return whether the account remains below its position-count limit.
+## Check the hard position-count rule before recommending another CSP.
+## The prototype avoids suggesting new exposure once the configured maximum number of open CSPs is reached.
 def can_open_new_position(current_open_positions, max_open_positions):
     return current_open_positions < max_open_positions
 
 
-## Calculate uncommitted collateral under the configured CSP allocation.
+## Calculate how much CSP capital remains under the hard allocation rule.
+## This is separate from Alpaca buying power because strategy capacity and broker capacity are both relevant.
 def calculate_available_csp_capital(
     total_capital,
     max_csp_capital_percent,
@@ -39,7 +41,8 @@ def calculate_available_csp_capital(
     return max(0, max_csp_capital - current_csp_capital_committed)
 
 
-## Scan approved tickers and return ranked candidates plus an AI review.
+## Orchestrate one full recommendation run from broker state to saved AI review.
+## The function gathers capital, candidates, context, memory, model review, and dashboard data for the API route.
 def get_recommendation_results(
     current_open_positions=0,
     current_csp_capital_committed=0,
@@ -114,7 +117,8 @@ def get_recommendation_results(
     }
 
 
-## Build the common empty recommendation response.
+## Build a standard reject-all response when strategy constraints block new trades.
+## Returning the same structure as a normal review keeps frontend rendering simple.
 def _rejection(summary, risk_note):
     return {
         "candidates": pd.DataFrame(),

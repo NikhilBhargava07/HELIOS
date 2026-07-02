@@ -1,11 +1,13 @@
 /* Market trends page: ticker cards, price pills, and metric animation. */
 
+/* Responsive grid of ticker trend cards for approved stocks and ETFs. */
 .trend-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 12px;
 }
 
+/* Individual trend card showing current price plus recent percent/dollar movement windows. */
 .trend-card {
     border: 1px solid rgba(247, 251, 255, 0.10);
     border-radius: 22px;
@@ -39,6 +41,7 @@
     margin-bottom: 0;
 }
 
+/* Current-price badge refreshed separately from the heavier historical trend data. */
 .price-pill {
     display: inline-flex;
     align-items: center;

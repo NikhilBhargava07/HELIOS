@@ -10,7 +10,8 @@ MARKET_BENCHMARKS = ["SPY", "QQQ", "IWM"]
 logger = logging.getLogger(__name__)
 
 
-## Return current trends and news while preserving a recoverable news error.
+## Build the general market evidence bundle used by the AI market take.
+## The bundle combines approved ticker trends and reputable news into one object for prompting and debugging.
 def build_market_context(ticker_symbols):
     trends = get_market_trends(ticker_symbols)
     try:
@@ -23,7 +24,8 @@ def build_market_context(ticker_symbols):
     return {"trends": trends, "news": news, "news_error": news_error}
 
 
-## Build ten-day company evidence plus benchmark and ticker trends.
+## Build ticker-specific context for the CSP recommendation agent.
+## Candidate news is grouped by symbol so the LLM can discuss why each recommended put may be helped or hurt.
 def build_candidate_review_context(ticker_symbols):
     candidate_tickers = list(dict.fromkeys(ticker_symbols))
     trend_tickers = list(dict.fromkeys([*MARKET_BENCHMARKS, *candidate_tickers]))

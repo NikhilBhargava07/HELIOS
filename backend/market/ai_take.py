@@ -11,7 +11,8 @@ from backend.config import OPENAI_MODEL
 logger = logging.getLogger(__name__)
 
 
-## Create a deterministic market summary when OpenAI is unavailable.
+## Produce a deterministic fallback market take when OpenAI is unavailable.
+## The UI still receives a useful CSP-focused explanation instead of failing completely during API outages.
 def local_market_take(context):
     if not context["trends"] and not context["news"]:
         return {
@@ -66,7 +67,8 @@ def local_market_take(context):
     }
 
 
-## Return the three strongest or weakest rows by five-day movement.
+## Sort trend records by recent absolute movement.
+## The fallback take uses the most active tickers to describe what the market is doing.
 def _rank_trends(trends, reverse):
     missing_value = -999 if reverse else 999
     return sorted(
@@ -76,7 +78,8 @@ def _rank_trends(trends, reverse):
     )[:3]
 
 
-## Parse JSON even when a model wraps it in Markdown fences or prose.
+## Parse the model response into the structured market-take schema.
+## The parser tolerates fenced JSON because LLMs sometimes wrap otherwise valid JSON in markdown.
 def parse_market_take_json(text):
     cleaned = re.sub(r"^```(?:json)?", "", text.strip())
     cleaned = re.sub(r"```$", "", cleaned).strip()
@@ -89,7 +92,8 @@ def parse_market_take_json(text):
         return json.loads(match.group(0))
 
 
-## Ask OpenAI for a cautious take centered on positions and candidates.
+## Ask OpenAI for a portfolio-aware market take, falling back locally on failure.
+## This is the main reasoning entry point for the AI Market Take tab.
 def ai_market_take(context):
     if not os.getenv("OPENAI_API_KEY"):
         return local_market_take(context)
@@ -116,7 +120,8 @@ def ai_market_take(context):
         return fallback
 
 
-## Build instructions that prevent generic or unsupported market claims.
+## Build the prompt that tells the LLM what evidence to use and what JSON to return.
+## It includes trends, reputable news, open CSPs, latest recommendations, and memory context without exposing secrets.
 def _build_market_take_prompt(context):
     return f"""
 You are helping with an educational cash-secured put paper-trading dashboard.
@@ -172,7 +177,8 @@ Context:
 """
 
 
-## Return a stable response shape even if optional model fields are absent.
+## Fill missing market-take fields so the frontend can render a stable layout.
+## This protects the UI from partial model responses while preserving the model’s main reasoning.
 def _normalize_market_take(take):
     return {
         "headline": take.get("headline", "Market risk check"),

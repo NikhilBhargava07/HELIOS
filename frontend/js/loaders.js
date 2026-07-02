@@ -1,6 +1,5 @@
 /** Load recommendation, trend, news, market-take, and portfolio API data. */
 
-/** Request a new recommendation run and update all related panels. */
 async function loadRecommendations() {
     if (button) {
         button.disabled = true;
@@ -38,7 +37,6 @@ async function loadRecommendations() {
     }
 }
 
-/** Load historical trends, current prices, and refresh timers. */
 async function loadTrends() {
     trendsButton.disabled = true;
     trendStatus.textContent = "Loading market trends...";
@@ -67,7 +65,6 @@ async function loadTrends() {
     }
 }
 
-/** Load recent external market news. */
 async function loadNews() {
     newsButton.disabled = true;
     newsStatus.textContent = "Loading recent news...";
@@ -89,7 +86,6 @@ async function loadNews() {
     }
 }
 
-/** Request an async AI take job and poll until the result is ready. */
 async function loadMarketTake() {
     summarizeMarketButton.disabled = true;
     marketTakeStatus.textContent = "Starting AI market take job...";
@@ -112,7 +108,6 @@ async function loadMarketTake() {
     }
 }
 
-/** Poll one market-take job until it completes, fails, or times out in the UI. */
 async function pollMarketTakeJob(jobId, attempt = 1) {
     const maxAttempts = 36;
     const pollDelayMs = 2500;
@@ -151,7 +146,6 @@ async function pollMarketTakeJob(jobId, attempt = 1) {
     }
 }
 
-/** Refresh live Alpaca positions whenever the Capital tab opens. */
 async function loadDashboard(showLoading = true) {
     if (dashboardRequestInFlight) {
         return;
@@ -177,7 +171,10 @@ async function loadDashboard(showLoading = true) {
     }
 }
 
-/** Poll Alpaca order and position state while the Capital tab is visible. */
+/**
+ * Begin periodic dashboard refreshes while the Capital tab is visible.
+ * This keeps order status and position data close to Alpaca without requiring the user to manually reload.
+ */
 function startDashboardRefresh() {
     stopDashboardRefresh();
     dashboardRefreshIntervalId = setInterval(
@@ -186,7 +183,10 @@ function startDashboardRefresh() {
     );
 }
 
-/** Stop portfolio polling after the user leaves the Capital tab. */
+/**
+ * Stop background dashboard refreshes when the user leaves the Capital tab.
+ * Hidden pages should not keep polling the backend and broker account.
+ */
 function stopDashboardRefresh() {
     if (dashboardRefreshIntervalId) {
         clearInterval(dashboardRefreshIntervalId);

@@ -22,13 +22,16 @@ OPTION_SYMBOL_PATTERN = re.compile(
 
 ## Create a cached authenticated client pinned to Alpaca paper trading.
 @lru_cache(maxsize=1)
+## Create an Alpaca trading client connected to the configured paper account.
+## All account, order, and position actions go through this helper so credentials and paper/live mode remain centralized.
 def get_trading_client():
     api_key, secret_key = get_alpaca_credentials()
 
     return TradingClient(api_key, secret_key, paper=True)
 
 
-## Convert total contract premium into Alpaca's per-share limit price.
+## Choose a conservative limit credit for selling one put contract.
+## HELIOS starts from the candidate bid/premium data because CSP recommendations should assume the user receives a real quoted credit.
 def option_limit_price_from_candidate(candidate):
     premium_total = candidate.get("premiumIfSoldAtBid")
 
@@ -39,7 +42,8 @@ def option_limit_price_from_candidate(candidate):
     return round(float(premium_total) / 100, 2)
 
 
-## Convert an Alpaca SDK model into a JSON-compatible dictionary.
+## Convert Alpaca SDK models into plain dictionaries.
+## Normalizing SDK objects makes later parsing predictable and keeps API responses JSON-friendly.
 def serialize_alpaca_model(model):
     if hasattr(model, "model_dump"):
         return model.model_dump(mode="json")
@@ -50,7 +54,8 @@ def serialize_alpaca_model(model):
     return dict(model)
 
 
-## Parse a numeric broker field without raising on absent values.
+## Safely parse broker numeric fields that may arrive as strings or missing values.
+## Alpaca often returns decimals as strings, so this helper keeps calculations from crashing on blanks.
 def number_or_none(value):
     if value is None:
         return None
@@ -61,7 +66,8 @@ def number_or_none(value):
         return None
 
 
-## Return the first numeric value found among ordered account keys.
+## Return the first parseable number from several possible broker fields.
+## This is used when Alpaca may expose the same account value under different field names.
 def first_number(raw_data, *keys):
     for key in keys:
         value = raw_data.get(key)
@@ -73,7 +79,8 @@ def first_number(raw_data, *keys):
     return None
 
 
-## Return the paper account fields needed for portfolio and CSP buying-power checks.
+## Read live paper-account balances and buying power from Alpaca.
+## The resulting summary drives effective CSP cash, dashboard totals, and pre-trade affordability checks.
 def get_paper_account_summary():
     account = get_trading_client().get_account()
     raw_account = serialize_alpaca_model(account)
@@ -99,7 +106,8 @@ def get_paper_account_summary():
     }
 
 
-## Parse an OCC option symbol into ticker, expiration, type, and strike.
+## Decode an OCC-style option symbol into ticker, expiration, type, and strike.
+## Alpaca positions use compact symbols, so parsing them lets the UI display readable CSP details.
 def parse_option_contract_symbol(contract_symbol):
     match = OPTION_SYMBOL_PATTERN.match(contract_symbol or "")
 
@@ -116,7 +124,8 @@ def parse_option_contract_symbol(contract_symbol):
     }
 
 
-## Convert one Alpaca position into a display-safe portfolio record.
+## Convert one Alpaca position into the shape HELIOS displays and reasons over.
+## Short puts become CSP records with cash required, breakeven, premium estimate, and unrealized P&L; other holdings stay as general positions.
 def normalize_paper_position(raw_position):
     symbol = raw_position.get("symbol")
     quantity = number_or_none(raw_position.get("qty"))
@@ -167,7 +176,8 @@ def normalize_paper_position(raw_position):
     }
 
 
-## Return every open Alpaca paper position, including stocks and options.
+## Fetch and normalize all open positions from the Alpaca paper account.
+## The dashboard relies on this live broker view rather than stale local memory whenever possible.
 def get_paper_positions():
     return [
         normalize_paper_position(serialize_alpaca_model(model))
@@ -175,7 +185,8 @@ def get_paper_positions():
     ]
 
 
-## Return recent open and closed Alpaca paper orders for reconciliation.
+## Fetch recent Alpaca paper orders for reconciliation.
+## Canceled orders are later filtered from display, while active/filled orders keep HELIOS memory aligned with the broker.
 def get_paper_orders(limit=500):
     request = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=limit)
     return [
@@ -184,7 +195,8 @@ def get_paper_orders(limit=500):
     ]
 
 
-## Submit one sell-to-open CSP limit order to Alpaca paper trading.
+## Submit a one-contract sell-to-open put limit order to Alpaca paper trading.
+## The function intentionally supports only the recommended CSP flow so the prototype cannot place arbitrary trade types.
 def submit_cash_secured_put_order(candidate):
     trading_client = get_trading_client()
     contract_symbol = candidate["contractSymbol"]

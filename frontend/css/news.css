@@ -1,11 +1,13 @@
 /* News page: headline list and source cards. */
 
+/* Article list container for reputable current-market headlines. */
 .news-list {
     display: grid;
     gap: 12px;
     margin-bottom: 16px;
 }
 
+/* Individual news card with source, date, headline, ticker chips, tags, and a short relevance note. */
 .news-item {
     border: 1px solid rgba(247, 251, 255, 0.10);
     border-radius: 22px;
@@ -31,6 +33,7 @@
 }
 
 .news-meta-row,
+/* Compact chip row for related tickers and market-impact tags. */
 .news-chip-row {
     display: flex;
     flex-wrap: wrap;
@@ -38,6 +41,7 @@
     gap: 8px;
 }
 
+/* Metadata row that helps users judge source quality and article recency before clicking. */
 .news-meta-row {
     color: #8f99a6;
     font-size: 0.82rem;

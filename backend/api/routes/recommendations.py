@@ -23,7 +23,8 @@ router = APIRouter(prefix="/api", tags=["recommendations"])
 
 
 @router.get("/recommendations")
-## Generate, review, persist, and return affordable CSP candidates.
+## Generate a fresh CSP recommendation run for the frontend.
+## The route scans candidates, adds market and memory context, asks the review agent, saves the run, and returns dashboard data in one response.
 def get_recommendations(background_tasks: BackgroundTasks):
     alpaca_account = get_safe_paper_account_summary()
     dashboard = get_dashboard_with_cash_context(alpaca_account)
@@ -66,7 +67,8 @@ def get_recommendations(background_tasks: BackgroundTasks):
 
 
 @router.post("/decisions")
-## Record a discard or submit and persist an Alpaca paper order.
+## Record a user decision from the recommendation cards.
+## Paper-place actions are submitted to Alpaca first, then the decision is stored in memory so later learning can compare recommendation versus user behavior.
 def post_user_decision(request: UserDecisionRequest):
     alpaca_order = None
     alpaca_account = None

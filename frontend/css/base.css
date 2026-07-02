@@ -1,5 +1,6 @@
 /* Global theme, page layout, Explore navigation, tabs, and shared controls. */
 
+/* Theme variables and shared background gradients used by every page. Updating these values changes the full HELIOS visual system. */
 :root {
     color-scheme: dark;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -35,6 +36,7 @@ body {
     background: var(--page-background);
 }
 
+/* Floating feedback toast for success/error messages after actions like paper placing, failed API calls, or discarding candidates. */
 .toast {
     position: fixed;
     top: 24px;
@@ -76,6 +78,7 @@ body {
         #0d1117;
 }
 
+/* Full-screen Explore menu overlay. It appears above the current page and fades in without expensive blur-heavy rendering. */
 .explore-overlay {
     position: fixed;
     inset: 0;
@@ -103,6 +106,7 @@ body {
     display: grid;
 }
 
+/* Responsive grid that arranges Explore destination cards into a dashboard-style menu. */
 .explore-grid {
     display: grid;
     grid-template-columns: 1.4fr 1fr 1fr;
@@ -111,6 +115,7 @@ body {
     align-self: center;
 }
 
+/* Individual Explore destination card. The card text explains what each major HELIOS page is responsible for. */
 .explore-card {
     display: grid;
     align-content: end;
@@ -311,6 +316,7 @@ button.secondary {
 }
 
 
+/* Shared subpage container sizing and spacing. All non-home pages use this shell to stay visually consistent. */
 .tab-panel:not(.home-panel) {
     width: min(1480px, calc(100% - 28px));
     margin: 34px auto 18px;
@@ -325,6 +331,7 @@ button.secondary {
     display: block;
 }
 
+/* Shared dark card treatment for AI review text and empty-state messages. */
 .agent-review {
     display: grid;
     gap: 8px;
@@ -354,6 +361,7 @@ button.secondary {
 
 
 /* Subpage shell: same visual language as the landing page. */
+/* Rounded subpage navigation bar. The landing page hides it so the hero remains clean and presentation-like. */
 .app-topbar {
     position: sticky;
     top: 0;

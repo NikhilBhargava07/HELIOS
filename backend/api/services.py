@@ -21,7 +21,8 @@ from backend.memory.trades import reconcile_paper_orders
 logger = logging.getLogger(__name__)
 
 
-## Load a saved recommendation or raise a clear validation error.
+## Fetch a saved recommendation run before a user acts on one of its contracts.
+## Raising a clear validation error here keeps route handlers small and prevents unknown run ids from becoming confusing downstream failures.
 def require_recommendation_run(run_id):
     run = get_recommendation_run(run_id)
     if run is None:
@@ -29,7 +30,8 @@ def require_recommendation_run(run_id):
     return run
 
 
-## Verify that a contract belongs to a saved recommendation run.
+## Confirm that a contract symbol belongs to the recommendation run the frontend referenced.
+## This protects the paper-order path from accepting arbitrary contracts that were not shown to the user by HELIOS.
 def require_candidate(run, contract_symbol):
     candidate = find_candidate(run, contract_symbol)
     if candidate is None:
@@ -37,7 +39,8 @@ def require_candidate(run, contract_symbol):
     return candidate
 
 
-## Convert ranked candidate DataFrame rows into JSON-ready records.
+## Convert the candidate DataFrame into browser-safe JSON records.
+## Pandas and NumPy values are normalized into plain Python types, and company names are attached so the UI can show ticker tooltips without extra API calls.
 def candidates_to_records(candidates):
     if candidates.empty:
         return []
@@ -56,7 +59,8 @@ def candidates_to_records(candidates):
     return records
 
 
-## Return Alpaca account data without allowing broker errors to crash a route.
+## Read Alpaca paper account balances while shielding routes from broker outages.
+## If Alpaca is unavailable, the caller receives an explicit account_error instead of a crashed dashboard or recommendation response.
 def get_safe_paper_account_summary():
     try:
         return get_paper_account_summary()
@@ -65,7 +69,8 @@ def get_safe_paper_account_summary():
         return {"available_csp_cash": None, "account_error": "Paper account unavailable."}
 
 
-## Return normalized Alpaca positions plus any recoverable error.
+## Read and normalize all current Alpaca paper positions.
+## The returned error string lets the UI explain that live positions failed while still falling back to saved HELIOS memory where possible.
 def get_safe_paper_positions():
     try:
         return get_paper_positions(), None
@@ -74,7 +79,8 @@ def get_safe_paper_positions():
         return None, "Paper positions unavailable."
 
 
-## Return only short-put CSP positions from a full Alpaca position list.
+## Extract only open short-put positions from the full Alpaca portfolio.
+## HELIOS uses this subset for CSP-specific capital limits because stock shares and other holdings should not count as cash-secured put slots.
 def csp_positions_from_all_positions(positions):
     return [
         position for position in positions
@@ -82,7 +88,8 @@ def csp_positions_from_all_positions(positions):
     ]
 
 
-## Return non-CSP stock/option positions for general portfolio display.
+## Separate stocks and non-CSP holdings for the portfolio display.
+## Keeping them out of the CSP list avoids mixing regular holdings with option obligations.
 def non_csp_positions_from_all_positions(positions):
     return [
         position for position in positions
@@ -90,7 +97,8 @@ def non_csp_positions_from_all_positions(positions):
     ]
 
 
-## Choose live Alpaca portfolio value when available, otherwise local prototype capital.
+## Choose the best available account value for strategy math.
+## Live Alpaca portfolio value is preferred, but the prototype falls back to the configured paper capital when the broker omits account totals.
 def account_total_capital(alpaca_account):
     return (
         (alpaca_account or {}).get("portfolio_value")
@@ -99,7 +107,8 @@ def account_total_capital(alpaca_account):
     )
 
 
-## Synchronize saved order history without failing the dashboard route.
+## Sync recent Alpaca orders into HELIOS memory without blocking the dashboard.
+## Order reconciliation is helpful for history, but a temporary Alpaca failure should not prevent users from seeing current positions.
 def reconcile_orders_safely():
     try:
         return reconcile_paper_orders(get_paper_orders()), None
@@ -108,7 +117,8 @@ def reconcile_orders_safely():
         return 0, "Paper order synchronization unavailable."
 
 
-## Use the lower of strategy allocation and Alpaca options buying power.
+## Compute the actual cash ceiling for a new CSP recommendation.
+## HELIOS uses the stricter of strategy allocation and Alpaca options buying power so candidates shown to the user are realistically placeable.
 def get_effective_available_csp_cash(capital_summary, alpaca_account):
     alpaca_available = (alpaca_account or {}).get("available_csp_cash")
     if alpaca_available is None:
@@ -116,7 +126,8 @@ def get_effective_available_csp_cash(capital_summary, alpaca_account):
     return min(capital_summary["available_csp_capital"], alpaca_available)
 
 
-## Add broker and effective buying-power fields to a capital summary.
+## Add live broker buying-power context to the local capital summary.
+## The frontend displays both strategy capacity and effective CSP cash so users can see why a trade may be filtered out.
 def attach_alpaca_cash_context(capital_summary, alpaca_account):
     capital_summary["alpaca_available_csp_cash"] = (alpaca_account or {}).get("available_csp_cash")
     capital_summary["effective_available_csp_capital"] = get_effective_available_csp_cash(
@@ -126,7 +137,8 @@ def attach_alpaca_cash_context(capital_summary, alpaca_account):
     return capital_summary
 
 
-## Combine saved history with live Alpaca positions and buying power.
+## Build the Capital & Positions payload shown in the frontend dashboard.
+## This combines saved HELIOS memory, reconciled orders, live Alpaca positions, and current buying power into one response for the UI.
 def get_dashboard_with_cash_context(alpaca_account=None):
     reconciled_orders, order_sync_error = reconcile_orders_safely()
     safe_account = alpaca_account or get_safe_paper_account_summary()

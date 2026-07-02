@@ -36,12 +36,14 @@
     margin-top: 14px;
 }
 
+/* Grid for currently visible CSP candidate cards. Extra candidates stay queued until the user discards one. */
 .candidate-grid {
     display: grid;
     grid-template-columns: minmax(320px, 980px);
     gap: 14px;
 }
 
+/* Candidate card showing the practical details needed before selling a paper CSP. */
 .candidate-card {
     border: 1px solid rgba(247, 251, 255, 0.10);
     border-radius: 22px;
@@ -68,6 +70,7 @@
     font-size: 1.08rem;
 }
 
+/* Candidate metric list: DTE, current price, delta, IV, spread, premium, cash required, breakeven, and ROC. */
 .stats {
     display: grid;
     gap: 11px;
@@ -83,6 +86,7 @@
     color: var(--yellow);
 }
 
+/* Paper-place and discard controls for each visible candidate. */
 .actions {
     display: flex;
     gap: 10px;

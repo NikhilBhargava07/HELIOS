@@ -1,6 +1,9 @@
 /** Format values and build small, reusable HTML fragments safely. */
 
-/** Format a numeric value as US currency. */
+/**
+ * Format a numeric value as US currency for user-facing stats.
+ * Centralizing currency formatting keeps candidate cards, dashboard rows, and order messages consistent.
+ */
 function money(value) {
     return `$${Number(value).toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -8,12 +11,18 @@ function money(value) {
     })}`;
 }
 
-/** Find a loaded candidate by its OCC contract symbol. */
+/**
+ * Find a loaded candidate by its OCC contract symbol.
+ * User actions reference contract symbols, so this helper ties button clicks back to the exact candidate object that was rendered.
+ */
 function candidateByContract(contractSymbol) {
     return candidatePool.find(candidate => candidate.contractSymbol === contractSymbol);
 }
 
-/** Check whether available cash fully secures a candidate. */
+/**
+ * Check whether the account can fully cash-secure a candidate.
+ * A CSP should not be shown as placeable if its cash requirement exceeds current effective CSP cash.
+ */
 function candidateIsAffordable(candidate, availableCash) {
     if (availableCash === null || availableCash === undefined) {
         return true;
@@ -22,12 +31,18 @@ function candidateIsAffordable(candidate, availableCash) {
     return Number(candidate.cashRequired || 0) <= Number(availableCash);
 }
 
-/** Remove candidates that exceed current effective CSP cash. */
+/**
+ * Remove candidates that exceed current effective CSP cash.
+ * This frontend guard mirrors backend safety logic so the UI does not encourage orders Alpaca will reject.
+ */
 function filterAffordableCandidates(candidates, availableCash) {
     return (candidates || []).filter(candidate => candidateIsAffordable(candidate, availableCash));
 }
 
-/** Check whether the AI selection remains in the affordable candidate list. */
+/**
+ * Check whether the AI-selected contract is still in the affordable display set.
+ * Buying power can change between recommendation generation and rendering, so the selected contract may need a safety override.
+ */
 function selectedContractIsAffordable(review, candidates) {
     if (!review?.selected_contract) {
         return false;
@@ -36,7 +51,10 @@ function selectedContractIsAffordable(review, candidates) {
     return candidates.some(candidate => candidate.contractSymbol === review.selected_contract);
 }
 
-/** Replace an unaffordable AI selection with a safe display decision. */
+/**
+ * Adjust the displayed AI review if its selected contract is no longer affordable.
+ * This preserves the model explanation while preventing the main action button from pointing at a trade the account cannot back.
+ */
 function reviewWithAffordableSelection(review, candidates, availableCash) {
     if (!review || selectedContractIsAffordable(review, candidates)) {
         return review;
@@ -63,7 +81,10 @@ function reviewWithAffordableSelection(review, candidates, availableCash) {
     };
 }
 
-/** Display a temporary success or failure notification. */
+/**
+ * Display a temporary success or failure notification.
+ * Toasts give immediate feedback after paper-place or discard actions so the user does not have to visit another tab to confirm something happened.
+ */
 function showToast(title, message, variant = "success") {
     toastEl.classList.toggle("error", variant === "error");
     toastEl.innerHTML = `
@@ -78,7 +99,10 @@ function showToast(title, message, variant = "success") {
     }, TOAST_TIMEOUT_MS);
 }
 
-/** Format a percentage without forcing a sign. */
+/**
+ * Format a percentage without forcing a direction sign.
+ * Metrics like IV and ROC are naturally positive values, so they use this cleaner formatter.
+ */
 function percent(value) {
     if (value === null || value === undefined) {
         return "n/a";
@@ -87,7 +111,10 @@ function percent(value) {
     return `${Number(value).toFixed(2)}%`;
 }
 
-/** Format a percentage with its positive or negative direction. */
+/**
+ * Format a percentage with positive or negative direction.
+ * Trend movement needs the sign because up/down direction changes the meaning of the value.
+ */
 function signedPercent(value) {
     if (value === null || value === undefined) {
         return "n/a";
@@ -99,7 +126,10 @@ function signedPercent(value) {
     return `${sign}${number.toFixed(2)}%`;
 }
 
-/** Format a currency change with its positive or negative direction. */
+/**
+ * Format a dollar change with positive or negative direction.
+ * Market trends and P&L rows use this to distinguish gains from losses without extra labels.
+ */
 function signedMoney(value) {
     if (value === null || value === undefined) {
         return "n/a";
@@ -111,7 +141,10 @@ function signedMoney(value) {
     return `${sign}${money(Math.abs(number))}`;
 }
 
-/** Select the CSS class for positive, negative, or neutral movement. */
+/**
+ * Choose the CSS class for positive, negative, or neutral movement.
+ * Small moves inside the neutral threshold stay white, while meaningful up/down moves become green or red.
+ */
 function trendDirectionClass(percentValue) {
     if (percentValue === null || percentValue === undefined) {
         return "trend-neutral";
@@ -126,7 +159,10 @@ function trendDirectionClass(percentValue) {
     return number > 0 ? "trend-up" : "trend-down";
 }
 
-/** Build one rotating percentage/dollar trend row. */
+/**
+ * Build one rotating percentage/dollar trend row.
+ * The row contains both values so CSS can rotate views without re-rendering the whole trend card.
+ */
 function trendMetric(label, percentValue, dollarValue) {
     const directionClass = trendDirectionClass(percentValue);
 
@@ -141,7 +177,10 @@ function trendMetric(label, percentValue, dollarValue) {
     `;
 }
 
-/** Format a price while handling unavailable quotes. */
+/**
+ * Format a current price while handling unavailable quotes.
+ * Market-data APIs can occasionally miss a quote, so the UI needs a readable fallback.
+ */
 function priceText(value) {
     if (value === null || value === undefined) {
         return "Price n/a";
@@ -150,7 +189,10 @@ function priceText(value) {
     return money(value);
 }
 
-/** Format an RSS timestamp into a compact news-card date. */
+/**
+ * Format an RSS timestamp into a compact news-card date.
+ * Invalid or missing feed dates are handled explicitly so the News page never shows confusing raw timestamps.
+ */
 function newsDateText(value) {
     if (!value) {
         return "Date unavailable";
@@ -168,12 +210,18 @@ function newsDateText(value) {
     });
 }
 
-/** Resolve a ticker to its display company name. */
+/**
+ * Resolve a ticker to its display company name.
+ * Tooltip rendering depends on this mapping so users can learn symbols without cluttering every card.
+ */
 function companyNameForTicker(ticker) {
     return companyNames[ticker] || ticker;
 }
 
-/** Render a ticker with a keyboard-accessible company-name tooltip. */
+/**
+ * Render a ticker with a keyboard-accessible company-name tooltip.
+ * This keeps ticker displays sleek while still explaining names like WMT, CSCO, or QQQ on hover/focus.
+ */
 function tickerTooltip(ticker) {
     const companyName = companyNameForTicker(ticker);
 
@@ -189,14 +237,20 @@ function tickerTooltip(ticker) {
     `;
 }
 
-/** Convert backend decision identifiers into title-cased text. */
+/**
+ * Convert backend decision identifiers into title-cased text.
+ * Values like reject_all are useful for code but should read naturally in the Agent Review panel.
+ */
 function formatDecision(value) {
     return String(value || "")
         .replaceAll("_", " ")
         .replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
-/** Describe whether an order filled, was canceled, or is still pending. */
+/**
+ * Describe whether an order filled, was canceled, or is still pending.
+ * The Capital page uses this to distinguish active paper orders from completed broker events.
+ */
 function orderStatusText(order) {
     const status = String(order.status || "unknown").toLowerCase();
     if (status === "filled") {
@@ -208,7 +262,10 @@ function orderStatusText(order) {
     return `${formatDecision(status)} · Awaiting fill`;
 }
 
-/** Return the actual fill price or requested limit credit per share. */
+/**
+ * Return the actual fill credit or requested limit credit per share.
+ * Alpaca orders may be accepted but not filled, so this helper explains which price the user is seeing.
+ */
 function orderCreditText(order) {
     const filledPrice = Number(order.filled_avg_price);
     if (Number.isFinite(filledPrice) && filledPrice > 0) {
@@ -221,7 +278,10 @@ function orderCreditText(order) {
     return `Quoted contract credit ${money(order.premium_received)}`;
 }
 
-/** Escape untrusted text before inserting it into HTML templates. */
+/**
+ * Escape untrusted text before inserting it into HTML templates.
+ * News headlines, model output, and broker strings can contain special characters, so escaping protects the page from accidental markup injection.
+ */
 function escapeHtml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
@@ -231,7 +291,10 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
-/** Allow only HTTP(S) links from external news content. */
+/**
+ * Allow only HTTP(S) links from external news content.
+ * RSS feeds are external input, so unsafe or malformed URLs are replaced with a harmless placeholder.
+ */
 function safeExternalUrl(value) {
     try {
         const url = new URL(String(value || ""));
@@ -241,7 +304,10 @@ function safeExternalUrl(value) {
     }
 }
 
-/** Render one glossary term and its explanatory tooltip. */
+/**
+ * Render one glossary term and its explanatory tooltip.
+ * The AI Market Take can use options vocabulary without forcing long definitions into the main paragraph.
+ */
 function glossaryTerm(term) {
     return `
         <span class="tooltip-term" tabindex="0">
@@ -251,7 +317,10 @@ function glossaryTerm(term) {
     `;
 }
 
-/** Render a list of glossary terms as compact chips. */
+/**
+ * Render a list of glossary terms as compact hover chips.
+ * This gives beginners optional context while preserving the clean Market Take layout.
+ */
 function renderGlossaryChips(terms) {
     return terms.map(term => `
         <span class="glossary-chip">
@@ -261,6 +330,10 @@ function renderGlossaryChips(terms) {
 }
 
 /** Select glossary terms that appear in or help explain an AI take. */
+/**
+ * Choose glossary terms that are relevant to the current AI market take.
+ * The function always includes core CSP terms, then adds any terms that appear in the model response.
+ */
 function getRelevantGlossaryTerms(take) {
     const text = [
         take.headline,
@@ -281,6 +354,10 @@ function getRelevantGlossaryTerms(take) {
 }
 
 /** Explain the model's market-mood label in beginner language. */
+/**
+ * Explain a short market mood label in beginner-friendly language.
+ * Mood labels are intentionally concise, so this helper adds just enough context to avoid buzzword confusion.
+ */
 function marketMoodExplanation(mood) {
     const explanations = {
         Calm: "Prices are moving more steadily, so fewer warning signs are showing up.",
@@ -293,6 +370,10 @@ function marketMoodExplanation(mood) {
 }
 
 /** Explain how selective the CSP scan should be. */
+/**
+ * Explain a short CSP stance label in beginner-friendly language.
+ * This turns labels like Wait or Selective into actionable meaning inside the Market Take cards.
+ */
 function cspStanceExplanation(stance) {
     const explanations = {
         Favorable: "The setup looks reasonable for filtered CSP ideas, while still using position rules.",
@@ -305,6 +386,10 @@ function cspStanceExplanation(stance) {
 }
 
 /** Replace ticker mentions in escaped text with company tooltips. */
+/**
+ * Replace known ticker symbols in plain text with tooltip-enabled ticker spans.
+ * AI summaries can mention symbols naturally, and this helper upgrades them into explainable UI elements.
+ */
 function annotateTickers(text) {
     const escaped = escapeHtml(text || "");
     const tickers = Object.keys(companyNames).sort((a, b) => b.length - a.length);

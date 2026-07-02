@@ -5,6 +5,7 @@ body:has(#home.active) {
     overflow: hidden;
 }
 
+/* Full-viewport landing panel. It should feel like a product homepage and avoid scrolling. */
 .home-panel {
     min-height: 100vh;
     overflow: hidden;
@@ -14,6 +15,7 @@ body:has(#home.active) {
     margin: 0;
 }
 
+/* Hero layout containing logo, HELIOS wordmark, subtitle, Explore button, and workflow summary. */
 .home-hero {
     position: relative;
     display: grid;
@@ -48,6 +50,7 @@ body:has(#home.active) {
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.34));
 }
 
+/* Temporary HELIOS logo mark placed in the upper-left of the landing experience. */
 .home-logo {
     position: absolute;
     top: clamp(26px, 4vw, 62px);
@@ -81,6 +84,7 @@ body:has(#home.active) {
     text-align: center;
 }
 
+/* Large HELIOS wordmark with manually spaced letters for the landing page. */
 .helios-title {
     display: flex;
     align-items: baseline;
@@ -176,6 +180,7 @@ body:has(#home.active) {
     color: rgba(247, 251, 255, 0.68);
 }
 
+/* Small AI workflow explainer that previews how the agent scans, filters, reviews, and paper trades. */
 .hero-workflow {
     position: absolute;
     top: clamp(28px, 4vw, 62px);

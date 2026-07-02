@@ -1,6 +1,9 @@
 /** Render API data into the recommendation, portfolio, market, and news panels. */
 
-/** Render the agent's decision and selected-contract action. */
+/**
+ * Render the agent decision and selected-contract action button.
+ * The selected contract is tied back to the current candidate pool so the user can paper-place only something HELIOS actually reviewed.
+ */
 function renderReview(review) {
     const selectedContract = review.selected_contract;
     const selectedCandidate = selectedContract ? candidateByContract(selectedContract) : null;
@@ -21,7 +24,10 @@ function renderReview(review) {
     `;
 }
 
-/** Initialize the visible and queued recommendation candidate lists. */
+/**
+ * Initialize the visible and queued candidate lists for the current recommendation run.
+ * Only a small number of cards are shown at once, while extra candidates remain queued for discard replacement.
+ */
 function renderCandidates(candidates) {
     candidatePool = candidates;
     visibleCandidates = candidatePool.slice(0, visibleCandidateLimit);
@@ -29,7 +35,10 @@ function renderCandidates(candidates) {
     renderVisibleCandidates();
 }
 
-/** Render the currently visible candidate cards and their actions. */
+/**
+ * Render the candidate cards currently available to the user.
+ * Each card shows the practical CSP details needed before paper placing: strike, DTE, delta, IV, premium, cash required, breakeven, and ROC.
+ */
 function renderVisibleCandidates() {
     if (!visibleCandidates.length) {
         candidateList.innerHTML = "<p>No candidates passed the filters.</p>";
@@ -63,7 +72,10 @@ function renderVisibleCandidates() {
     `).join("");
 }
 
-/** Render live Alpaca positions, capital usage, and saved order history. */
+/**
+ * Render live Alpaca capital, positions, and active paper orders.
+ * The dashboard explains whether data came from Alpaca or memory and separates CSP exposure from regular stock or other positions.
+ */
 function renderDashboard(dashboard) {
     if (!dashboard) {
         return;

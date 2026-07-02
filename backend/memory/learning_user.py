@@ -3,6 +3,7 @@
 from backend.memory import dynamodb_store
 
 
-## Build compact historical context for a recommendation request.
+## Delegate learning-memory construction to the active memory store.
+## The strategy and market agents use this wrapper to avoid importing DynamoDB internals directly.
 def build_memory_context(ticker_symbols):
     return dynamodb_store.build_memory_context(ticker_symbols)

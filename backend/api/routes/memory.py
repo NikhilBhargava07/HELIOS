@@ -14,19 +14,22 @@ router = APIRouter(prefix="/api/memory", tags=["memory"])
 
 
 @router.get("/context")
-## Return the compact evidence package supplied to recommendation reviews.
+## Return the current learning-memory summary used by the agent.
+## This endpoint helps inspect how episodic decisions, outcome patterns, and user preferences are being summarized.
 def get_memory_context(tickers: list[str] = Query(default=[])):
     return build_memory_context([ticker.upper() for ticker in tickers])
 
 
 @router.post("/observe")
-## Capture all currently due candidate checkpoints.
+## Capture delayed outcome observations for prior recommendation candidates.
+## Scheduled runs can use this to learn how candidates behaved after 1 day, 5 days, and later checkpoints.
 def observe_due_candidates():
     return capture_due_candidate_observations()
 
 
 @router.post("/outcomes")
-## Persist a verified realized trade result for future learning.
+## Manually record the outcome of a paper trade.
+## This gives HELIOS a structured way to connect recommendation reasoning with actual trade results.
 def post_trade_outcome(request: TradeOutcomeRequest):
     return record_trade_outcome(
         decision_id=request.decision_id,
