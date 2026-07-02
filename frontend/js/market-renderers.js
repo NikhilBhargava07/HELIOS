@@ -180,15 +180,15 @@ function renderMarketTake(take) {
                     <p class="take-explainer">${escapeHtml(cspStanceExplanation(take.csp_stance || "Selective"))}</p>
                 </article>
             </div>
-            <article class="take-card">
+            <article class="take-card take-card-csp-angle">
                 <span class="take-label">CSP angle</span>
                 <p>${escapeHtml(take.csp_take || "Keep using the hard filters.")}</p>
             </article>
-            <article class="take-card">
+            <article class="take-card take-card-action">
                 <span class="take-label">Do this</span>
                 <p>${escapeHtml(take.action || "Prioritize clean candidates.")}</p>
             </article>
-            <article class="take-card warning-card">
+            <article class="take-card take-card-avoid warning-card">
                 <span class="take-label">Avoid this</span>
                 <p>${escapeHtml(take.avoid || "Do not force trades for premium.")}</p>
             </article>
