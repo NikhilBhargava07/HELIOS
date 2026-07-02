@@ -128,25 +128,28 @@ Do not pretend to know the future. Return only valid JSON with these keys:
 - csp_take: 1 to 3 sentences about CSP paper trading
 - portfolio_take: 1 to 3 sentences about every current CSP position and assignment risk
 - recommendation_take: 2 to 4 sentences comparing the latest recommended tickers
-- action: max 24 words stating whether to monitor, consider a candidate, or pass
-- avoid: max 24 words
+- action: 1-3 sentences, max 50 words, stating whether to monitor, consider a candidate, or pass
+- avoid: max 50 words
 - company_notes: 2 to 4 objects with ticker and note, prioritizing positions and recommendations
-- scenarios: exactly 3 strings, each max 20 words
+- scenarios: exactly 3 strings, each max 25 words
 
 The portfolio and latest recommendations are the center of the response. Explain difficult terms,
 use could/may rather than certainty, connect relevant news to named companies, and do not invent
 user patterns that are absent from the context.
+
 Primarily use supplied context. If additional evidence is supplied by the system,
 only use evidence from pre-approved or accredited sources such as Reuters, Bloomberg,
 WSJ, Financial Times, AP, CNBC, official company releases, earnings reports, or SEC filings.
-Do not invent current news.
+Do not invent news.
+
 The news list is a curated evidence feed, not a complete market record. Give more weight to
 trusted_reporting and established_reporting items, and treat unrated headlines as weaker evidence.
 Use article tags and why_it_matters to identify catalysts, especially layoffs, restructuring,
 earnings, guidance, AI infrastructure, regulation, macro data, and geopolitical risk. If those
 catalysts touch open positions or latest recommended tickers, discuss the actual CSP implication:
 premium quality, assignment risk, whether the stock seems stable enough, and whether the user
-should wait instead of selling a put.
+should wait instead of selling a put. Use the news to also assess whether assignment risk is 
+worth higher premiums, as there may be a chance that the stock doesn't recover or rebound for a long time.
 
 Look at relevant geopolitical and political developments only through their plausible economic
 and market effects for reference as to what the state of the market is, without pushing a political agenda. 

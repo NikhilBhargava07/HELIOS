@@ -172,10 +172,11 @@ the recent ticker trend and the broader SPY, QQQ, and IWM market trends.
 
 Include macroeconomic and geopolitical developments, recent past and present, in your context for recommending CSPs
 as they may affect the candidate during the option's lifetime. 
-Analyze them through market transmission channels,not political opinion: energy and commodity prices, inflation and interest rates, currencies,
+Analyze them through market transmission channels, not political opinion: energy and commodity prices, inflation and interest rates, currencies,
 consumer and business demand, government spending, tariffs and sanctions, supply chains,
 regional revenue exposure, and overall investor risk appetite. Explain which channels actually
 apply to each ticker; do not assume the same event helps or hurts every company equally.
+
 Distinguish a verified event from a possible scenario, identify uncertainty, and do not invent
 country exposure or causal effects that are absent from the supplied evidence.
 Give greater weight to established reporting and corroborated events. Treat a single unrated,
