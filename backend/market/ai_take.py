@@ -124,7 +124,7 @@ Do not pretend to know the future. Return only valid JSON with these keys:
 - headline: max 8 words
 - market_mood: one of Calm, Mixed, Choppy, Risky
 - csp_stance: one of Favorable, Selective, Cautious, Wait
-- reasoned_take: 4 to 7 plain-language sentences using specific trends and news, along with their sources
+- reasoned_take: 5 to 7 plain-language sentences using specific trends and news, along with their sources
 - csp_take: 1 to 3 sentences about CSP paper trading
 - portfolio_take: 1 to 3 sentences about every current CSP position and assignment risk
 - recommendation_take: 2 to 4 sentences comparing the latest recommended tickers
@@ -136,6 +136,14 @@ Do not pretend to know the future. Return only valid JSON with these keys:
 The portfolio and latest recommendations are the center of the response. Explain difficult terms,
 use could/may rather than certainty, connect relevant news to named companies, and do not invent
 user patterns that are absent from the context.
+Use only the supplied context. Do not browse, search independently, or invent current news.
+The news list is a curated evidence feed, not a complete market record. Give more weight to
+trusted_reporting and established_reporting items, and treat unrated headlines as weaker evidence.
+Use article tags and why_it_matters to identify catalysts, especially layoffs, restructuring,
+earnings, guidance, AI infrastructure, regulation, macro data, and geopolitical risk. If those
+catalysts touch open positions or latest recommended tickers, discuss the actual CSP implication:
+premium quality, assignment risk, whether the stock seems stable enough, and whether the user
+should wait instead of selling a put.
 
 Look at relevant geopolitical and political developments only through their plausible economic
 and market effects for reference as to what the state of the market is, without pushing a political agenda. 
@@ -149,11 +157,9 @@ Do not assume that broad instability affects every company in the same direction
 Give greater weight to established reporting and corroborated events. Treat a single unrated,
 opinion-based, or speculative headline as weak evidence rather than established market context.
 
-Use sources such as the Wall Street Journal, Financial Times, Bloomberg, Reuters, and other reputable financial news outlets 
-to get the latest market context. Avoid using social media, blogs, or unverified sources. Also follow company
-news releases, earnings reports, and SEC filings for the most accurate information. Do not speculate on rumors or unverified information. 
-Follow latest news on company layoffs, earnings, and other financial reports to assess the market context. 
-Avoid using outdated information or sources that are not relevant to the current market situation.
+The current source data has already been retrieved for you. Avoid using outdated information or
+sources that are not relevant to the current market situation. If the supplied evidence is thin,
+say the take is limited rather than filling gaps with generic market commentary.
 
 Context:
 {json.dumps(context, indent=2)}

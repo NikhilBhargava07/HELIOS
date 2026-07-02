@@ -132,9 +132,21 @@ function renderNews(news) {
     newsList.classList.remove("empty");
     newsList.innerHTML = visibleNews.map(item => `
         <article class="news-item">
+            <div class="news-meta-row">
+                <span class="news-source">${escapeHtml(item.source || "Unknown source")}</span>
+                <span>${escapeHtml(newsDateText(item.created_at))}</span>
+                <span>${escapeHtml(String(item.source_quality || "unrated").replaceAll("_", " "))}</span>
+            </div>
             <a href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.headline)}</a>
-            <div class="label">${escapeHtml(item.source || "Unknown source")} · ${escapeHtml((item.symbols || []).join(", "))}</div>
-            <p>${escapeHtml(item.summary || "")}</p>
+            <div class="news-chip-row">
+                ${(item.symbols || []).slice(0, 5).map(symbol => `
+                    <span class="news-chip">${tickerTooltip(symbol)}</span>
+                `).join("")}
+                ${(item.tags || []).slice(0, 5).map(tag => `
+                    <span class="news-chip muted">${escapeHtml(String(tag).replaceAll("_", " "))}</span>
+                `).join("")}
+            </div>
+            <p>${escapeHtml(item.why_it_matters || item.summary || "")}</p>
         </article>
     `).join("");
 

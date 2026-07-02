@@ -150,6 +150,24 @@ function priceText(value) {
     return money(value);
 }
 
+/** Format an RSS timestamp into a compact news-card date. */
+function newsDateText(value) {
+    if (!value) {
+        return "Date unavailable";
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "Date unavailable";
+    }
+
+    return date.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+}
+
 /** Resolve a ticker to its display company name. */
 function companyNameForTicker(ticker) {
     return companyNames[ticker] || ticker;
