@@ -209,60 +209,141 @@ function renderDashboard(dashboard) {
         return status !== "canceled" && status !== "cancelled";
     });
 
+    const equity = account.portfolio_value ?? capital.total_capital;
+    const buyingPower = account.options_buying_power ?? account.buying_power;
+    const maxCsp = Number(capital.max_csp_capital) || 0;
+    const committed = Number(capital.committed_capital) || 0;
+    const available = capital.effective_available_csp_capital ?? capital.available_csp_capital;
+    const committedPct = maxCsp > 0 ? Math.min(100, Math.round((committed / maxCsp) * 100)) : 0;
+    const isLive = dashboard.position_source === "alpaca";
+
     dashboardEl.classList.remove("empty");
     dashboardEl.innerHTML = `
-        <p class="ledger-note">
-            ${dashboard.position_source === "alpaca"
-                ? "Open positions, buying power, and order statuses are synced from Alpaca paper trading. Decisions and history are saved in HELIOS memory."
-                : "Alpaca positions could not be loaded, so open positions are temporarily shown from saved HELIOS memory."}
-        </p>
-        <div class="dashboard-grid">
-            <div><span class="label">Alpaca equity:</span> ${money(account.portfolio_value ?? capital.total_capital)}</div>
-            <div><span class="label">Alpaca cash:</span> ${money(account.cash)}</div>
-            <div><span class="label">Options buying power:</span> ${money(account.options_buying_power ?? account.buying_power)}</div>
-            <div><span class="label">Max CSP capital:</span> ${money(capital.max_csp_capital)}</div>
-            <div><span class="label">CSP committed:</span> ${money(capital.committed_capital)}</div>
-            <div><span class="label">Available CSP capital:</span> ${money(capital.available_csp_capital)}</div>
-            ${capital.effective_available_csp_capital !== undefined ? `
-                <div><span class="label">Effective CSP cash:</span> ${money(capital.effective_available_csp_capital)}</div>
-            ` : ""}
-            <div><span class="label">Open CSPs:</span> ${capital.open_position_count}/${capital.max_open_positions}</div>
-            ${capital.total_open_position_count !== undefined ? `
-                <div><span class="label">Total Alpaca positions:</span> ${capital.total_open_position_count}</div>
-            ` : ""}
+        <div class="cap-source ${isLive ? "live" : "memory"}">
+            ${isLive
+                ? "Synced from Alpaca paper trading · decisions saved in HELIOS memory"
+                : "Alpaca unavailable · showing saved HELIOS memory"}
         </div>
-        <h3>Open CSP Positions</h3>
-        ${positions.length ? positions.map(position => `
-            <div class="history-row">
-                <strong>${tickerTooltip(position.ticker_symbol)} ${money(position.strike)} CSP</strong> ·
-                ${position.quantity !== undefined ? `Quantity ${Number(position.quantity)} · ` : ""}
-                ${position.expiration ? `Expires ${escapeHtml(position.expiration)} · ` : ""}
-                Cash ${money(position.cash_required)} ·
-                Premium ${money(position.premium_received)}
-                ${position.breakeven_price !== undefined ? ` · Breakeven ${money(position.breakeven_price)}` : ""}
-                ${position.market_value !== undefined && position.market_value !== null ? ` · Market value ${money(position.market_value)}` : ""}
-                ${position.unrealized_pnl !== undefined && position.unrealized_pnl !== null ? ` · Unrealized P&amp;L ${signedMoney(position.unrealized_pnl)}` : ""}
+        <div class="cap-kpis">
+            <div class="cap-kpi"><span class="cap-lbl">Equity</span><span class="num">${money(equity)}</span></div>
+            <div class="cap-kpi"><span class="cap-lbl">Cash</span><span class="num">${money(account.cash)}</span></div>
+            <div class="cap-kpi"><span class="cap-lbl">Options buying power</span><span class="num">${money(buyingPower)}</span></div>
+            <div class="cap-kpi"><span class="cap-lbl">Open CSPs</span><span class="num">${capital.open_position_count ?? 0}<span class="cap-kpi-sub"> / ${capital.max_open_positions ?? 5}</span></span></div>
+        </div>
+        <div class="cap-alloc">
+            <div class="cap-alloc-head">
+                <span class="cap-lbl">CSP capital allocation</span>
+                <span class="num cap-alloc-meta">${money(committed)} committed · ${money(maxCsp)} max</span>
             </div>
-        `).join("") : "<p>No open CSP positions.</p>"}
-        <h3>Stock / Other Positions</h3>
-        ${stockPositions.length ? stockPositions.map(position => `
-            <div class="history-row">
-                <strong>${tickerTooltip(position.ticker_symbol)}</strong> ·
-                ${position.asset_class ? `${escapeHtml(String(position.asset_class))} · ` : ""}
-                ${position.quantity !== undefined && position.quantity !== null ? `Quantity ${Number(position.quantity)} · ` : ""}
-                ${position.average_entry_price !== undefined && position.average_entry_price !== null ? `Avg entry ${money(position.average_entry_price)} · ` : ""}
-                ${position.current_price !== undefined && position.current_price !== null ? `Current ${money(position.current_price)} · ` : ""}
-                ${position.market_value !== undefined && position.market_value !== null ? `Market value ${money(position.market_value)} · ` : ""}
-                ${position.unrealized_pnl !== undefined && position.unrealized_pnl !== null ? `Unrealized P&amp;L ${signedMoney(position.unrealized_pnl)}` : ""}
+            <div class="cap-alloc-bar"><div class="cap-alloc-fill" style="width:${committedPct}%"></div></div>
+            <div class="cap-alloc-foot">
+                <span class="num cap-alloc-committed">committed ${committedPct}%</span>
+                <span class="num cap-lbl">available ${available !== undefined && available !== null ? money(available) : "—"}</span>
             </div>
-        `).join("") : "<p>No stock or other open positions.</p>"}
-        <h3>Recent Paper Orders</h3>
-        ${visibleOrders.length ? visibleOrders.slice().reverse().map(order => `
-            <div class="history-row">
-                <strong>${orderStatusText(order)}:</strong>
-                Sell-to-open ${tickerTooltip(order.ticker_symbol)} ${money(order.strike)} put ·
-                ${orderCreditText(order)}
+        </div>
+        <h3 class="cap-h">Open CSP positions</h3>
+        ${positions.length ? `
+            <table class="cap-table">
+                <thead><tr><th>Position</th><th>Expires</th><th class="cap-r">Premium</th><th class="cap-r">Cash</th><th class="cap-r">Unreal. P&amp;L</th></tr></thead>
+                <tbody>
+                    ${positions.map(position => `
+                        <tr>
+                            <td>${tickerTooltip(position.ticker_symbol)} <span class="num">${money(position.strike)} put</span></td>
+                            <td class="num cap-muted">${position.expiration ? escapeHtml(position.expiration) : "—"}</td>
+                            <td class="num cap-r">${money(position.premium_received)}</td>
+                            <td class="num cap-r">${money(position.cash_required)}</td>
+                            <td class="num cap-r">${pnlCell(position.unrealized_pnl)}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        ` : `<p class="cap-empty">No open CSP positions.</p>`}
+        ${stockPositions.length ? `
+            <h3 class="cap-h">Stock / other positions</h3>
+            <table class="cap-table">
+                <thead><tr><th>Position</th><th class="cap-r">Qty</th><th class="cap-r">Avg entry</th><th class="cap-r">Current</th><th class="cap-r">Unreal. P&amp;L</th></tr></thead>
+                <tbody>
+                    ${stockPositions.map(position => `
+                        <tr>
+                            <td>${tickerTooltip(position.ticker_symbol)}${position.asset_class ? ` <span class="cap-muted">${escapeHtml(String(position.asset_class))}</span>` : ""}</td>
+                            <td class="num cap-r">${position.quantity !== undefined && position.quantity !== null ? Number(position.quantity) : "—"}</td>
+                            <td class="num cap-r">${position.average_entry_price !== undefined && position.average_entry_price !== null ? money(position.average_entry_price) : "—"}</td>
+                            <td class="num cap-r">${position.current_price !== undefined && position.current_price !== null ? money(position.current_price) : "—"}</td>
+                            <td class="num cap-r">${pnlCell(position.unrealized_pnl)}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        ` : ""}
+        <h3 class="cap-h">Recent paper orders</h3>
+        ${visibleOrders.length ? `
+            <div class="cap-orders">
+                ${visibleOrders.slice().reverse().map(order => `
+                    <div class="cap-order">
+                        <span class="cap-badge ${orderBadgeClass(order)}">${orderShortStatus(order)}</span>
+                        <span class="cap-order-desc">Sell-to-open ${tickerTooltip(order.ticker_symbol)} <span class="num">${money(order.strike)} put</span></span>
+                        <span class="num cap-order-credit">${orderCreditText(order)}</span>
+                    </div>
+                `).join("")}
             </div>
-        `).join("") : "<p>No active paper orders.</p>"}
+        ` : `<p class="cap-empty">No active paper orders.</p>`}
     `;
+}
+
+/**
+ * Render an unrealized P&L cell with directional color, or a muted dash when the broker omits it.
+ * Keeps the positions tables aligned and lets gains and losses read at a glance.
+ */
+function pnlCell(value) {
+    if (value === undefined || value === null) {
+        return `<span class="cap-muted">&mdash;</span>`;
+    }
+
+    const number = Number(value);
+    const directionClass = number > 0 ? "cap-pos" : number < 0 ? "cap-neg" : "";
+    return `<span class="${directionClass}">${signedMoney(value)}</span>`;
+}
+
+/**
+ * Map an order status to a compact badge color class.
+ * Filled reads positive, terminal states read negative, and everything else is a pending amber.
+ */
+function orderBadgeClass(order) {
+    const status = String(order.status || "").toLowerCase();
+
+    if (status === "filled") {
+        return "filled";
+    }
+
+    if (["canceled", "cancelled", "expired", "rejected"].includes(status)) {
+        return "rejected";
+    }
+
+    return "pending";
+}
+
+/**
+ * Produce a short, badge-friendly status label for a paper order.
+ * The longer "awaiting fill" phrasing stays out of the badge so the row stays compact.
+ */
+function orderShortStatus(order) {
+    const status = String(order.status || "unknown").toLowerCase();
+
+    if (status === "filled") {
+        return "Filled";
+    }
+
+    if (["canceled", "cancelled"].includes(status)) {
+        return "Canceled";
+    }
+
+    if (status === "expired") {
+        return "Expired";
+    }
+
+    if (status === "rejected") {
+        return "Rejected";
+    }
+
+    return "Awaiting fill";
 }

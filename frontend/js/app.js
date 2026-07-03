@@ -166,5 +166,14 @@ function syncTabFromLocation() {
 }
 
 window.addEventListener("hashchange", syncTabFromLocation);
+
+// Give the sticky topbar a hairline + backdrop once the page scrolls away from the top.
+const appTopbar = document.querySelector(".app-topbar");
+window.addEventListener("scroll", () => {
+    if (appTopbar) {
+        appTopbar.classList.toggle("scrolled", window.scrollY > 8);
+    }
+}, { passive: true });
+
 initializeAuth();
 syncTabFromLocation();

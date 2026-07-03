@@ -1,38 +1,271 @@
-/*
- * Lays out the dashboard summary cards in a responsive grid.
- *
- * The grid creates as many columns as can fit in the available page width,
- * while keeping each dashboard card at least 220px wide. This lets capital
- * stats, buying power, and position counts sit side-by-side on wide screens
- * and wrap cleanly on smaller screens.
- */
-/* Summary metric grid for Alpaca equity, cash, CSP allocation, and open-position counts. */
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
+/* Capital & Positions page: dark, data-first restyle scoped to #capital.
+   KPI stat cards, a CSP capital allocation bar, and aligned position/order tables. */
+
+#capital {
+    --cap-gold: #f0b64d;
+    --cap-pos: #4ec98a;
+    --cap-neg: #f0716f;
+    --cap-line: rgba(255, 255, 255, 0.08);
+    --cap-surface: rgba(255, 255, 255, 0.025);
+    --cap-muted: #7f8896;
+    --cap-text: #e6edf3;
+    padding: clamp(20px, 2.6vw, 34px);
+    background: #0b0e13;
+    border: 1px solid var(--cap-line);
+    border-radius: 20px;
 }
-/* Dashboard subsection headings for open CSPs, stock positions, and recent paper orders. */
-.dashboard h3 {
-    margin: 18px 0 10px;
-    font-size: 1rem;
+
+#capital::before {
+    border-top: 1px solid var(--cap-line);
 }
-/* Blue context banner explaining whether portfolio data came from Alpaca or HELIOS memory. */
-.ledger-note {
-    border: 1px solid rgba(88, 166, 255, 0.28);
-    border-radius: 14px;
-    padding: 12px 14px;
-    background: rgba(88, 166, 255, 0.08);
-    color: #c9d1d9;
-    line-height: 1.45;
+
+#capital .num {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--cap-text);
 }
-/* Compact row style for positions and paper orders, keeping long broker details readable. */
-.history-row {
-    border: 1px solid rgba(247, 251, 255, 0.10);
-    border-radius: 12px;
-    padding: 10px 12px;
+
+#capital h1 {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Compact page header. */
+#capital .page-header {
+    max-width: none;
+    margin-bottom: 16px;
+}
+
+#capital .page-header h1 {
+    margin: 0 0 8px;
+    color: var(--soft-white);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    letter-spacing: -0.02em;
+}
+
+#capital .eyebrow {
     margin-bottom: 8px;
-    background: rgba(5, 8, 12, 0.72);
-    color: #c9d1d9;
+    color: var(--cap-gold);
+}
+
+#capital .subhead {
+    max-width: 680px;
+    margin: 0;
+    color: var(--cap-muted);
+    font-size: 0.95rem;
+}
+
+#capital .cap-lbl {
+    color: var(--cap-muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+}
+
+#capital .cap-muted {
+    color: var(--cap-muted);
+}
+
+#capital .cap-pos {
+    color: var(--cap-pos);
+}
+
+#capital .cap-neg {
+    color: var(--cap-neg);
+}
+
+#capital .dashboard {
+    display: block;
+}
+
+#capital .dashboard.empty {
+    color: var(--cap-muted);
+}
+
+/* Data-source chip. */
+#capital .cap-source {
+    display: inline-block;
+    margin-bottom: 13px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+}
+
+#capital .cap-source.live {
+    background: rgba(78, 201, 138, 0.12);
+    color: var(--cap-pos);
+}
+
+#capital .cap-source.memory {
+    background: rgba(240, 182, 77, 0.12);
+    color: var(--cap-gold);
+}
+
+/* KPI stat cards. */
+#capital .cap-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 13px;
+}
+
+#capital .cap-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 11px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    background: var(--cap-surface);
+}
+
+#capital .cap-kpi .num {
+    font-size: 18px;
+}
+
+#capital .cap-kpi-sub {
+    color: var(--cap-muted);
+    font-size: 13px;
+}
+
+/* Capital allocation bar. */
+#capital .cap-alloc {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--cap-line);
+    border-radius: 12px;
+    background: var(--cap-surface);
+}
+
+#capital .cap-alloc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+}
+
+#capital .cap-alloc-meta {
+    color: #aab2be;
+    font-size: 12px;
+}
+
+#capital .cap-alloc-bar {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+
+#capital .cap-alloc-fill {
+    height: 100%;
+    background: var(--cap-gold);
+}
+
+#capital .cap-alloc-foot {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 7px;
+    font-size: 12px;
+}
+
+#capital .cap-alloc-committed {
+    color: var(--cap-gold);
+}
+
+/* Section headings. */
+#capital .cap-h {
+    margin: 16px 0 6px;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #eef2f6;
+}
+
+/* Position tables. */
+#capital .cap-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#capital .cap-table th {
+    padding: 0 0 8px;
+    color: var(--cap-muted);
+    font-size: 11px;
+    font-weight: 400;
+    text-align: left;
+    letter-spacing: 0.02em;
+}
+
+#capital .cap-table td {
+    padding: 9px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    color: #c3cad4;
+    font-size: 12.5px;
+}
+
+#capital .cap-table .cap-r,
+#capital .cap-table th.cap-r {
+    text-align: right;
+}
+
+/* Paper orders. */
+#capital .cap-orders {
+    display: grid;
+    gap: 8px;
+}
+
+#capital .cap-order {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+#capital .cap-order-desc {
+    color: #c3cad4;
+    font-size: 12.5px;
+}
+
+#capital .cap-order-credit {
+    margin-left: auto;
+    color: #aab2be;
+    font-size: 12px;
+}
+
+#capital .cap-badge {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10.5px;
+}
+
+#capital .cap-badge.filled {
+    background: rgba(78, 201, 138, 0.14);
+    color: var(--cap-pos);
+}
+
+#capital .cap-badge.pending {
+    background: rgba(240, 182, 77, 0.14);
+    color: var(--cap-gold);
+}
+
+#capital .cap-badge.rejected {
+    background: rgba(240, 113, 111, 0.14);
+    color: var(--cap-neg);
+}
+
+#capital .cap-empty {
+    color: var(--cap-muted);
+}
+
+/* Keep ticker tooltips on the gold accent. */
+#capital .ticker-tooltip {
+    font-weight: inherit;
+    border-bottom-color: rgba(240, 182, 77, 0.5);
+}
+
+@media (max-width: 700px) {
+    #capital .cap-kpis {
+        grid-template-columns: 1fr 1fr;
+    }
 }

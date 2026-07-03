@@ -7,13 +7,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-    <link rel="stylesheet" href="css/base.css?v=7">
+    <link rel="stylesheet" href="css/base.css?v=8">
     <link rel="stylesheet" href="css/home.css?v=3">
     <link rel="stylesheet" href="css/recommendations.css?v=3">
     <link rel="stylesheet" href="css/trends.css?v=1">
     <link rel="stylesheet" href="css/news.css?v=1">
     <link rel="stylesheet" href="css/market-take.css?v=1">
-    <link rel="stylesheet" href="css/capital.css?v=1">
+    <link rel="stylesheet" href="css/capital.css?v=2">
 </head>
 <body>
     <!-- Toast message region used for short success/error feedback after actions like paper placing or discarding candidates. -->
@@ -55,7 +55,14 @@
 
     <!-- Persistent subpage navigation bar; hidden on the landing page and shown on dashboard-style pages. -->
     <header class="app-topbar" aria-label="App navigation">
-        <a class="topbar-brand" data-tab="home" href="#home">HELIOS</a>
+        <a class="topbar-brand" data-tab="home" href="#home">
+            <svg class="topbar-mark" viewBox="0 0 64 64" aria-hidden="true">
+                <circle cx="32" cy="32" r="21"></circle>
+                <path d="M32 11c7 8 7 34 0 42M32 11c-7 8-7 34 0 42"></path>
+                <path d="M13 24c12-5 26-5 38 0M13 40c12 5 26 5 38 0"></path>
+            </svg>
+            <span class="topbar-wordmark">HELIOS</span>
+        </a>
         <nav class="topbar-actions">
             <a class="topbar-link" data-tab="home" href="#home">Home</a>
             <button id="explore-dashboard-secondary" class="topbar-explore" type="button">Explore</button>
@@ -188,7 +195,7 @@
                     Track paper orders, committed cash, and open CSP exposure as the prototype records decisions.
                 </p>
             </div>
-            <h2>Capital & Positions</h2>
+            <!-- Capital snapshot, allocation bar, and position/order tables rendered by renderDashboard. -->
             <div id="dashboard" class="dashboard empty">
                 No paper orders recorded yet.
             </div>
@@ -198,12 +205,12 @@
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
     <script src="js/api.js?v=4"></script>
     <script src="js/state.js?v=4"></script>
-    <script src="js/auth.js?v=3"></script>
+    <script src="js/auth.js?v=4"></script>
     <script src="js/formatters.js?v=2"></script>
-    <script src="js/recommendation-renderers.js?v=6"></script>
+    <script src="js/recommendation-renderers.js?v=7"></script>
     <script src="js/market-renderers.js?v=3"></script>
     <script src="js/loaders.js?v=5"></script>
     <script src="js/decisions.js?v=4"></script>
-    <script src="js/app.js?v=8"></script>
+    <script src="js/app.js?v=9"></script>
 </body>
 </html>

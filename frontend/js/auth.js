@@ -108,7 +108,18 @@ function renderAuthState() {
         : "Not signed in.";
 
     authButtons.forEach(authButton => {
-        authButton.textContent = label;
+        // The topbar auth control becomes an avatar (user initial) when signed in; the home button stays a text button.
+        if (signedInUser && authButton.id === "auth-action") {
+            const source = signedInUser.name || signedInUser.email || "?";
+            authButton.textContent = source.trim().charAt(0).toUpperCase();
+            authButton.setAttribute("aria-label", "Sign out");
+            authButton.title = "Sign out";
+        } else {
+            authButton.textContent = label;
+            authButton.setAttribute("aria-label", label);
+            authButton.removeAttribute("title");
+        }
+
         authButton.classList.toggle("signed-in", Boolean(signedInUser));
     });
 

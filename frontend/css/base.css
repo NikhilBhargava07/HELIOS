@@ -364,8 +364,7 @@ button.secondary {
 }
 
 
-/* Subpage shell: same visual language as the landing page. */
-/* Rounded subpage navigation bar. The landing page hides it so the hero remains clean and presentation-like. */
+/* Subpage top navigation bar. Transparent at rest; gains a hairline + backdrop on scroll. */
 .app-topbar {
     position: sticky;
     top: 0;
@@ -375,27 +374,55 @@ button.secondary {
     justify-content: space-between;
     width: min(1480px, calc(100% - 28px));
     margin: 14px auto 0;
-    border: 1px solid rgba(247, 251, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 999px;
-    padding: 10px 12px 10px 18px;
-    background: rgba(5, 8, 12, 0.72);
-    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.22);
+    padding: 9px 10px 9px 16px;
+    background: transparent;
+    box-shadow: none;
+    transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.app-topbar.scrolled {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(7, 10, 14, 0.72);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 body:has(#home.active) .app-topbar {
     display: none;
 }
 
-.topbar-brand,
-.topbar-link {
+/* Brand lockup: orb mark + tightened wordmark. */
+.topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
     color: var(--soft-white);
     text-decoration: none;
 }
 
-.topbar-brand {
-    font-weight: 950;
-    letter-spacing: -0.055em;
-    font-size: 1.35rem;
+.topbar-mark {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    fill: none;
+    stroke: var(--soft-white);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.topbar-wordmark {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    font-size: 1.1rem;
+    color: var(--soft-white);
+}
+
+.topbar-link {
+    color: rgba(247, 251, 255, 0.72);
+    text-decoration: none;
 }
 
 .topbar-actions {
@@ -408,13 +435,9 @@ body:has(#home.active) .app-topbar {
 .topbar-explore,
 .auth-action {
     border-radius: 999px;
-    padding: 9px 14px;
-    font-size: 0.88rem;
-    font-weight: 800;
-}
-
-.topbar-link {
-    color: rgba(247, 251, 255, 0.72);
+    padding: 8px 13px;
+    font-size: 0.86rem;
+    font-weight: 500;
 }
 
 .topbar-link:hover {
@@ -422,15 +445,16 @@ body:has(#home.active) .app-topbar {
     background: rgba(247, 251, 255, 0.08);
 }
 
+/* Explore: refined gold (was acid-yellow). */
 .topbar-explore {
     min-width: 0;
-    border: 1px solid rgba(241, 255, 0, 0.28);
-    background: rgba(241, 255, 0, 0.10);
-    color: #f1ff00;
+    border: 1px solid rgba(240, 182, 77, 0.32);
+    background: rgba(240, 182, 77, 0.10);
+    color: #f0b64d;
     box-shadow: none;
 }
 
-/* Cognito auth button shown in the dashboard topbar. It stays visually quieter than Explore because auth is supporting infrastructure, not the main task. */
+/* Signed-out auth stays a quiet pill. */
 .auth-action {
     min-width: 0;
     border: 1px solid rgba(247, 251, 255, 0.14);
@@ -439,9 +463,33 @@ body:has(#home.active) .app-topbar {
     box-shadow: none;
 }
 
-.auth-action.signed-in {
-    border-color: rgba(126, 231, 135, 0.30);
-    color: var(--green-bright);
+/* Signed-in topbar auth becomes an avatar with an online dot. */
+.app-topbar .auth-action.signed-in {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid rgba(240, 182, 77, 0.3);
+    border-radius: 50%;
+    background: rgba(240, 182, 77, 0.16);
+    color: #f0b64d;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+
+.app-topbar .auth-action.signed-in::after {
+    content: "";
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #4ec98a;
+    border: 2px solid #0b0e13;
 }
 
 .tab-panel:not(.home-panel) {
