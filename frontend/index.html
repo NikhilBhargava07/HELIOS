@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HELIOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
     <link rel="stylesheet" href="css/base.css?v=7">
     <link rel="stylesheet" href="css/home.css?v=3">
-    <link rel="stylesheet" href="css/recommendations.css?v=1">
+    <link rel="stylesheet" href="css/recommendations.css?v=3">
     <link rel="stylesheet" href="css/trends.css?v=1">
     <link rel="stylesheet" href="css/news.css?v=1">
     <link rel="stylesheet" href="css/market-take.css?v=1">
@@ -101,22 +104,25 @@
             </div>
         </section>
 
-        <!-- CSP Recommendations page: starts candidate generation, displays the agent review, and renders paper-place/discard actions. -->
+        <!-- CSP Recommendations page: capital snapshot, agent review, featured candidate, and swappable alternates. -->
         <section id="recommendations" class="panel tab-panel" data-panel="recommendations">
             <div class="page-header compact">
                 <p class="eyebrow">Paper-trading prototype</p>
-                <h1>CSP Recommendations</h1>
+                <div class="rec-header-row">
+                    <h1>CSP Recommendations</h1>
+                    <button id="load-recommendations" type="button">Run scan</button>
+                </div>
                 <p class="subhead">
                     Scans approved tickers, applies hard safety filters, then asks the agent to review the top CSP candidates.
                 </p>
-                <button id="load-recommendations" type="button">Run CSP scan</button>
             </div>
-            <h2>Agent Review</h2>
+            <!-- Capital snapshot for the current run so exposure is visible before acting on a candidate. -->
+            <div id="recs-metrics" class="recs-metrics empty"></div>
+            <!-- Agent review banner: decision, selected contract, summary, and the hard risk note. -->
             <div id="agent-review" class="agent-review empty">
                 Run the scan to see the agent's recommendation.
             </div>
-            <div class="section-divider"></div>
-            <h2>Top CSP Candidates</h2>
+            <!-- Featured recommendation plus swappable alternate candidates. -->
             <div id="candidate-list" class="candidate-grid"></div>
         </section>
 
@@ -191,13 +197,13 @@
 
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
     <script src="js/api.js?v=4"></script>
-    <script src="js/state.js?v=3"></script>
+    <script src="js/state.js?v=4"></script>
     <script src="js/auth.js?v=3"></script>
     <script src="js/formatters.js?v=2"></script>
-    <script src="js/recommendation-renderers.js?v=4"></script>
+    <script src="js/recommendation-renderers.js?v=6"></script>
     <script src="js/market-renderers.js?v=3"></script>
-    <script src="js/loaders.js?v=4"></script>
-    <script src="js/decisions.js?v=2"></script>
-    <script src="js/app.js?v=6"></script>
+    <script src="js/loaders.js?v=5"></script>
+    <script src="js/decisions.js?v=4"></script>
+    <script src="js/app.js?v=8"></script>
 </body>
 </html>

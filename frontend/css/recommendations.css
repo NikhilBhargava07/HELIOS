@@ -1,94 +1,519 @@
-/* CSP recommendation page: agent review, candidate cards, and action buttons. */
+/* CSP recommendation page: dark, data-first restyle scoped to #recommendations.
+   Everything here is namespaced under #recommendations so the home, Explore, and
+   other tabs keep their existing look until the theme is rolled out to them. */
 
 #recommendations {
-    padding: clamp(26px, 3.2vw, 46px);
+    --rec-gold: #f0b64d;
+    --rec-pos: #4ec98a;
+    --rec-neg: #f0716f;
+    --rec-line: rgba(255, 255, 255, 0.08);
+    --rec-surface: rgba(255, 255, 255, 0.025);
+    --rec-muted: #7f8896;
+    --rec-text: #e6edf3;
+    padding: clamp(20px, 2.6vw, 34px);
+    background: #0b0e13;
+    border: 1px solid var(--rec-line);
+    border-radius: 20px;
 }
 
-#recommendations .page-header.compact {
-    max-width: 1180px;
-    margin-bottom: clamp(24px, 3vw, 36px);
+/* Neutralize the yellow-tinted top hairline base.css adds to subpages. */
+#recommendations::before {
+    border-top: 1px solid var(--rec-line);
 }
 
-#recommendations .page-header.compact h1 {
-    max-width: 1180px;
-    font-size: clamp(2.7rem, 5vw, 5.1rem);
+/* Monospaced, tabular figures for every financial value on the page. */
+#recommendations .num {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--rec-text);
+}
+
+#recommendations h1,
+#recommendations h3,
+#recommendations .rec-alt-name {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Page header: title and the scan action share one compact row. */
+#recommendations .page-header {
+    max-width: none;
+    margin-bottom: 16px;
+}
+
+#recommendations .rec-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+#recommendations .page-header h1 {
+    margin: 0;
+    color: var(--soft-white);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    letter-spacing: -0.02em;
+}
+
+#recommendations .eyebrow {
+    margin-bottom: 8px;
+    color: var(--rec-gold);
 }
 
 #recommendations .subhead {
-    max-width: 760px;
+    max-width: 680px;
+    margin: 10px 0 0;
+    color: var(--rec-muted);
+    font-size: 0.95rem;
 }
 
-#recommendations .page-header + h2 {
-    margin-top: 4px;
-    padding-top: 22px;
+/* Scan button: refined gold, no glow. */
+#load-recommendations {
+    min-height: 0;
+    margin: 0;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: var(--rec-gold);
+    color: #1a1408;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: none;
 }
 
+#load-recommendations:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+/* Shared muted micro-label used across metrics, stats, and cards. */
+#recommendations .rec-lbl {
+    color: var(--rec-muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+}
+
+/* Capital snapshot strip. */
+#recommendations .recs-metrics {
+    display: flex;
+    margin: 0 0 14px;
+    border: 1px solid var(--rec-line);
+    border-radius: 12px;
+    background: var(--rec-surface);
+    overflow: hidden;
+}
+
+#recommendations .recs-metrics.empty {
+    display: none;
+}
+
+#recommendations .rec-metric {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 11px 14px;
+    border-right: 1px solid var(--rec-line);
+}
+
+#recommendations .rec-metric:last-child {
+    border-right: 0;
+}
+
+#recommendations .rec-metric .num {
+    font-size: 1.05rem;
+}
+
+#recommendations .rec-metric-sub {
+    color: var(--rec-muted);
+    font-size: 0.8rem;
+}
+
+/* Agent review banner (overrides the base .agent-review card). */
 #recommendations .agent-review {
-    margin: 14px 0 24px;
-    padding: clamp(18px, 2vw, 26px);
+    display: block;
+    margin: 0 0 14px;
+    padding: 13px 15px;
+    border: 1px solid var(--rec-line);
+    border-radius: 12px;
+    background: var(--rec-surface);
 }
 
-#recommendations .section-divider {
-    margin: 24px 0 18px;
+#recommendations .agent-review.empty {
+    color: var(--rec-muted);
 }
 
+#recommendations .rec-review-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#recommendations .rec-badge {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(78, 201, 138, 0.14);
+    color: var(--rec-pos);
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+#recommendations .rec-badge.reject {
+    background: rgba(240, 113, 111, 0.14);
+    color: var(--rec-neg);
+}
+
+#recommendations .rec-review-sel {
+    color: var(--rec-muted);
+    font-size: 0.78rem;
+}
+
+#recommendations .rec-review-place {
+    margin-left: auto;
+    padding: 7px 13px;
+    border-radius: 999px;
+    background: var(--rec-gold);
+    color: #1a1408;
+    font-size: 0.78rem;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+#recommendations .rec-review-place:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: none;
+    box-shadow: none;
+}
+
+#recommendations .rec-review-summary {
+    margin: 9px 0 0;
+    color: #c3cad4;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+#recommendations .rec-review-risk {
+    margin: 8px 0 0;
+    color: #d8c48a;
+    font-size: 0.84rem;
+    line-height: 1.5;
+}
+
+#recommendations .rec-risk-tag {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: rgba(240, 182, 77, 0.14);
+    color: var(--rec-gold);
+    font-size: 0.7rem;
+}
+
+/* The candidate container is no longer a grid; it stacks the featured card + alternates. */
 #recommendations .candidate-grid {
+    display: block;
+}
+
+#recommendations .rec-empty {
+    color: var(--rec-muted);
+}
+
+/* Featured recommendation card. */
+#recommendations .rec-featured {
+    margin: 0 0 14px;
+    padding: 15px 16px;
+    border: 1px solid rgba(240, 182, 77, 0.28);
+    border-radius: 14px;
+    background: rgba(240, 182, 77, 0.05);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+#recommendations .rec-featured-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+#recommendations .rec-eyebrow {
+    margin: 0 0 3px;
+    color: var(--rec-gold);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+#recommendations .rec-featured-top h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+}
+
+#recommendations .rec-sub {
+    margin: 4px 0 0;
+    color: var(--rec-muted);
+    font-size: 0.8rem;
+}
+
+#recommendations .rec-featured-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    text-align: right;
+}
+
+#recommendations .rec-featured-price .num {
+    font-size: 1rem;
+}
+
+#recommendations .rec-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+#recommendations .rec-hero-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+#recommendations .rec-hero-stat .num {
+    font-size: 1.35rem;
+}
+
+#recommendations .rec-pos {
+    color: var(--rec-pos);
+}
+
+#recommendations .rec-detail-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    padding: 11px 0;
+    border-top: 1px solid var(--rec-line);
+    border-bottom: 1px solid var(--rec-line);
+}
+
+#recommendations .rec-detail-row .num {
+    margin-left: 5px;
+}
+
+#recommendations .rec-actions {
+    display: flex;
+    gap: 9px;
     margin-top: 14px;
 }
 
-/* Grid for currently visible CSP candidate cards. Extra candidates stay queued until the user discards one. */
-.candidate-grid {
+#recommendations .rec-actions button {
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: var(--rec-gold);
+    color: #1a1408;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+#recommendations .rec-actions button:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+#recommendations .rec-actions .rec-ghost {
+    background: transparent;
+    color: #c3cad4;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+#recommendations .rec-actions .rec-ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--rec-text);
+}
+
+/* Alternate candidates. */
+#recommendations .rec-alts-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 9px;
+}
+
+#recommendations .rec-alts-head .rec-lbl {
+    color: #aab2be;
+    font-size: 0.85rem;
+}
+
+#recommendations .rec-hint {
+    color: var(--rec-muted);
+    font-size: 0.76rem;
+}
+
+#recommendations .rec-alts-grid {
     display: grid;
-    grid-template-columns: minmax(320px, 980px);
-    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
 }
 
-/* Candidate card showing the practical details needed before selling a paper CSP. */
-.candidate-card {
-    border: 1px solid rgba(247, 251, 255, 0.10);
-    border-radius: 22px;
-    padding: clamp(18px, 2vw, 26px);
-    background:
-        linear-gradient(145deg, rgba(241, 255, 0, 0.07), transparent 42%),
-        rgba(5, 8, 12, 0.76);
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
-    transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
+#recommendations .rec-alt {
+    position: relative;
+    padding: 11px 12px;
+    border: 1px solid var(--rec-line);
+    border-radius: 12px;
+    background: var(--rec-surface);
+    cursor: pointer;
+    transition: border-color 140ms ease, transform 140ms ease, opacity 160ms ease;
 }
 
-.candidate-card:hover {
-    border-color: rgba(241, 255, 0, 0.48);
+#recommendations .rec-alt:hover {
+    border-color: rgba(240, 182, 77, 0.4);
     transform: translateY(-2px);
 }
 
-.candidate-card.discarding {
+#recommendations .rec-alt:focus-visible {
+    outline: 1px solid rgba(240, 182, 77, 0.5);
+    outline-offset: 2px;
+}
+
+#recommendations .rec-alt-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#recommendations .rec-alt-name {
+    font-size: 0.92rem;
+    font-weight: 500;
+}
+
+#recommendations .rec-alt-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin-top: 9px;
+}
+
+#recommendations .rec-alt-stats .num {
+    margin-left: 3px;
+}
+
+/* Detail panel: revealed on hover, tap (.expanded), or keyboard focus as an elevated dropdown. */
+#recommendations .rec-alt-detail {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% - 6px);
+    z-index: 5;
+    padding: 12px;
+    border: 1px solid rgba(240, 182, 77, 0.35);
+    border-radius: 12px;
+    background: #12161d;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity 140ms ease, transform 140ms ease;
+}
+
+#recommendations .rec-alt:hover,
+#recommendations .rec-alt:focus-within,
+#recommendations .rec-alt.expanded {
+    z-index: 6;
+}
+
+#recommendations .rec-alt:hover .rec-alt-detail,
+#recommendations .rec-alt:focus-within .rec-alt-detail,
+#recommendations .rec-alt.expanded .rec-alt-detail {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+#recommendations .rec-alt-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px 12px;
+}
+
+#recommendations .rec-alt-detail-grid .num {
+    margin-left: 4px;
+}
+
+#recommendations .rec-alt-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 11px;
+}
+
+#recommendations .rec-alt-actions button {
+    flex: 1;
+    padding: 8px 0;
+    border-radius: 999px;
+    background: var(--rec-gold);
+    color: #1a1408;
+    font-size: 0.78rem;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+#recommendations .rec-alt-actions button:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: none;
+    box-shadow: none;
+}
+
+#recommendations .rec-alt-actions .rec-ghost {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    background: transparent;
+    color: #c3cad4;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+#recommendations .rec-alt-actions .rec-ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--rec-text);
+}
+
+/* Exit animation shared by discarded and placed cards. */
+#recommendations .rec-featured.discarding,
+#recommendations .rec-alt.discarding {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
 }
 
-.candidate-card h3 {
-    margin: 0 0 12px;
-    font-size: 1.08rem;
+/* Keep ticker tooltips consistent with the gold accent instead of the base yellow. */
+#recommendations .ticker-tooltip {
+    font-weight: inherit;
+    border-bottom-color: rgba(240, 182, 77, 0.5);
 }
 
-/* Candidate metric list: DTE, current price, delta, IV, spread, premium, cash required, breakeven, and ROC. */
-.stats {
-    display: grid;
-    gap: 11px;
-    color: #c9d1d9;
-    font-size: 1rem;
-}
+@media (max-width: 700px) {
+    #recommendations .rec-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
 
-.label {
-    color: var(--muted);
-}
+    #recommendations .recs-metrics {
+        flex-wrap: wrap;
+    }
 
-.warning {
-    color: var(--yellow);
-}
+    #recommendations .rec-metric {
+        flex: 1 1 45%;
+    }
 
-/* Paper-place and discard controls for each visible candidate. */
-.actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 16px;
+    #recommendations .rec-hero-stats {
+        grid-template-columns: 1fr;
+    }
 }

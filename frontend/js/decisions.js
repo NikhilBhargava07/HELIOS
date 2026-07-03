@@ -46,32 +46,17 @@ async function submitDecision(action, contractSymbol) {
 }
 
 /**
- * Remove a handled candidate and replace it in the same visible card position.
- * This lets discard and paper-place actions cycle through queued candidates without confusing ranking numbers.
+ * Remove a handled candidate from the pool and re-render the featured/alternate layout.
+ * When the featured candidate leaves, the next-best candidate is promoted into its place automatically.
  */
 function removeCandidateFromPool(contractSymbol) {
-    const visibleIndex = visibleCandidates.findIndex(candidate => candidate.contractSymbol === contractSymbol);
     candidatePool = candidatePool.filter(candidate => candidate.contractSymbol !== contractSymbol);
-
-    if (visibleIndex === -1) {
-        renderCandidates(candidatePool);
-        return;
-    }
-
-    const replacement = queuedCandidates.shift();
-
-    if (replacement) {
-        visibleCandidates[visibleIndex] = replacement;
-    } else {
-        visibleCandidates.splice(visibleIndex, 1);
-    }
-
-    renderVisibleCandidates();
+    renderRecsCandidates();
 }
 
 async function discardCandidate(clickedButton) {
     const contractSymbol = clickedButton.dataset.contract;
-    const card = clickedButton.closest(".candidate-card");
+    const card = clickedButton.closest(".rec-featured, .rec-alt");
     const recorded = await submitDecision("discard", contractSymbol);
 
     if (!recorded) {
@@ -88,7 +73,7 @@ async function discardCandidate(clickedButton) {
 
 async function placeCandidate(clickedButton) {
     const contractSymbol = clickedButton.dataset.contract;
-    const card = clickedButton.closest(".candidate-card");
+    const card = clickedButton.closest(".rec-featured, .rec-alt");
     const candidate = candidateByContract(contractSymbol);
     const originalButtonText = clickedButton.textContent;
 

@@ -24,8 +24,9 @@ async function loadRecommendations() {
 
         currentRecommendationRunId = data.recommendation_run_id;
         companyNames = data.company_names || companyNames;
-        renderCandidates(affordableCandidates);
         renderReview(affordableReview);
+        renderCandidates(affordableCandidates, affordableReview?.selected_contract);
+        renderRecsMetrics(data.dashboard);
         renderDashboard(data.dashboard);
         recommendationStatus.textContent = `Scanned ${data.approved_tickers.length} approved tickers. Showing ${affordableCandidates.length} cash-backed candidates.`;
     } catch (error) {

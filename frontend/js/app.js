@@ -116,6 +116,13 @@ candidateList.addEventListener("click", (event) => {
     const clickedButton = event.target.closest("button[data-action]");
 
     if (!clickedButton) {
+        // Tapping an alternate card body toggles its detail panel (touch fallback for hover).
+        const alternateCard = event.target.closest(".rec-alt");
+
+        if (alternateCard) {
+            alternateCard.classList.toggle("expanded");
+        }
+
         return;
     }
 
