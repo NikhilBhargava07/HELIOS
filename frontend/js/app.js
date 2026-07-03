@@ -5,6 +5,14 @@
  * Capital starts live portfolio polling, while other pages stop hidden timers so the app does not keep making unnecessary API calls.
  */
 function showTab(tabName) {
+    const requestedTab = tabName;
+
+    if (requestedTab !== "home" && !isSignedIn()) {
+        window.location.hash = "#home";
+        tabName = "home";
+        showToast("Sign in required", "Please sign in before opening the HELIOS dashboard.", "error");
+    }
+
     panels.forEach(panel => {
         panel.classList.toggle("active", panel.dataset.panel === tabName);
     });
@@ -46,6 +54,11 @@ summarizeMarketButton.addEventListener("click", loadMarketTake);
  * The overlay uses CSS transitions instead of heavy blur effects so navigation feels smooth without extra rendering cost.
  */
 function openExplore() {
+    if (!isSignedIn()) {
+        showToast("Sign in required", "Please sign in before exploring HELIOS.", "error");
+        return;
+    }
+
     document.body.classList.add("explore-open");
     exploreOverlay.classList.remove("hidden");
     requestAnimationFrame(() => exploreOverlay.classList.add("visible"));
@@ -146,5 +159,5 @@ function syncTabFromLocation() {
 }
 
 window.addEventListener("hashchange", syncTabFromLocation);
+initializeAuth();
 syncTabFromLocation();
-

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HELIOS</title>
-    <link rel="stylesheet" href="css/base.css?v=5">
-    <link rel="stylesheet" href="css/home.css?v=1">
+    <link rel="stylesheet" href="css/base.css?v=7">
+    <link rel="stylesheet" href="css/home.css?v=3">
     <link rel="stylesheet" href="css/recommendations.css?v=1">
     <link rel="stylesheet" href="css/trends.css?v=1">
     <link rel="stylesheet" href="css/news.css?v=1">
@@ -56,6 +56,8 @@
         <nav class="topbar-actions">
             <a class="topbar-link" data-tab="home" href="#home">Home</a>
             <button id="explore-dashboard-secondary" class="topbar-explore" type="button">Explore</button>
+            <!-- Auth controls show the current Cognito/Google login state without blocking the prototype during testing. -->
+            <button id="auth-action" class="auth-action" type="button">Sign in</button>
         </nav>
     </header>
 
@@ -83,6 +85,9 @@
                         </button>
                     </div>
                     <p id="recommendation-status" class="status">Ready.</p>
+                    <!-- Landing-page auth summary mirrors the topbar login state for first-time visitors. -->
+                    <p id="auth-status" class="auth-status">Not signed in.</p>
+                    <button id="auth-action-home" class="auth-action home-auth-action" type="button">Sign in</button>
                 </div>
                 <div class="hero-workflow" aria-label="AI workflow">
                     <p>AI workflow</p>
@@ -104,6 +109,7 @@
                 <p class="subhead">
                     Scans approved tickers, applies hard safety filters, then asks the agent to review the top CSP candidates.
                 </p>
+                <button id="load-recommendations" type="button">Run CSP scan</button>
             </div>
             <h2>Agent Review</h2>
             <div id="agent-review" class="agent-review empty">
@@ -184,13 +190,14 @@
     </main>
 
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
-    <script src="js/api.js?v=2"></script>
-    <script src="js/state.js?v=2"></script>
+    <script src="js/api.js?v=4"></script>
+    <script src="js/state.js?v=3"></script>
+    <script src="js/auth.js?v=3"></script>
     <script src="js/formatters.js?v=2"></script>
     <script src="js/recommendation-renderers.js?v=4"></script>
     <script src="js/market-renderers.js?v=3"></script>
     <script src="js/loaders.js?v=4"></script>
     <script src="js/decisions.js?v=2"></script>
-    <script src="js/app.js?v=3"></script>
+    <script src="js/app.js?v=6"></script>
 </body>
 </html>

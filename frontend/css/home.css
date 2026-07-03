@@ -180,6 +180,29 @@ body:has(#home.active) {
     color: rgba(247, 251, 255, 0.68);
 }
 
+/* Signed-out visitors should see the brand and login path only, not dashboard entry points. */
+body.signed-out .home-panel .hero-actions,
+body.signed-out .home-panel #recommendation-status {
+    display: none;
+}
+
+body.signed-out .home-auth-action {
+    margin-top: 20px;
+}
+
+/* Landing-page Cognito status. It tells the user whether Google login is active without adding another primary hero button. */
+.auth-status {
+    margin-top: 8px;
+    color: rgba(247, 251, 255, 0.56);
+    font-size: 0.9rem;
+}
+
+/* Small home-page login action. It stays secondary so Explore remains the main product entry point. */
+.home-auth-action {
+    margin-top: 8px;
+    padding: 9px 16px;
+}
+
 /* Small AI workflow explainer that previews how the agent scans, filters, reviews, and paper trades. */
 .hero-workflow {
     position: absolute;

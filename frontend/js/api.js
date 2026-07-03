@@ -17,7 +17,8 @@ function apiUrl(path) {
 
 /**
  * Fetch data from the HELIOS backend through the shared URL helper.
- * This wrapper is intentionally thin today, but it is the future place to attach Cognito auth headers after Google login is added.
+ * This stays intentionally thin until API Gateway/Lambda are configured to verify Cognito JWTs.
+ * Adding Authorization too early triggers browser preflight/CORS behavior and can break currently public prototype routes.
  */
 function apiFetch(path, options = {}) {
     return fetch(apiUrl(path), options);

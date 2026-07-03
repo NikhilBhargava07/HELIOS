@@ -102,6 +102,10 @@ body {
     transform: scale(1);
 }
 
+body.signed-out .explore-overlay {
+    display: none;
+}
+
 .explore-overlay.hidden {
     display: grid;
 }
@@ -401,7 +405,8 @@ body:has(#home.active) .app-topbar {
 }
 
 .topbar-link,
-.topbar-explore {
+.topbar-explore,
+.auth-action {
     border-radius: 999px;
     padding: 9px 14px;
     font-size: 0.88rem;
@@ -423,6 +428,20 @@ body:has(#home.active) .app-topbar {
     background: rgba(241, 255, 0, 0.10);
     color: #f1ff00;
     box-shadow: none;
+}
+
+/* Cognito auth button shown in the dashboard topbar. It stays visually quieter than Explore because auth is supporting infrastructure, not the main task. */
+.auth-action {
+    min-width: 0;
+    border: 1px solid rgba(247, 251, 255, 0.14);
+    background: rgba(247, 251, 255, 0.08);
+    color: rgba(247, 251, 255, 0.82);
+    box-shadow: none;
+}
+
+.auth-action.signed-in {
+    border-color: rgba(126, 231, 135, 0.30);
+    color: var(--green-bright);
 }
 
 .tab-panel:not(.home-panel) {
