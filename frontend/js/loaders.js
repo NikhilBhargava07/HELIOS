@@ -70,7 +70,9 @@ async function loadNews() {
     newsStatus.textContent = "Loading recent news...";
 
     try {
-        const response = await apiFetch("/api/market/news");
+        const response = await apiFetch(`/api/market/news?t=${Date.now()}`, {
+            cache: "no-store",
+        });
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
@@ -78,7 +80,7 @@ async function loadNews() {
 
         const data = await response.json();
         renderNews(data.news || []);
-        newsStatus.textContent = `Loaded ${(data.news || []).length} headlines from the last ${data.lookback_days || 30} days.`;
+        newsStatus.textContent = newsFreshnessText(data);
     } catch (error) {
         newsStatus.textContent = `Error: ${error.message}`;
     } finally {

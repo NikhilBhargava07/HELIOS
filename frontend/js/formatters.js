@@ -211,6 +211,39 @@ function newsDateText(value) {
 }
 
 /**
+ * Format a timestamp with date and short time for freshness status text.
+ * This helps users distinguish article publication dates from the moment HELIOS last checked RSS feeds.
+ */
+function dateTimeText(value) {
+    if (!value) {
+        return "unavailable";
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "unavailable";
+    }
+
+    return date.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+}
+
+/**
+ * Build the status sentence shown after loading the News tab.
+ * It reports both the live check time and the newest article date so stale-looking feeds are easier to diagnose.
+ */
+function newsFreshnessText(data) {
+    const count = (data.news || []).length;
+    const checkedAt = dateTimeText(data.fetched_at);
+    const newestArticle = dateTimeText(data.freshest_article_at);
+    return `Loaded ${count} headlines from the last ${data.lookback_days || 14} days. Checked ${checkedAt}; newest article ${newestArticle}.`;
+}
+
+/**
  * Resolve a ticker to its display company name.
  * Tooltip rendering depends on this mapping so users can learn symbols without cluttering every card.
  */

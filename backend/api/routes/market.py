@@ -4,14 +4,14 @@ import json
 import os
 
 import boto3
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from backend.api.services import get_dashboard_with_cash_context
 from backend.config import APPROVED_TICKERS, COMPANY_NAMES
 from backend.market.ai_take import ai_market_take
 from backend.market.ai_take_jobs import create_market_take_job, get_market_take_job
 from backend.market.context import build_market_context
-from backend.market.news import NEWS_LOOKBACK_DAYS, get_recent_news
+from backend.market.news import NEWS_LOOKBACK_DAYS, get_recent_news, news_freshness_metadata
 from backend.market.trends import get_latest_stock_prices, get_market_trends
 from backend.memory.recommendations import get_latest_recommendation_run
 
@@ -61,11 +61,14 @@ def get_prices():
 
 @router.get("/news")
 ## Return filtered current-news headlines from approved and reputable sources.
-## News items include relevance tags and ticker links so both the user and the AI market take can reason from the same evidence.
-def get_news():
+## News items include freshness metadata and no-store headers so the user can tell when HELIOS checked live sources.
+def get_news(response: Response):
+    news = get_recent_news(APPROVED_TICKERS)
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["Pragma"] = "no-cache"
     return {
-        "news": get_recent_news(APPROVED_TICKERS),
-        "lookback_days": NEWS_LOOKBACK_DAYS,
+        "news": news,
+        **news_freshness_metadata(news, NEWS_LOOKBACK_DAYS),
     }
 
 

@@ -19,6 +19,7 @@ from backend.config import COMPANY_NAMES
 NEWS_LOOKBACK_DAYS = 14
 CANDIDATE_NEWS_LOOKBACK_DAYS = 10
 RSS_TIMEOUT_SECONDS = 8
+LATEST_NEWS_RESERVED_SLOTS = 4
 
 TRUSTED_NEWS_SOURCES = (
     "reuters", "associated press", "ap news", "bloomberg",
@@ -259,7 +260,7 @@ def dedupe_news_items(news_items):
 def _fetch_news_spec(spec):
     query, symbols, category, priority = spec
     try:
-        items = fetch_rss_news(query, limit=4)
+        items = fetch_rss_news(query, limit=6)
     except Exception:
         return []
     for item in items:
@@ -269,6 +270,56 @@ def _fetch_news_spec(spec):
         item["why_it_matters"] = explain_news_relevance(item)
         item["relevance_score"] = score_news_item(item, priority)
     return items
+
+
+def _news_datetime_or_floor(item):
+    return parse_news_datetime(item.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)
+
+
+## Blend newest reputable stories with highest-relevance stories.
+## This keeps HELIOS current without letting low-quality sources outrank useful market catalysts.
+def balance_quality_and_currency(news_items, limit=18):
+    quality_items = [
+        item for item in news_items
+        if item.get("source_quality") in {"trusted_reporting", "established_reporting"}
+    ]
+    newest_quality = sorted(
+        quality_items,
+        key=_news_datetime_or_floor,
+        reverse=True,
+    )[:LATEST_NEWS_RESERVED_SLOTS]
+
+    ranked_relevance = sorted(
+        news_items,
+        key=lambda item: (item.get("relevance_score", 0), _news_datetime_or_floor(item)),
+        reverse=True,
+    )
+
+    selected = []
+    seen = set()
+    for item in [*newest_quality, *ranked_relevance]:
+        key = item.get("url") or normalize_headline(item.get("headline", ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append(item)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+## Summarize when the news request ran and how fresh the returned feed is.
+## The frontend shows these values so users can tell whether HELIOS checked live sources or is displaying stale context.
+def news_freshness_metadata(news_items, lookback_days=NEWS_LOOKBACK_DAYS):
+    fetched_at = datetime.now(timezone.utc)
+    newest = max((_news_datetime_or_floor(item) for item in news_items), default=None)
+    freshest_article_at = None if newest is None or newest.year == 1 else newest.isoformat()
+    return {
+        "fetched_at": fetched_at.isoformat(),
+        "freshest_article_at": freshest_article_at,
+        "lookback_days": lookback_days,
+        "result_count": len(news_items),
+    }
 
 
 ## Collect the current market news feed shown on the News tab.
@@ -300,15 +351,7 @@ def get_recent_news(ticker_symbols, limit=18):
         item for item in dedupe_news_items(news_items)
         if is_recent_news_item(item) and item.get("source_quality") != "excluded_low_quality"
     ]
-    recent.sort(
-        key=lambda item: (
-            item.get("relevance_score", 0),
-            parse_news_datetime(item.get("created_at"))
-            or datetime.min.replace(tzinfo=timezone.utc),
-        ),
-        reverse=True,
-    )
-    return recent[:limit]
+    return balance_quality_and_currency(recent, limit)
 
 
 ## Collect recent news for the tickers currently being reviewed as CSP candidates.
