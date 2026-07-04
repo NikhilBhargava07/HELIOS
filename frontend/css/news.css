@@ -1,80 +1,211 @@
-/* News page: headline list and source cards. */
+/* News page: clean, headline-first source cards. Scoped to #news. */
 
-/* Article list container for reputable current-market headlines. */
-.news-list {
-    display: grid;
-    gap: 12px;
-    margin-bottom: 16px;
+#news {
+    --nw-gold: #f0b64d;
+    --nw-pos: #4ec98a;
+    --nw-line: rgba(255, 255, 255, 0.08);
+    --nw-surface: rgba(255, 255, 255, 0.025);
+    --nw-muted: #7f8896;
+    --nw-text: #e6edf3;
+    padding: clamp(20px, 2.6vw, 34px);
+    background: #0b0e13;
+    border: 1px solid var(--nw-line);
+    border-radius: 20px;
 }
 
-/* Individual news card with source, date, headline, ticker chips, tags, and a short relevance note. */
-.news-item {
-    border: 1px solid rgba(247, 251, 255, 0.10);
-    border-radius: 22px;
-    padding: clamp(18px, 2vw, 26px);
-    background:
-        linear-gradient(145deg, rgba(241, 255, 0, 0.07), transparent 42%),
-        rgba(5, 8, 12, 0.76);
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
-    transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
+#news::before {
+    border-top: 1px solid var(--nw-line);
 }
 
-.news-item:hover {
-    border-color: rgba(241, 255, 0, 0.48);
-    transform: translateY(-2px);
+#news .num {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
 }
 
-.news-item a {
-    display: inline-block;
-    color: #f1ff00;
-    font-weight: 700;
-    text-decoration: none;
+#news h1 {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Compact header. */
+#news .page-header {
+    max-width: none;
+    margin-bottom: 14px;
+}
+
+#news .page-header h1 {
+    margin: 0 0 8px;
+    color: var(--soft-white);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    letter-spacing: -0.02em;
+}
+
+#news .eyebrow {
     margin-bottom: 8px;
+    color: var(--nw-gold);
 }
 
-.news-meta-row,
-/* Compact chip row for related tickers and market-impact tags. */
-.news-chip-row {
+#news .subhead {
+    max-width: 680px;
+    margin: 0 0 10px;
+    color: var(--nw-muted);
+    font-size: 0.95rem;
+}
+
+#news #load-news {
+    min-height: 0;
+    margin: 0;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: var(--nw-gold);
+    color: #1a1408;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+#news #load-news:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+#news .status {
+    color: var(--nw-muted);
+    font-size: 0.85rem;
+}
+
+/* Card list. */
+#news .news-list {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+}
+
+#news .news-list.empty {
+    color: var(--nw-muted);
+}
+
+#news .news-card {
+    padding: 13px 15px;
+    border: 1px solid var(--nw-line);
+    border-radius: 12px;
+    background: var(--nw-surface);
+    transition: border-color 140ms ease;
+}
+
+#news .news-card:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+#news .news-meta-row {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+    margin-bottom: 2px;
 }
 
-/* Metadata row that helps users judge source quality and article recency before clicking. */
-.news-meta-row {
-    color: #8f99a6;
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    margin-bottom: 8px;
-    text-transform: capitalize;
+#news .news-source {
+    color: #c3cad4;
+    font-size: 12.5px;
+    font-weight: 500;
 }
 
-.news-source {
-    color: #f7fbff;
+#news .news-dot {
+    color: var(--nw-muted);
 }
 
-.news-chip-row {
-    margin: 4px 0 8px;
+#news .news-date {
+    color: var(--nw-muted);
+    font-size: 12px;
 }
 
-.news-chip {
-    border: 1px solid rgba(241, 255, 0, 0.24);
-    border-radius: 999px;
-    color: #f7fbff;
-    font-size: 0.76rem;
-    font-weight: 800;
-    padding: 4px 9px;
+#news .news-quality {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
 }
 
-.news-chip.muted {
-    border-color: rgba(247, 251, 255, 0.12);
-    color: #aeb7c4;
+#news .news-quality.good {
+    background: rgba(78, 201, 138, 0.12);
+    color: var(--nw-pos);
 }
 
-.news-item p {
-    color: #c9d1d9;
+#news .news-quality.unrated {
+    background: rgba(255, 255, 255, 0.04);
+    color: #8b949e;
+}
+
+#news .news-headline {
+    display: block;
+    margin: 7px 0 9px;
+    color: #eef2f6;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 15.5px;
+    font-weight: 500;
+    line-height: 1.35;
+    text-decoration: none;
+}
+
+#news .news-headline:hover {
+    color: var(--nw-gold);
+}
+
+#news .news-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 9px;
+}
+
+#news .news-tk {
+    padding: 2px 8px;
+    border: 1px solid rgba(240, 182, 77, 0.28);
+    border-radius: 6px;
+    background: rgba(240, 182, 77, 0.12);
+    color: var(--nw-gold);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+#news .news-tag {
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #8b949e;
+    font-size: 11px;
+}
+
+#news .news-why {
+    margin: 0;
+    color: #9aa3ae;
+    font-size: 13px;
     line-height: 1.5;
-    margin: 8px 0 0;
+}
+
+#news .news-why-label {
+    color: var(--nw-muted);
+}
+
+#news .ticker-tooltip {
+    font-weight: inherit;
+    border-bottom-color: rgba(240, 182, 77, 0.5);
+}
+
+#news #toggle-news {
+    margin-top: 14px;
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: transparent;
+    color: #c3cad4;
+    font-size: 0.82rem;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+#news #toggle-news:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--nw-text);
+    transform: none;
+    box-shadow: none;
 }

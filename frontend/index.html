@@ -10,9 +10,9 @@
     <link rel="stylesheet" href="css/base.css?v=8">
     <link rel="stylesheet" href="css/home.css?v=3">
     <link rel="stylesheet" href="css/recommendations.css?v=3">
-    <link rel="stylesheet" href="css/trends.css?v=1">
-    <link rel="stylesheet" href="css/news.css?v=1">
-    <link rel="stylesheet" href="css/market-take.css?v=1">
+    <link rel="stylesheet" href="css/trends.css?v=2">
+    <link rel="stylesheet" href="css/news.css?v=2">
+    <link rel="stylesheet" href="css/market-take.css?v=2">
     <link rel="stylesheet" href="css/capital.css?v=2">
 </head>
 <body>
@@ -144,7 +144,6 @@
                 <button id="load-trends">Load market trends</button>
                 <p id="trend-status" class="status">Trend data has not been loaded yet.</p>
             </div>
-            <h2>Market Trends</h2>
             <div id="trend-list" class="trend-grid empty">
                 Load market trends to see recent price movement.
             </div>
@@ -162,7 +161,6 @@
                 <button id="load-news">Load recent news</button>
                 <p id="news-status" class="status">Recent news has not been loaded yet.</p>
             </div>
-            <h2>Notable News</h2>
             <div id="news-list" class="news-list empty">
                 Load recent news to see current headlines.
             </div>
@@ -180,7 +178,6 @@
                 <button id="summarize-market">Ask AI for market take</button>
                 <p id="market-take-status" class="status">No AI market take loaded yet.</p>
             </div>
-            <h2>AI Market Take</h2>
             <div id="market-take-output" class="agent-review empty">
                 Ask the AI for a trend/news take framed around CSP risk.
             </div>
@@ -204,13 +201,13 @@
 
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
     <script src="js/api.js?v=4"></script>
-    <script src="js/state.js?v=4"></script>
+    <script src="js/state.js?v=5"></script>
     <script src="js/auth.js?v=4"></script>
     <script src="js/formatters.js?v=2"></script>
     <script src="js/recommendation-renderers.js?v=7"></script>
-    <script src="js/market-renderers.js?v=3"></script>
-    <script src="js/loaders.js?v=5"></script>
+    <script src="js/market-renderers.js?v=4"></script>
+    <script src="js/loaders.js?v=6"></script>
     <script src="js/decisions.js?v=4"></script>
-    <script src="js/app.js?v=9"></script>
+    <script src="js/app.js?v=10"></script>
 </body>
 </html>

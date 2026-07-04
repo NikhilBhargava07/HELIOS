@@ -107,6 +107,29 @@ toggleTrendsButton.addEventListener("click", () => {
     renderTrends(latestTrends);
 });
 
+// Trends page: filter pills, sort toggle, and click-to-expand tiles.
+trendList.addEventListener("click", (event) => {
+    const filterButton = event.target.closest("[data-filter]");
+    if (filterButton) {
+        trendFilter = filterButton.dataset.filter;
+        showAllTrends = false;
+        renderTrends(latestTrends);
+        return;
+    }
+
+    const sortButton = event.target.closest("[data-sort-toggle]");
+    if (sortButton) {
+        trendSort = trendSort === "move" ? "default" : "move";
+        renderTrends(latestTrends);
+        return;
+    }
+
+    const tile = event.target.closest(".trend-tile");
+    if (tile) {
+        tile.classList.toggle("expanded");
+    }
+});
+
 toggleNewsButton.addEventListener("click", () => {
     showAllNews = !showAllNews;
     renderNews(latestNews);

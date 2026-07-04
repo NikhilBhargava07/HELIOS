@@ -1,113 +1,255 @@
-/* Market trends page: ticker cards, price pills, and metric animation. */
+/* Market trends page: dense sparkline watchlist with filter, sort, and click-to-expand tiles. Scoped to #trends. */
 
-/* Responsive grid of ticker trend cards for approved stocks and ETFs. */
-.trend-grid {
+#trends {
+    --tr-gold: #f0b64d;
+    --tr-pos: #4ec98a;
+    --tr-neg: #f0716f;
+    --tr-line: rgba(255, 255, 255, 0.08);
+    --tr-surface: rgba(255, 255, 255, 0.025);
+    --tr-muted: #7f8896;
+    --tr-text: #e6edf3;
+    padding: clamp(20px, 2.6vw, 34px);
+    background: #0b0e13;
+    border: 1px solid var(--tr-line);
+    border-radius: 20px;
+}
+
+#trends::before {
+    border-top: 1px solid var(--tr-line);
+}
+
+#trends .num {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--tr-text);
+}
+
+#trends h1 {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Compact header. */
+#trends .page-header {
+    max-width: none;
+    margin-bottom: 14px;
+}
+
+#trends .page-header h1 {
+    margin: 0 0 8px;
+    color: var(--soft-white);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    letter-spacing: -0.02em;
+}
+
+#trends .eyebrow {
+    margin-bottom: 8px;
+    color: var(--tr-gold);
+}
+
+#trends .subhead {
+    max-width: 680px;
+    margin: 0 0 10px;
+    color: var(--tr-muted);
+    font-size: 0.95rem;
+}
+
+#trends #load-trends {
+    min-height: 0;
+    margin: 0;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: var(--tr-gold);
+    color: #1a1408;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+#trends #load-trends:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+#trends .status {
+    color: var(--tr-muted);
+    font-size: 0.85rem;
+}
+
+#trends .trend-grid {
+    display: block;
+}
+
+#trends .trend-empty {
+    color: var(--tr-muted);
+}
+
+/* Filter + sort controls. */
+#trends .trend-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+#trends .trend-filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+#trends .trend-pill,
+#trends .trend-sort {
+    padding: 5px 11px;
+    border: 1px solid var(--tr-line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #aab2be;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+#trends .trend-sort {
+    margin-left: auto;
+}
+
+#trends .trend-pill.active,
+#trends .trend-sort.active {
+    border-color: rgba(240, 182, 77, 0.32);
+    background: rgba(240, 182, 77, 0.16);
+    color: var(--tr-gold);
+}
+
+#trends .trend-pill:hover:not(:disabled),
+#trends .trend-sort:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Tile grid. */
+#trends .trend-grid-inner {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    align-items: start;
+    gap: 10px;
 }
 
-/* Individual trend card showing current price plus recent percent/dollar movement windows. */
-.trend-card {
-    border: 1px solid rgba(247, 251, 255, 0.10);
-    border-radius: 22px;
-    padding: clamp(18px, 2vw, 26px);
-    background:
-        linear-gradient(145deg, rgba(241, 255, 0, 0.07), transparent 42%),
-        rgba(5, 8, 12, 0.76);
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
-    transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
+#trends .trend-tile {
+    padding: 10px 12px;
+    border: 1px solid var(--tr-line);
+    border-radius: 12px;
+    background: var(--tr-surface);
+    cursor: pointer;
+    transition: border-color 140ms ease, transform 140ms ease;
 }
 
-.trend-card:hover {
-    border-color: rgba(241, 255, 0, 0.48);
+#trends .trend-tile:hover {
+    border-color: rgba(240, 182, 77, 0.4);
     transform: translateY(-2px);
 }
 
-.trend-card h3 {
-    margin: 0 0 12px;
-    font-size: 1.08rem;
+#trends .trend-tile:focus-visible {
+    outline: 1px solid rgba(240, 182, 77, 0.5);
+    outline-offset: 2px;
 }
 
-.trend-card-header {
+#trends .trend-tile-top {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 8px;
 }
 
-.trend-card-header h3 {
-    margin-bottom: 0;
+#trends .trend-sym {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 500;
+    font-size: 14px;
 }
 
-/* Current-price badge refreshed separately from the heavier historical trend data. */
-.price-pill {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid rgba(241, 255, 0, 0.28);
-    border-radius: 999px;
-    padding: 4px 8px;
-    background: rgba(241, 255, 0, 0.08);
-    color: #d8dee9;
-    font-size: 0.78rem;
-    font-weight: 800;
-    white-space: nowrap;
+#trends .trend-day {
+    font-size: 12px;
 }
 
-.trend-metric {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 1.45rem;
+#trends .trend-price {
+    margin: 5px 0 6px;
+    font-size: 14px;
 }
 
-.trend-value-window {
-    position: relative;
-    display: inline-grid;
-    min-width: 88px;
-    overflow: hidden;
+#trends .trend-spark {
+    display: block;
+    width: 100%;
+    height: 26px;
 }
 
-.trend-value {
-    grid-area: 1 / 1;
-    color: #d8dee9;
-    transition: opacity 240ms ease, transform 240ms ease;
-    white-space: nowrap;
+#trends .trend-up {
+    color: var(--tr-pos);
 }
 
-.trend-up {
-    color: var(--green-bright);
+#trends .trend-down {
+    color: var(--tr-neg);
 }
 
-.trend-down {
-    color: #ff7b72;
+#trends .trend-neutral {
+    color: #c3cad4;
 }
 
-.trend-neutral {
-    color: #d8dee9;
+/* Expanded timeframe breakdown. */
+#trends .trend-detail {
+    display: none;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--tr-line);
 }
 
-.percent-value {
-    opacity: 1;
-    transform: translateX(0);
+#trends .trend-tile.expanded .trend-detail {
+    display: grid;
+    gap: 5px;
 }
 
-.dollar-value {
-    opacity: 0;
-    transform: translateX(22px);
+#trends .trend-drow {
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    gap: 8px;
+    align-items: baseline;
 }
 
-.trend-grid.show-dollar .percent-value {
-    opacity: 0;
-    transform: translateX(-22px);
+#trends .trend-dlabel {
+    color: var(--tr-muted);
+    font-size: 11px;
 }
 
-.trend-grid.show-dollar .dollar-value {
-    opacity: 1;
-    transform: translateX(0);
+#trends .trend-drow .num {
+    font-size: 12px;
 }
 
-#toggle-trends {
-    margin-top: 18px;
+#trends .trend-ddollar {
+    color: var(--tr-muted);
+    text-align: right;
+}
+
+/* Keep ticker tooltips on the gold accent. */
+#trends .ticker-tooltip {
+    font-weight: inherit;
+    border-bottom-color: rgba(240, 182, 77, 0.5);
+}
+
+#trends #toggle-trends {
+    margin-top: 14px;
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: transparent;
+    color: #c3cad4;
+    font-size: 0.82rem;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+#trends #toggle-trends:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--tr-text);
+    transform: none;
+    box-shadow: none;
 }

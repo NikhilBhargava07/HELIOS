@@ -55,10 +55,6 @@ async function loadTrends() {
         renderTrends(trends);
         trendStatus.textContent = `Loaded ${trends.length} trend records. Prices refresh every ${PRICE_REFRESH_MS / 1000}s.`;
         startPriceRefresh();
-
-        if (trends.length) {
-            startTrendMetricRotation();
-        }
     } catch (error) {
         trendStatus.textContent = `Error: ${error.message}`;
     } finally {

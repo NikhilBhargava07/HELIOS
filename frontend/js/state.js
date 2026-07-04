@@ -39,13 +39,22 @@ let latestTrends = [];
 let latestNews = [];
 let showAllTrends = false;
 let showAllNews = false;
+let trendFilter = "All";
+let trendSort = "default";
 let priceRefreshIntervalId = null;
 let trendMetricRotateIntervalId = null;
 let dashboardRefreshIntervalId = null;
 let dashboardRequestInFlight = false;
 // UI sizing, refresh, and formatting constants. These control how much data appears by default and how frequently live sections refresh.
 const MAX_ALTERNATES = 3;
-const DEFAULT_TREND_COUNT = 6;
+const DEFAULT_TREND_COUNT = 12;
+// Ticker groups for the Trends page segment filter. Tickers outside every group still appear under "All".
+const TREND_CATEGORIES = {
+    "ETFs": ["SPY", "QQQ", "IWM", "DIA", "XLF", "XLK", "XLV", "XLE", "XLY"],
+    "Mega-tech": ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "AVGO", "AMD", "ORCL", "NFLX", "CSCO", "CRM", "INTC", "MU", "QCOM"],
+    "Financials": ["JPM", "V", "MA", "BAC", "C", "WFC", "PYPL", "SOFI", "HOOD"],
+    "Consumer": ["COST", "HD", "WMT", "TSLA", "UBER", "DIS", "NKE", "SBUX", "KO", "PEP", "T", "VZ", "SHOP", "RBLX", "SNAP", "PINS", "PLTR", "F", "GM", "CCL", "DAL", "AAL", "UAL"],
+};
 const DEFAULT_NEWS_COUNT = 5;
 const PRICE_REFRESH_MS = 15000;
 const DASHBOARD_REFRESH_MS = 10000;

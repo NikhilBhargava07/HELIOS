@@ -1,196 +1,18 @@
-/* AI market-take cards, glossary tooltips, and responsive layout rules. */
+/* AI Market Take page (scoped to #market-take) plus the GLOBAL ticker/glossary tooltip
+   styles used by tickerTooltip on every page. Do not scope the tooltip/.hidden rules. */
 
-/* Main AI Market Take grid. It balances the long reasoned take with smaller action cards users can scan quickly. */
-.take-grid {
-    display: grid;
-    grid-template-columns: minmax(220px, 0.95fr) minmax(280px, 1.15fr) minmax(240px, 1fr) minmax(240px, 1fr);
-    gap: 14px;
-    margin-bottom: 20px;
-}
-
-/* Shared card style for each piece of AI reasoning: mood, stance, actions, portfolio notes, and scenarios. */
-.take-card {
-    border: 1px solid rgba(247, 251, 255, 0.10);
-    border-radius: 18px;
-    padding: 18px;
-    background:
-        linear-gradient(145deg, rgba(241, 255, 0, 0.07), transparent 45%),
-        rgba(5, 8, 12, 0.76);
-    transition: border-color 140ms ease, transform 140ms ease;
-}
-
-.take-card:hover {
-    border-color: rgba(241, 255, 0, 0.48);
-    transform: translateY(-2px);
-}
-
-/* Highlight card for the agent’s main thesis because it carries the full reasoning paragraph. */
-.take-card-primary {
-    background:
-        linear-gradient(135deg, rgba(241, 255, 0, 0.16), rgba(241, 255, 0, 0.07)),
-        rgba(5, 8, 12, 0.76);
-}
-
-.take-card-wide {
-    grid-column: 1 / -1;
-}
-
-.take-card-primary p {
-    max-width: none;
-}
-
-/* Vertical stack for Market Mood and CSP Stance so those short labels stay grouped and readable. */
-.take-card-stack {
-    display: grid;
-    gap: 14px;
-}
-
-.take-card-compact {
-    min-height: 150px;
-}
-
-.take-card-csp-angle,
-.take-card-action,
-.take-card-avoid {
-    min-height: 240px;
-}
-
-.take-card-compact strong {
-    display: block;
-    margin-top: 4px;
-    font-size: clamp(1.35rem, 2.6vw, 1.75rem);
-    line-height: 1.1;
-}
-
-.take-explainer {
-    margin-top: 10px;
-    color: var(--muted);
-    font-size: 0.9rem;
-    line-height: 1.45;
-}
-
-.warning-card {
-    background:
-        linear-gradient(145deg, rgba(242, 204, 96, 0.12), transparent 44%),
-        rgba(5, 8, 12, 0.76);
-}
-
-.take-label {
-    display: inline-block;
-    margin-bottom: 10px;
-    color: #f1ff00;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.take-card h3 {
-    margin: 0 0 8px;
-    font-size: 1.4rem;
-}
-
-.take-card p,
-.take-card strong {
-    margin: 0;
-    color: #d8dee9;
-    line-height: 1.5;
-}
-
-.take-card-wide p {
-    max-width: 980px;
-    font-size: 1.02rem;
-    line-height: 1.65;
-}
-
-.take-card-primary.take-card-wide {
-    min-height: 360px;
-}
-
-.take-card-primary.take-card-wide p {
-    width: 100%;
-    max-width: none;
-}
-
-.mini-heading {
-    margin: 10px 0 10px;
-}
-
-/* Optional company-watch grid shown when the model calls out ticker-specific context. */
-.company-note-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 12px;
-    margin-bottom: 22px;
-}
-
-.company-note {
-    border: 1px solid rgba(88, 166, 255, 0.28);
-    border-radius: 16px;
-    padding: 14px;
-    background:
-        linear-gradient(145deg, rgba(88, 166, 255, 0.10), transparent 52%),
-        rgba(5, 8, 12, 0.76);
-}
-
-.company-note strong {
-    display: inline-flex;
-    margin-bottom: 8px;
-    color: #f1ff00;
-    font-size: 1rem;
-}
-
-.company-note p {
-    margin: 0;
-    color: #d8dee9;
-    line-height: 1.5;
-}
-
-.scenario-list {
-    display: grid;
-    gap: 10px;
-    margin: 0 0 20px;
-    padding: 0;
-    list-style: none;
-}
-
-.scenario-list li {
-    border-left: 3px solid #f1ff00;
-    border-radius: 12px;
-    padding: 12px 14px;
-    background: rgba(241, 255, 0, 0.07);
-    color: #d8dee9;
-}
-
-/* Hover-term row that defines difficult market/options words without cluttering the main take. */
-.glossary-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    padding-top: 6px;
-}
-
-.glossary-chip {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid rgba(139, 148, 158, 0.32);
-    border-radius: 999px;
-    padding: 6px 10px;
-    background: rgba(139, 148, 158, 0.08);
-}
-
+/* ---- Global: ticker + glossary tooltips, used across all pages ---- */
 .tooltip-term,
 .ticker-tooltip {
     position: relative;
-    border-bottom: 1px dotted #f1ff00;
+    border-bottom: 1px dotted rgba(240, 182, 77, 0.6);
     color: #e6edf3;
     cursor: help;
 }
 
 .ticker-tooltip {
     display: inline-block;
-    font-weight: 900;
+    font-weight: inherit;
 }
 
 .tooltip-bubble {
@@ -225,12 +47,274 @@
     display: none;
 }
 
-@media (max-width: 900px) {
-    .take-grid {
-        grid-template-columns: 1fr;
-    }
+/* ---- AI Market Take page ---- */
+#market-take {
+    --mt-gold: #f0b64d;
+    --mt-pos: #4ec98a;
+    --mt-neg: #f0716f;
+    --mt-line: rgba(255, 255, 255, 0.08);
+    --mt-surface: rgba(255, 255, 255, 0.025);
+    --mt-muted: #7f8896;
+    --mt-text: #e6edf3;
+    padding: clamp(20px, 2.6vw, 34px);
+    background: #0b0e13;
+    border: 1px solid var(--mt-line);
+    border-radius: 20px;
+}
 
-    .take-card-wide {
-        grid-column: span 1;
+#market-take::before {
+    border-top: 1px solid var(--mt-line);
+}
+
+#market-take h1 {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+#market-take .page-header {
+    max-width: none;
+    margin-bottom: 14px;
+}
+
+#market-take .page-header h1 {
+    margin: 0 0 8px;
+    color: var(--soft-white);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    letter-spacing: -0.02em;
+}
+
+#market-take .eyebrow {
+    margin-bottom: 8px;
+    color: var(--mt-gold);
+}
+
+#market-take .subhead {
+    max-width: 680px;
+    margin: 0 0 10px;
+    color: var(--mt-muted);
+    font-size: 0.95rem;
+}
+
+#market-take #summarize-market {
+    min-height: 0;
+    margin: 0;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: var(--mt-gold);
+    color: #1a1408;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+#market-take #summarize-market:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+#market-take .status {
+    color: var(--mt-muted);
+    font-size: 0.85rem;
+}
+
+/* Output container: strip the base card treatment so the inner cards show. */
+#market-take .agent-review {
+    display: block;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+}
+
+#market-take .agent-review.empty {
+    padding: 14px;
+    border: 1px solid var(--mt-line);
+    border-radius: 12px;
+    background: var(--mt-surface);
+    color: var(--mt-muted);
+}
+
+#market-take .mt-label {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: var(--mt-gold);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+#market-take .mt-label.muted {
+    color: var(--mt-muted);
+}
+
+#market-take .mt-label-pos {
+    color: var(--mt-pos);
+}
+
+#market-take .mt-label-neg {
+    color: var(--mt-neg);
+}
+
+#market-take .mt-hero {
+    margin-bottom: 12px;
+    padding: 15px 16px;
+    border: 1px solid rgba(240, 182, 77, 0.28);
+    border-radius: 12px;
+    background: rgba(240, 182, 77, 0.05);
+}
+
+#market-take .mt-hero-head {
+    margin: 6px 0 8px;
+    color: #eef2f6;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+#market-take .mt-hero-body {
+    margin: 0;
+    color: #d8dee9;
+    font-size: 13.5px;
+    line-height: 1.55;
+}
+
+#market-take .mt-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#market-take .mt-card {
+    padding: 13px 15px;
+    border: 1px solid var(--mt-line);
+    border-radius: 12px;
+    background: var(--mt-surface);
+}
+
+#market-take .mt-wide {
+    margin-bottom: 12px;
+}
+
+#market-take .mt-stat {
+    display: block;
+    margin-top: 3px;
+    color: #eef2f6;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+#market-take .mt-stat-gold {
+    color: var(--mt-gold);
+}
+
+#market-take .mt-explainer {
+    margin: 5px 0 0;
+    color: var(--mt-muted);
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+#market-take .mt-body {
+    margin: 0;
+    color: #c3cad4;
+    font-size: 13.5px;
+    line-height: 1.55;
+}
+
+#market-take .mt-do {
+    border-color: rgba(78, 201, 138, 0.28);
+    background: rgba(78, 201, 138, 0.06);
+}
+
+#market-take .mt-avoid {
+    border-color: rgba(240, 113, 111, 0.28);
+    background: rgba(240, 113, 111, 0.06);
+}
+
+#market-take .mt-heading {
+    margin: 14px 0 8px;
+    color: #eef2f6;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+#market-take .mt-notes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+#market-take .mt-note {
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: var(--mt-surface);
+}
+
+#market-take .mt-note strong {
+    display: inline-block;
+    margin-bottom: 6px;
+    color: var(--mt-gold);
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+}
+
+#market-take .mt-note p {
+    margin: 0;
+    color: #c3cad4;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+#market-take .mt-scenarios {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#market-take .mt-scenarios li {
+    padding: 9px 12px;
+    border-left: 2px solid var(--mt-gold);
+    border-radius: 0 8px 8px 0;
+    background: rgba(240, 182, 77, 0.06);
+    color: #d8dee9;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+#market-take .mt-glossary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 11px;
+    border-top: 1px solid var(--mt-line);
+}
+
+#market-take .glossary-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 12px;
+}
+
+#market-take .ticker-tooltip {
+    font-weight: inherit;
+    border-bottom-color: rgba(240, 182, 77, 0.5);
+}
+
+@media (max-width: 700px) {
+    #market-take .mt-two {
+        grid-template-columns: 1fr;
     }
 }
