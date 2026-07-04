@@ -35,3 +35,12 @@ class TradeOutcomeRequest(BaseModel):
     assigned: bool | None = None
     expired_worthless: bool | None = None
     notes: str = ""
+
+
+## Validate broker onboarding data after a user signs in with Google/Cognito.
+## The frontend should send the broker API key and secret key once; the backend stores the secret key in Secrets Manager.
+class BrokerProfileRequest(BaseModel):
+
+    broker: str = "alpaca"
+    broker_api_key: str
+    broker_secret_key: str

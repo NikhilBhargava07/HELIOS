@@ -12,6 +12,19 @@ from alpaca.data.historical import (
     OptionHistoricalDataClient,
 )
 
+
+## Create an Alpaca stock-data client from explicit credentials.
+## Future authenticated routes will use this with broker credentials loaded from the signed-in user's profile.
+def create_stock_data_client(api_key, secret_key):
+    return StockHistoricalDataClient(api_key, secret_key)
+
+
+## Create an Alpaca option-data client from explicit credentials.
+## Keeping this separate from the cached environment client makes the per-user path straightforward later.
+def create_option_data_client(api_key, secret_key):
+    return OptionHistoricalDataClient(api_key, secret_key)
+
+
 ## Load Alpaca API credentials from environment variables only.
 ## Keeping credentials out of frontend code and source files protects the paper-trading account during local and AWS deployments.
 def get_alpaca_credentials():
@@ -28,7 +41,7 @@ def get_alpaca_credentials():
 ## The client is built from environment credentials whenever market data needs to be fetched.
 def get_stock_data_client():
     api_key, secret_key = get_alpaca_credentials()
-    return StockHistoricalDataClient(api_key, secret_key)
+    return create_stock_data_client(api_key, secret_key)
 
 
 ## Return a cached Alpaca option-data client.
@@ -37,4 +50,4 @@ def get_stock_data_client():
 ## Candidate generation depends on this client for put quotes, greeks, implied volatility, and liquidity fields.
 def get_option_data_client():
     api_key, secret_key = get_alpaca_credentials()
-    return OptionHistoricalDataClient(api_key, secret_key)
+    return create_option_data_client(api_key, secret_key)

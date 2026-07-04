@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.api.routes.market import router as market_router
 from backend.api.routes.memory import router as memory_router
 from backend.api.routes.portfolio import router as portfolio_router
+from backend.api.routes.profiles import router as profile_router
 from backend.api.routes.recommendations import router as recommendation_router
 from backend.config import PROJECT_ROOT
 
@@ -29,9 +30,10 @@ def create_app():
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Content-Type", "Authorization"],
     )
     application.include_router(portfolio_router)
+    application.include_router(profile_router)
     application.include_router(recommendation_router)
     application.include_router(market_router)
     application.include_router(memory_router)

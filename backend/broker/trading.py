@@ -20,6 +20,12 @@ OPTION_SYMBOL_PATTERN = re.compile(
 )
 
 
+## Create an Alpaca paper-trading client from explicit credentials.
+## This is the user-specific path HELIOS will use after profile onboarding stores broker keys per Cognito user.
+def create_trading_client(api_key, secret_key):
+    return TradingClient(api_key, secret_key, paper=True)
+
+
 ## Create a cached authenticated client pinned to Alpaca paper trading.
 @lru_cache(maxsize=1)
 ## Create an Alpaca trading client connected to the configured paper account.
@@ -27,7 +33,7 @@ OPTION_SYMBOL_PATTERN = re.compile(
 def get_trading_client():
     api_key, secret_key = get_alpaca_credentials()
 
-    return TradingClient(api_key, secret_key, paper=True)
+    return create_trading_client(api_key, secret_key)
 
 
 ## Choose a conservative limit credit for selling one put contract.
