@@ -26,7 +26,7 @@ body:has(#home.active) {
     padding: clamp(28px, 5vw, 72px);
     background:
         linear-gradient(90deg, rgba(3, 7, 10, 0.80), rgba(3, 7, 10, 0.28) 42%, rgba(3, 7, 10, 0.82)),
-        radial-gradient(circle at 18% 18%, rgba(241, 255, 0, 0.20), transparent 18rem),
+        radial-gradient(circle at 18% 18%, rgba(240, 182, 77, 0.20), transparent 18rem),
         radial-gradient(circle at 82% 18%, rgba(49, 214, 255, 0.18), transparent 22rem),
         radial-gradient(circle at 52% 92%, rgba(82, 180, 90, 0.18), transparent 28rem),
         linear-gradient(135deg, #0d1517 0%, #162322 36%, #111827 70%, #070a0e 100%);
@@ -38,7 +38,7 @@ body:has(#home.active) {
     inset: 0;
     pointer-events: none;
     background:
-        radial-gradient(circle at 35% 42%, rgba(241, 255, 0, 0.05), transparent 18rem),
+        radial-gradient(circle at 35% 42%, rgba(240, 182, 77, 0.05), transparent 18rem),
         radial-gradient(circle at 72% 48%, rgba(49, 214, 255, 0.055), transparent 22rem);
 }
 
@@ -92,6 +92,8 @@ body:has(#home.active) {
     gap: clamp(0.02em, 0.42vw, 0.07em);
     margin: 0 0 14px;
     color: var(--soft-white);
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
     font-size: clamp(5rem, 12.4vw, 11.2rem);
     letter-spacing: 0;
     line-height: 0.82;
@@ -140,7 +142,7 @@ body:has(#home.active) {
 
 .hero-actions button.secondary {
     justify-content: space-between;
-    border: 1px solid rgba(247, 251, 255, 0.16);
+    border: 1px solid rgba(240, 182, 77, 0.28);
     background: rgba(8, 11, 15, 0.86);
     color: var(--soft-white);
     box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
@@ -153,7 +155,7 @@ body:has(#home.active) {
     width: 20px;
     height: 2px;
     border-radius: 999px;
-    background: currentColor;
+    background: #f0b64d;
 }
 
 .menu-lines {
@@ -214,16 +216,17 @@ body.signed-out .home-auth-action {
     border-radius: 16px;
     padding: 16px;
     background:
-        linear-gradient(145deg, rgba(241, 255, 0, 0.13), transparent 46%),
+        linear-gradient(145deg, rgba(240, 182, 77, 0.13), transparent 46%),
         rgba(8, 11, 15, 0.86);
     box-shadow: 0 14px 38px rgba(0, 0, 0, 0.24);
 }
 
 .hero-workflow p {
     margin: 0 0 14px;
-    color: #f1ff00;
+    color: #f0b64d;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
     font-size: 0.72rem;
-    font-weight: 900;
+    font-weight: 500;
     letter-spacing: 0.14em;
     text-transform: uppercase;
 }
@@ -255,10 +258,11 @@ body.signed-out .home-auth-action {
     width: 24px;
     height: 24px;
     border-radius: 999px;
-    background: rgba(241, 255, 0, 0.12);
-    color: #f1ff00;
+    background: rgba(240, 182, 77, 0.14);
+    color: #f0b64d;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
     font-size: 0.62rem;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 body:has(#home.active) .home-panel {
