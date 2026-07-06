@@ -137,6 +137,29 @@ def attach_alpaca_cash_context(capital_summary, alpaca_account):
     return capital_summary
 
 
+## Build a compact dashboard context for memory records and prompts.
+## Full dashboard payloads contain repeated position arrays, so memory snapshots store only the account and capital fields needed to explain risk.
+def compact_dashboard_memory_context(dashboard, trigger=None):
+    capital = dict((dashboard or {}).get("capital") or {})
+    capital.pop("open_positions", None)
+    account = dict((dashboard or {}).get("account") or {})
+    account = {
+        key: account.get(key)
+        for key in [
+            "cash", "buying_power", "options_buying_power", "available_csp_cash",
+            "portfolio_value", "equity", "long_market_value", "short_market_value",
+        ]
+        if key in account
+    }
+
+    return {
+        "trigger": trigger,
+        "position_source": (dashboard or {}).get("position_source"),
+        "capital": capital,
+        "account": account,
+    }
+
+
 ## Build the Capital & Positions payload shown in the frontend dashboard.
 ## This combines saved HELIOS memory, reconciled orders, live Alpaca positions, and current buying power into one response for the UI.
 def get_dashboard_with_cash_context(alpaca_account=None):

@@ -6,6 +6,7 @@ from backend.api.schemas import UserDecisionAction, UserDecisionRequest
 from backend.api.services import (
     attach_alpaca_cash_context,
     candidates_to_records,
+    compact_dashboard_memory_context,
     get_dashboard_with_cash_context,
     get_effective_available_csp_cash,
     get_safe_paper_account_summary,
@@ -15,7 +16,10 @@ from backend.api.services import (
 from backend.broker.trading import submit_cash_secured_put_order
 from backend.config import APPROVED_TICKERS, COMPANY_NAMES, STRATEGY_RULES
 from backend.memory.recommendations import save_recommendation_run
-from backend.memory.observations import capture_due_candidate_observations
+from backend.memory.observations import (
+    capture_current_csp_outcome_snapshots,
+    capture_due_candidate_observations,
+)
 from backend.memory.trades import record_user_decision
 from backend.strategy.recommender import get_recommendation_results
 
@@ -57,6 +61,11 @@ def get_recommendations(background_tasks: BackgroundTasks):
         memory_context=results.get("memory_context"),
     )
     background_tasks.add_task(capture_due_candidate_observations)
+    background_tasks.add_task(
+        capture_current_csp_outcome_snapshots,
+        dashboard.get("open_positions", []),
+        context=compact_dashboard_memory_context(dashboard, trigger="recommendations_refresh"),
+    )
     return {
         "recommendation_run_id": run["id"], "approved_tickers": APPROVED_TICKERS,
         "company_names": COMPANY_NAMES, "strategy_rules": STRATEGY_RULES,

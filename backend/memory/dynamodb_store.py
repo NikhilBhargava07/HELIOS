@@ -15,6 +15,7 @@ from backend.config import (
     TOTAL_CAPITAL,
     USER_ID,
 )
+from backend.memory.outcome_analysis import build_outcome_snapshot, summarize_snapshot
 from backend.memory.serializers import normalize_candidate
 
 USER_PK = f"USER#{USER_ID}"
@@ -461,7 +462,57 @@ def save_user_profile_version(profile_result):
 ## Load stored outcome-pattern summaries for the learning context.
 ## These records connect recommendation conditions with later trade outcomes.
 def get_outcome_patterns(ticker_symbols=None, minimum_sample_size=5):
-    return []
+    symbols = set(ticker_symbols or [])
+    snapshots = get_recent_outcome_snapshots(limit=100)
+    if symbols:
+        snapshots = [
+            snapshot for snapshot in snapshots
+            if snapshot.get("snapshot", {}).get("ticker_symbol") in symbols
+        ]
+
+    grouped = {}
+    for item in snapshots:
+        snapshot = item.get("snapshot", {})
+        key = (
+            snapshot.get("ticker_symbol"),
+            snapshot.get("lesson_type"),
+            snapshot.get("financial_status"),
+        )
+        if not key[0]:
+            continue
+        if key not in grouped:
+            grouped[key] = {
+                "ticker_symbol": key[0],
+                "lesson_type": key[1],
+                "financial_status": key[2],
+                "sample_size": 0,
+                "latest_summary": item.get("summary"),
+            }
+        grouped[key]["sample_size"] += 1
+
+    patterns = [
+        pattern for pattern in grouped.values()
+        if pattern["sample_size"] >= minimum_sample_size
+    ]
+    recent_lessons = [
+        {
+            "ticker_symbol": item.get("snapshot", {}).get("ticker_symbol"),
+            "contract_symbol": item.get("snapshot", {}).get("contract_symbol"),
+            "financial_status": item.get("snapshot", {}).get("financial_status"),
+            "assignment_status": item.get("snapshot", {}).get("assignment_status"),
+            "lesson_type": item.get("snapshot", {}).get("lesson_type"),
+            "summary": item.get("summary"),
+            "observed_at": item.get("observed_at"),
+        }
+        for item in snapshots[:10]
+    ]
+
+    return {
+        "patterns": patterns,
+        "recent_lessons": recent_lessons,
+        "minimum_sample_size": minimum_sample_size,
+        "note": "Recent lessons are directional evidence; repeated patterns need the minimum sample size before they become stronger memory.",
+    }
 
 
 ## Build the complete memory package passed to recommendation and market-take prompts.
@@ -472,6 +523,7 @@ def build_memory_context(ticker_symbols):
     return {
         "relevant_episodes": get_relevant_episodes(ticker_symbols),
         "outcome_patterns": get_outcome_patterns(ticker_symbols),
+        "recent_outcome_snapshots": get_recent_outcome_snapshots(limit=8),
         "user_profile": profile_version,
         "memory_policy": {
             "minimum_pattern_sample_size": 5,
@@ -486,6 +538,64 @@ def build_memory_context(ticker_symbols):
 ## These observations are the raw material for outcome memory, such as how a candidate behaved after five days.
 def capture_due_candidate_observations(limit=200):
     return {"captured": 0, "due": 0, "errors": {}, "backend": "dynamodb", "note": "Observation capture is disabled until scheduled Lambda is configured."}
+
+
+## Store one current-position outcome snapshot in DynamoDB.
+## Snapshot records are intentionally separate from final outcomes because a CSP can be financially down while still being acceptable for assignment.
+def save_outcome_snapshot(position, context=None):
+    snapshot_id = str(uuid4())
+    observed_at = utc_now_text()
+    snapshot = build_outcome_snapshot(position)
+    item = {
+        "pk": USER_PK,
+        "sk": f"OUTCOME_SNAPSHOT#{observed_at}#{snapshot_id}",
+        "item_type": "outcome_snapshot",
+        "id": snapshot_id,
+        "observed_at": observed_at,
+        "ticker_symbol": snapshot.get("ticker_symbol"),
+        "contract_symbol": snapshot.get("contract_symbol"),
+        "snapshot": snapshot,
+        "summary": summarize_snapshot(snapshot),
+        "context": context or {},
+    }
+    put_item(item)
+
+    if snapshot.get("contract_symbol"):
+        put_item({
+            **item,
+            "sk": f"LATEST_OUTCOME_SNAPSHOT#{snapshot['contract_symbol']}",
+            "item_type": "latest_outcome_snapshot",
+        })
+
+    return item
+
+
+## Read recent current-position outcome snapshots for prompts, debugging, and future UI panels.
+## Newest records are returned first because learning prompts care most about the current state of open risk.
+def get_recent_outcome_snapshots(limit=20):
+    return query_items(USER_PK, "OUTCOME_SNAPSHOT#", limit=limit, scan_forward=False)
+
+
+## Capture outcome snapshots for all currently open CSP positions.
+## This is the first practical learning loop: HELIOS records how active contracts are behaving before trying to infer deeper causes.
+def capture_current_csp_outcome_snapshots(open_positions, context=None):
+    captured = []
+    skipped = []
+    for position in open_positions or []:
+        if position.get("strategy") != "cash-secured put":
+            skipped.append({
+                "symbol": position.get("symbol") or position.get("contract_symbol"),
+                "reason": "not_cash_secured_put",
+            })
+            continue
+        captured.append(save_outcome_snapshot(position, context=context))
+
+    return {
+        "captured": len(captured),
+        "skipped": skipped,
+        "snapshots": captured,
+        "backend": "dynamodb",
+    }
 
 
 ## Store the final or intermediate result of a paper trade.
