@@ -1,0 +1,458 @@
+/* Profile dropdown (navbar), Profile page (#profile), and connect-broker modal. */
+
+/* ---- Shared avatar glyph ---- */
+.profile-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(240, 182, 77, 0.16);
+    color: #f0b64d;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.profile-avatar.lg {
+    width: 56px;
+    height: 56px;
+    font-size: 22px;
+}
+
+/* ---- Avatar dropdown ---- */
+.profile-wrap {
+    position: relative;
+}
+
+.profile-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    z-index: 70;
+    width: 252px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 14px;
+    background: #0e1116;
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.profile-menu.hidden {
+    display: none;
+}
+
+.profile-menu-head {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 13px 14px;
+}
+
+.profile-menu-id {
+    min-width: 0;
+}
+
+.profile-menu-name {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    color: #eef2f6;
+}
+
+.profile-menu-email {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: #7f8896;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-menu-sep {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.profile-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    padding: 11px 14px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #c3cad4;
+    font-size: 13px;
+    font-weight: 400;
+    text-align: left;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.profile-menu-item:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.04);
+    transform: none;
+    box-shadow: none;
+    opacity: 1;
+}
+
+.profile-menu-item svg {
+    width: 17px;
+    height: 17px;
+    flex: none;
+    stroke: #8b949e;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.profile-menu-item.danger {
+    color: #f0716f;
+}
+
+.profile-menu-item.danger svg {
+    stroke: #f0716f;
+}
+
+/* ---- Profile page (#profile) ---- */
+#profile {
+    padding: clamp(20px, 2.6vw, 34px);
+    background: #0b0e13;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+}
+
+#profile::before {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#profile h1 {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+#profile .page-header {
+    max-width: none;
+    margin-bottom: 16px;
+}
+
+#profile .page-header h1 {
+    margin: 0;
+    color: var(--soft-white);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    letter-spacing: -0.02em;
+}
+
+#profile .eyebrow {
+    margin-bottom: 6px;
+    color: #f0b64d;
+}
+
+.profile-content {
+    display: grid;
+    gap: 12px;
+    max-width: 640px;
+}
+
+.profile-card {
+    padding: 16px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.profile-identity {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.profile-identity-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-name {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 500;
+    font-size: 18px;
+    color: #eef2f6;
+}
+
+.profile-email {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    color: #8b949e;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.profile-provider {
+    flex: none;
+    padding: 5px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    color: #aab2be;
+    font-size: 11.5px;
+}
+
+.profile-broker-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.profile-broker-title {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    color: #eef2f6;
+}
+
+.profile-status {
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+}
+
+.profile-status.on {
+    background: rgba(78, 201, 138, 0.14);
+    color: #4ec98a;
+}
+
+.profile-status.off {
+    background: rgba(240, 182, 77, 0.14);
+    color: #f0b64d;
+}
+
+.profile-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.profile-lbl {
+    color: #7f8896;
+    font-size: 12px;
+}
+
+.profile-val {
+    color: #e6edf3;
+    font-size: 13px;
+}
+
+.profile-val.mono {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.profile-val.muted {
+    color: #7f8896;
+}
+
+.profile-connect-note {
+    margin: 10px 0 0;
+    color: #9aa3ae;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.profile-broker-actions {
+    margin-top: 16px;
+}
+
+.profile-manage {
+    padding: 9px 16px;
+    border: 0;
+    border-radius: 999px;
+    background: #f0b64d;
+    color: #1a1408;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.profile-manage:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+/* ---- Connect-broker modal ---- */
+.broker-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    background: rgba(3, 5, 8, 0.6);
+}
+
+.broker-modal.hidden {
+    display: none;
+}
+
+.broker-modal-card {
+    width: min(420px, 100%);
+    padding: 20px 22px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: #0e1116;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
+}
+
+.broker-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.broker-modal-head h3 {
+    margin: 0;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: #eef2f6;
+}
+
+.broker-modal-close {
+    padding: 2px 6px;
+    border: 0;
+    background: transparent;
+    color: #7f8896;
+    font-size: 20px;
+    line-height: 1;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.broker-modal-close:hover:not(:disabled) {
+    color: #e6edf3;
+    transform: none;
+    box-shadow: none;
+}
+
+.broker-modal-sub {
+    margin: 0 0 18px;
+    color: #8b949e;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.broker-field-label {
+    display: block;
+    margin: 0 0 6px;
+    color: #aab2be;
+    font-size: 12px;
+}
+
+.broker-field {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #e6edf3;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+}
+
+select.broker-field {
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.broker-field::placeholder {
+    color: #5f6773;
+}
+
+.broker-field:focus {
+    outline: none;
+    border-color: rgba(240, 182, 77, 0.5);
+}
+
+.broker-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 4px 0 18px;
+    color: #7f8896;
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+.broker-note svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    margin-top: 1px;
+    stroke: #4ec98a;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.broker-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.broker-actions button {
+    box-shadow: none;
+}
+
+.broker-submit {
+    flex: 1;
+    padding: 10px 0;
+    border: 0;
+    border-radius: 999px;
+    background: #f0b64d;
+    color: #1a1408;
+    font-weight: 500;
+    font-size: 13.5px;
+    cursor: pointer;
+}
+
+.broker-submit:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: none;
+    box-shadow: none;
+}
+
+.broker-cancel {
+    padding: 10px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: transparent;
+    color: #c3cad4;
+    font-size: 13.5px;
+    cursor: pointer;
+}
+
+.broker-cancel:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.04);
+    transform: none;
+    box-shadow: none;
+}
+
+.broker-error {
+    margin: 12px 0 0;
+    color: #f0716f;
+    font-size: 12.5px;
+}
+
+.broker-error.hidden {
+    display: none;
+}

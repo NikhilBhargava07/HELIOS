@@ -30,6 +30,10 @@ function showTab(tabName) {
         stopDashboardRefresh();
     }
 
+    if (tabName === "profile") {
+        loadProfile();
+    }
+
     if (tabName === "trends") {
         return;
     }

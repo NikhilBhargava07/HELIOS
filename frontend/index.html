@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="css/news.css?v=2">
     <link rel="stylesheet" href="css/market-take.css?v=2">
     <link rel="stylesheet" href="css/capital.css?v=2">
+    <link rel="stylesheet" href="css/profile.css?v=1">
 </head>
 <body>
     <!-- Toast message region used for short success/error feedback after actions like paper placing or discarding candidates. -->
@@ -66,8 +67,27 @@
         <nav class="topbar-actions">
             <a class="topbar-link" data-tab="home" href="#home">Home</a>
             <button id="explore-dashboard-secondary" class="topbar-explore" type="button">Explore</button>
-            <!-- Auth controls show the current Cognito/Google login state without blocking the prototype during testing. -->
-            <button id="auth-action" class="auth-action" type="button">Sign in</button>
+            <!-- Auth control: avatar opens the profile dropdown when signed in; "Sign in" when signed out. -->
+            <div class="profile-wrap">
+                <button id="auth-action" class="auth-action" type="button">Sign in</button>
+                <div id="profile-menu" class="profile-menu hidden">
+                    <div id="profile-menu-head" class="profile-menu-head"></div>
+                    <div class="profile-menu-sep"></div>
+                    <button class="profile-menu-item" type="button" data-profile-action="profile">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>
+                        Profile
+                    </button>
+                    <button class="profile-menu-item" type="button" data-profile-action="settings">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 3.5v2M12 18.5v2M5 7.5l1.7 1M17.3 15.5l1.7 1M5 16.5l1.7-1M17.3 8.5l1.7-1"></path></svg>
+                        Settings
+                    </button>
+                    <div class="profile-menu-sep"></div>
+                    <button class="profile-menu-item danger" type="button" data-profile-action="signout">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h9"></path><path d="M14 12H9M18 8l4 4-4 4"></path></svg>
+                        Sign out
+                    </button>
+                </div>
+            </div>
         </nav>
     </header>
 
@@ -197,17 +217,57 @@
                 No paper orders recorded yet.
             </div>
         </section>
+
+        <!-- Profile page: account identity and broker-connection status, reached from the avatar dropdown. -->
+        <section id="profile" class="panel tab-panel" data-panel="profile">
+            <div class="page-header compact">
+                <p class="eyebrow">Account</p>
+                <h1>Profile</h1>
+            </div>
+            <div id="profile-content" class="profile-content">Loading your profile...</div>
+        </section>
     </main>
+
+    <!-- Connect-broker modal: posts the API key + secret key to /api/profile/broker. -->
+    <div id="broker-modal" class="broker-modal hidden">
+        <div class="broker-modal-card">
+            <div class="broker-modal-head">
+                <h3>Connect your broker</h3>
+                <button id="broker-modal-close" class="broker-modal-close" type="button" aria-label="Close">&times;</button>
+            </div>
+            <p class="broker-modal-sub">HELIOS uses your Alpaca paper keys to place trades on your own account. Keys are stored per user.</p>
+            <form id="broker-form">
+                <label class="broker-field-label" for="broker-select">Broker</label>
+                <select id="broker-select" class="broker-field">
+                    <option value="alpaca">Alpaca (paper)</option>
+                </select>
+                <label class="broker-field-label" for="broker-api-key">API key</label>
+                <input id="broker-api-key" class="broker-field" type="text" autocomplete="off" placeholder="PK...">
+                <label class="broker-field-label" for="broker-secret-key">Secret key</label>
+                <input id="broker-secret-key" class="broker-field" type="password" autocomplete="off" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;">
+                <div class="broker-note">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                    <span>Your secret key is encrypted in AWS Secrets Manager and never shown again &mdash; you'll only re-enter it to change it.</span>
+                </div>
+                <div class="broker-actions">
+                    <button id="broker-submit" class="broker-submit" type="submit">Connect broker</button>
+                    <button id="broker-cancel" class="broker-cancel" type="button">Cancel</button>
+                </div>
+                <p id="broker-error" class="broker-error hidden"></p>
+            </form>
+        </div>
+    </div>
 
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
     <script src="js/api.js?v=4"></script>
     <script src="js/state.js?v=5"></script>
-    <script src="js/auth.js?v=4"></script>
+    <script src="js/auth.js?v=5"></script>
     <script src="js/formatters.js?v=2"></script>
     <script src="js/recommendation-renderers.js?v=7"></script>
     <script src="js/market-renderers.js?v=4"></script>
     <script src="js/loaders.js?v=6"></script>
     <script src="js/decisions.js?v=4"></script>
-    <script src="js/app.js?v=10"></script>
+    <script src="js/profile.js?v=1"></script>
+    <script src="js/app.js?v=11"></script>
 </body>
 </html>

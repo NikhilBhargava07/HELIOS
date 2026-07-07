@@ -250,6 +250,11 @@ function initializeAuth() {
     authButtons.forEach(authButton => {
         authButton.addEventListener("click", async () => {
             if (getSignedInUser()) {
+                // The topbar avatar opens the profile dropdown; other auth buttons sign out.
+                if (authButton.id === "auth-action" && typeof toggleProfileMenu === "function") {
+                    toggleProfileMenu();
+                    return;
+                }
                 logout();
                 return;
             }
