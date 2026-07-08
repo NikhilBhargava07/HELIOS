@@ -69,7 +69,7 @@
             <button id="explore-dashboard-secondary" class="topbar-explore" type="button">Explore</button>
             <!-- Auth control: avatar opens the profile dropdown when signed in; "Sign in" when signed out. -->
             <div class="profile-wrap">
-                <button id="auth-action" class="auth-action" type="button">Sign in</button>
+                <button id="auth-action" class="auth-action" type="button">Sign in / up</button>
                 <div id="profile-menu" class="profile-menu hidden">
                     <div id="profile-menu-head" class="profile-menu-head"></div>
                     <div class="profile-menu-sep"></div>
@@ -117,7 +117,7 @@
                     <p id="recommendation-status" class="status">Ready.</p>
                     <!-- Landing-page auth summary mirrors the topbar login state for first-time visitors. -->
                     <p id="auth-status" class="auth-status">Not signed in.</p>
-                    <button id="auth-action-home" class="auth-action home-auth-action" type="button">Sign in</button>
+                    <button id="auth-action-home" class="auth-action home-auth-action" type="button">Sign in / up</button>
                 </div>
                 <div class="hero-workflow" aria-label="AI workflow">
                     <p>AI workflow</p>
@@ -261,7 +261,7 @@
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
     <script src="js/api.js?v=4"></script>
     <script src="js/state.js?v=5"></script>
-    <script src="js/auth.js?v=5"></script>
+    <script src="js/auth.js?v=6"></script>
     <script src="js/formatters.js?v=2"></script>
     <script src="js/recommendation-renderers.js?v=7"></script>
     <script src="js/market-renderers.js?v=4"></script>

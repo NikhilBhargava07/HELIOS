@@ -102,7 +102,7 @@ function clearAuthSession() {
 // Update login/logout buttons and status text based on the current stored Cognito session.
 function renderAuthState() {
     const signedInUser = getSignedInUser();
-    const label = signedInUser ? "Sign out" : "Sign in";
+    const label = signedInUser ? "Sign out" : "Sign in / up";
     const status = signedInUser
         ? `Signed in as ${signedInUser.name || signedInUser.email}`
         : "Not signed in.";
