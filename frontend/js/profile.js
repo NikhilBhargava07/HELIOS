@@ -109,12 +109,17 @@ async function loadProfile() {
         const data = await response.json();
         latestProfile = data.profile || null;
         renderProfile(data);
+        if (data.needs_onboarding) {
+            showSignup(data.profile);
+        }
     } catch (error) {
         renderProfile({
             profile: { name: user?.name, email: user?.email, broker_connected: false },
             needs_onboarding: true,
             errored: true,
         });
+        showSignup(user);
+        showSignupError("HELIOS could not confirm your account setup. Reconnect your broker here to continue.");
     }
 }
 
@@ -351,16 +356,19 @@ function hideSignup() {
 
 /**
  * Gate the app on the sign-up screen when the signed-in user hasn't connected a broker yet.
- * Runs after Google login and on load; if the profile service can't be reached it never blocks the app.
+ * Runs after Google login and on load; a signed-in user stays gated until the backend confirms broker onboarding is complete.
  */
 async function checkOnboarding() {
     if (!isSignedIn() || !signupScreen) {
+        hideSignup();
         return;
     }
 
     try {
         const response = await apiFetch("/api/profile", { auth: true });
         if (!response.ok) {
+            showSignup(getSignedInUser());
+            showSignupError(await brokerErrorMessage(response));
             return;
         }
         const data = await response.json();
@@ -372,7 +380,8 @@ async function checkOnboarding() {
             hideSignup();
         }
     } catch (error) {
-        // Profile service unreachable — do not block the app.
+        showSignup(getSignedInUser());
+        showSignupError("HELIOS could not confirm your account setup. Refresh after signing in, or reconnect your broker here.");
     }
 }
 
