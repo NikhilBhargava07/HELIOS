@@ -272,5 +272,5 @@ function initializeAuth() {
     });
 
     renderAuthState();
-    handleAuthCallback();
+    return handleAuthCallback();
 }

@@ -202,10 +202,18 @@ window.addEventListener("scroll", () => {
     }
 }, { passive: true });
 
-initializeAuth();
-syncTabFromLocation();
+/**
+ * Start HELIOS after Cognito has had a chance to process the Google redirect.
+ * Without this await, the app can render as "signed in" navigation before the profile check has confirmed whether the user still needs onboarding.
+ */
+async function bootstrapApp() {
+    await initializeAuth();
+    syncTabFromLocation();
 
-// New users (or anyone who hasn't connected a broker) are gated on the sign-up screen.
-if (isSignedIn() && typeof checkOnboarding === "function") {
-    checkOnboarding();
+    // New users (or anyone who hasn't connected a broker) are gated on the sign-up screen.
+    if (isSignedIn() && typeof checkOnboarding === "function") {
+        await checkOnboarding();
+    }
 }
+
+bootstrapApp();
