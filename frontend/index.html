@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="css/news.css?v=2">
     <link rel="stylesheet" href="css/market-take.css?v=2">
     <link rel="stylesheet" href="css/capital.css?v=2">
-    <link rel="stylesheet" href="css/profile.css?v=1">
+    <link rel="stylesheet" href="css/profile.css?v=2">
 </head>
 <body>
     <!-- Toast message region used for short success/error feedback after actions like paper placing or discarding candidates. -->
@@ -228,6 +228,52 @@
         </section>
     </main>
 
+    <!-- New-user sign-up gate: shown after Google auth when the account still needs a broker connected. -->
+    <div id="signup-screen" class="signup-screen hidden">
+        <div class="signup-inner">
+            <a class="signup-brand" href="#home">
+                <svg class="topbar-mark" viewBox="0 0 64 64" aria-hidden="true">
+                    <circle cx="32" cy="32" r="21"></circle>
+                    <path d="M32 11c7 8 7 34 0 42M32 11c-7 8-7 34 0 42"></path>
+                    <path d="M13 24c12-5 26-5 38 0M13 40c12 5 26 5 38 0"></path>
+                </svg>
+                <span class="topbar-wordmark">HELIOS</span>
+            </a>
+            <div class="signup-card">
+                <h2 class="signup-title">Create your HELIOS account</h2>
+                <p class="signup-sub">You're signed in with Google. Connect a brokerage to start trading with HELIOS.</p>
+                <form id="signup-form">
+                    <label class="broker-field-label">Email</label>
+                    <div class="signup-email">
+                        <span id="signup-email"></span>
+                        <span class="signup-google">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>
+                            Google
+                        </span>
+                    </div>
+                    <label class="broker-field-label" for="signup-broker">Brokerage</label>
+                    <select id="signup-broker" class="broker-field">
+                        <option value="alpaca">Alpaca (paper)</option>
+                        <option value="robinhood" disabled>Robinhood — coming soon</option>
+                        <option value="wealthfront" disabled>Wealthfront — coming soon</option>
+                        <option value="tradier" disabled>Tradier — coming soon</option>
+                    </select>
+                    <label class="broker-field-label" for="signup-api-key">API key</label>
+                    <input id="signup-api-key" class="broker-field" type="text" autocomplete="off" placeholder="Your Alpaca API key">
+                    <label class="broker-field-label" for="signup-secret-key">Secret key</label>
+                    <input id="signup-secret-key" class="broker-field" type="password" autocomplete="off" placeholder="Your Alpaca secret key">
+                    <div class="broker-note">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                        <span>Your secret key is encrypted in AWS Secrets Manager and never shown again.</span>
+                    </div>
+                    <button id="signup-submit" class="signup-submit" type="submit">Create account and sign in</button>
+                    <p id="signup-error" class="broker-error hidden"></p>
+                </form>
+                <div class="signup-foot">Signed in as <span id="signup-account-email"></span> &middot; <button id="signup-switch" type="button" class="signup-switch">Switch account</button></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Connect-broker modal: posts the API key + secret key to /api/profile/broker. -->
     <div id="broker-modal" class="broker-modal hidden">
         <div class="broker-modal-card">
@@ -240,6 +286,9 @@
                 <label class="broker-field-label" for="broker-select">Broker</label>
                 <select id="broker-select" class="broker-field">
                     <option value="alpaca">Alpaca (paper)</option>
+                    <option value="robinhood" disabled>Robinhood — coming soon</option>
+                    <option value="wealthfront" disabled>Wealthfront — coming soon</option>
+                    <option value="tradier" disabled>Tradier — coming soon</option>
                 </select>
                 <label class="broker-field-label" for="broker-api-key">API key</label>
                 <input id="broker-api-key" class="broker-field" type="text" autocomplete="off" placeholder="PK...">
@@ -261,13 +310,13 @@
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
     <script src="js/api.js?v=4"></script>
     <script src="js/state.js?v=5"></script>
-    <script src="js/auth.js?v=6"></script>
+    <script src="js/auth.js?v=7"></script>
     <script src="js/formatters.js?v=2"></script>
     <script src="js/recommendation-renderers.js?v=7"></script>
     <script src="js/market-renderers.js?v=4"></script>
     <script src="js/loaders.js?v=6"></script>
     <script src="js/decisions.js?v=4"></script>
-    <script src="js/profile.js?v=1"></script>
-    <script src="js/app.js?v=11"></script>
+    <script src="js/profile.js?v=2"></script>
+    <script src="js/app.js?v=12"></script>
 </body>
 </html>

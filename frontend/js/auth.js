@@ -224,6 +224,10 @@ async function handleAuthCallback() {
         renderAuthState();
         syncTabFromLocation();
         showToast("Signed in", "Google login is connected through Cognito.");
+
+        if (typeof checkOnboarding === "function") {
+            checkOnboarding();
+        }
     } catch (error) {
         cleanAuthQueryParams();
         clearAuthSession();

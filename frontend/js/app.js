@@ -204,3 +204,8 @@ window.addEventListener("scroll", () => {
 
 initializeAuth();
 syncTabFromLocation();
+
+// New users (or anyone who hasn't connected a broker) are gated on the sign-up screen.
+if (isSignedIn() && typeof checkOnboarding === "function") {
+    checkOnboarding();
+}

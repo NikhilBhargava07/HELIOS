@@ -45,6 +45,12 @@ function profileDate(value) {
     return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
+/** Clean up an Alpaca account status string (e.g. "AccountStatus.ACTIVE") for display. */
+function prettyStatus(status) {
+    const value = String(status || "").replace(/^AccountStatus\./, "").replace(/_/g, " ").trim().toLowerCase();
+    return value ? value.charAt(0).toUpperCase() + value.slice(1) : "—";
+}
+
 /** Show or hide the avatar dropdown, refreshing its header when opening. */
 function toggleProfileMenu() {
     if (!profileMenu) {
@@ -141,6 +147,8 @@ function renderProfile(data) {
             </div>
             ${connected ? `
                 <div class="profile-row"><span class="profile-lbl">Broker</span><span class="profile-val">${escapeHtml(brokerLabel(profile.broker))}</span></div>
+                ${profile.broker_account_number ? `<div class="profile-row"><span class="profile-lbl">Account</span><span class="profile-val mono">${escapeHtml(profile.broker_account_number)}</span></div>` : ""}
+                ${profile.broker_account_status ? `<div class="profile-row"><span class="profile-lbl">Status</span><span class="profile-val">${escapeHtml(prettyStatus(profile.broker_account_status))}</span></div>` : ""}
                 <div class="profile-row"><span class="profile-lbl">API key</span><span class="profile-val mono">${escapeHtml(maskKey(profile.broker_api_key))}</span></div>
                 <div class="profile-row"><span class="profile-lbl">Secret key</span><span class="profile-val muted">Stored securely &middot; hidden</span></div>
                 <div class="profile-row"><span class="profile-lbl">Connected on</span><span class="profile-val mono">${escapeHtml(profileDate(profile.created_at))}</span></div>
@@ -298,3 +306,118 @@ brokerForm?.addEventListener("submit", async (event) => {
         submitButton.textContent = "Connect broker";
     }
 });
+
+
+// ---- New-user sign-up gate (shown when GET /api/profile reports needs_onboarding) ----
+
+const signupScreen = document.querySelector("#signup-screen");
+const signupForm = document.querySelector("#signup-form");
+const signupError = document.querySelector("#signup-error");
+
+/** Show an inline error inside the sign-up screen. */
+function showSignupError(message) {
+    if (!signupError) {
+        return;
+    }
+    signupError.textContent = message;
+    signupError.classList.remove("hidden");
+}
+
+/** Show the full-screen sign-up gate, prefilling the email from the signed-in session. */
+function showSignup(profile) {
+    if (!signupScreen) {
+        return;
+    }
+    const user = getSignedInUser();
+    const email = profile?.email || user?.email || "";
+    const emailField = document.querySelector("#signup-email");
+    const accountEmail = document.querySelector("#signup-account-email");
+    if (emailField) {
+        emailField.textContent = email;
+    }
+    if (accountEmail) {
+        accountEmail.textContent = email;
+    }
+    signupError?.classList.add("hidden");
+    document.body.classList.add("onboarding");
+    signupScreen.classList.remove("hidden");
+}
+
+/** Hide the sign-up gate. */
+function hideSignup() {
+    document.body.classList.remove("onboarding");
+    signupScreen?.classList.add("hidden");
+}
+
+/**
+ * Gate the app on the sign-up screen when the signed-in user hasn't connected a broker yet.
+ * Runs after Google login and on load; if the profile service can't be reached it never blocks the app.
+ */
+async function checkOnboarding() {
+    if (!isSignedIn() || !signupScreen) {
+        return;
+    }
+
+    try {
+        const response = await apiFetch("/api/profile", { auth: true });
+        if (!response.ok) {
+            return;
+        }
+        const data = await response.json();
+        latestProfile = data.profile || null;
+
+        if (data.needs_onboarding) {
+            showSignup(data.profile);
+        } else {
+            hideSignup();
+        }
+    } catch (error) {
+        // Profile service unreachable — do not block the app.
+    }
+}
+
+// Submit a new user's broker credentials to create their HELIOS account.
+signupForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const broker = document.querySelector("#signup-broker").value;
+    const apiKey = document.querySelector("#signup-api-key").value.trim();
+    const secretKey = document.querySelector("#signup-secret-key").value.trim();
+
+    if (!apiKey || !secretKey) {
+        showSignupError("Enter both your API key and secret key.");
+        return;
+    }
+
+    const submitButton = document.querySelector("#signup-submit");
+    signupError?.classList.add("hidden");
+    submitButton.disabled = true;
+    submitButton.textContent = "Creating account...";
+
+    try {
+        const response = await apiFetch("/api/profile/broker", {
+            auth: true,
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ broker, broker_api_key: apiKey, broker_secret_key: secretKey }),
+        });
+
+        if (!response.ok) {
+            throw new Error(await brokerErrorMessage(response));
+        }
+
+        const data = await response.json();
+        latestProfile = data.profile || null;
+        hideSignup();
+        showToast("Account created", "Your broker is connected. Welcome to HELIOS.");
+        window.location.hash = "#recommendations";
+    } catch (error) {
+        showSignupError(error.message || "Couldn't create your account. Please try again.");
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Create account and sign in";
+    }
+});
+
+// "Switch account" signs out so the user can choose a different Google account.
+document.querySelector("#signup-switch")?.addEventListener("click", logout);
