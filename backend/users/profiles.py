@@ -32,6 +32,10 @@ def public_profile(profile):
         "name": profile.get("name"),
         "broker": profile.get("broker"),
         "broker_api_key": profile.get("broker_api_key"),
+        "broker_account_id": profile.get("broker_account_id"),
+        "broker_account_number": profile.get("broker_account_number"),
+        "broker_account_status": profile.get("broker_account_status"),
+        "broker_account_currency": profile.get("broker_account_currency"),
         "broker_connected": bool(profile.get("broker") and profile.get("broker_secret_arn")),
         "created_at": profile.get("created_at"),
         "updated_at": profile.get("updated_at"),
@@ -47,10 +51,11 @@ def get_user_profile(user_id):
 
 ## Save or update the signed-in user's broker setup.
 ## The API key is stored in DynamoDB because the profile page may display it; the secret key is stored separately in Secrets Manager.
-def save_broker_profile(user: AuthenticatedUser, broker, broker_api_key, broker_secret_key):
+def save_broker_profile(user: AuthenticatedUser, broker, broker_api_key, broker_secret_key, broker_account=None):
     now = utc_now_text()
     existing_profile = get_user_profile(user.user_id) or {}
     secret_arn = save_broker_secret(user.user_id, broker, broker_secret_key)
+    broker_account = broker_account or {}
 
     profile = {
         "pk": user_profile_pk(user.user_id),
@@ -62,6 +67,10 @@ def save_broker_profile(user: AuthenticatedUser, broker, broker_api_key, broker_
         "broker": broker,
         "broker_api_key": broker_api_key,
         "broker_secret_arn": secret_arn,
+        "broker_account_id": broker_account.get("account_id"),
+        "broker_account_number": broker_account.get("account_number"),
+        "broker_account_status": broker_account.get("status"),
+        "broker_account_currency": broker_account.get("currency"),
         "created_at": existing_profile.get("created_at", now),
         "updated_at": now,
     }
@@ -83,3 +92,18 @@ def get_user_broker_credentials(user_id):
         "api_key": profile.get("broker_api_key"),
         "secret_key": get_broker_secret(profile["broker_secret_arn"]),
     }
+
+
+## Create a broker trading client for a signed-in user's saved brokerage profile.
+## Routes use this to read positions and submit paper orders against the user's own Alpaca account instead of the deployment-level fallback account.
+def get_user_trading_client(user_id):
+    from backend.broker.trading import create_trading_client
+
+    credentials = get_user_broker_credentials(user_id)
+    if not credentials:
+        return None
+
+    if credentials.get("broker") != "alpaca":
+        return None
+
+    return create_trading_client(credentials["api_key"], credentials["secret_key"])

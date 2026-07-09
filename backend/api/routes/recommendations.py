@@ -1,6 +1,6 @@
 ## Recommendation generation and user-decision HTTP routes.
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Request
 
 from backend.api.schemas import UserDecisionAction, UserDecisionRequest
 from backend.api.services import (
@@ -9,6 +9,7 @@ from backend.api.services import (
     compact_dashboard_memory_context,
     get_dashboard_with_cash_context,
     get_effective_available_csp_cash,
+    get_optional_user_trading_client,
     get_safe_paper_account_summary,
     require_candidate,
     require_recommendation_run,
@@ -29,9 +30,10 @@ router = APIRouter(prefix="/api", tags=["recommendations"])
 @router.get("/recommendations")
 ## Generate a fresh CSP recommendation run for the frontend.
 ## The route scans candidates, adds market and memory context, asks the review agent, saves the run, and returns dashboard data in one response.
-def get_recommendations(background_tasks: BackgroundTasks):
-    alpaca_account = get_safe_paper_account_summary()
-    dashboard = get_dashboard_with_cash_context(alpaca_account)
+def get_recommendations(background_tasks: BackgroundTasks, request: Request):
+    trading_client = get_optional_user_trading_client(request)
+    alpaca_account = get_safe_paper_account_summary(trading_client=trading_client)
+    dashboard = get_dashboard_with_cash_context(alpaca_account, trading_client=trading_client)
     capital = dashboard["capital"]
     effective_cash = get_effective_available_csp_cash(capital, alpaca_account)
     results = get_recommendation_results(
@@ -78,7 +80,8 @@ def get_recommendations(background_tasks: BackgroundTasks):
 @router.post("/decisions")
 ## Record a user decision from the recommendation cards.
 ## Paper-place actions are submitted to Alpaca first, then the decision is stored in memory so later learning can compare recommendation versus user behavior.
-def post_user_decision(request: UserDecisionRequest):
+def post_user_decision(request: UserDecisionRequest, http_request: Request):
+    trading_client = get_optional_user_trading_client(http_request)
     alpaca_order = None
     alpaca_account = None
     order_error = None
@@ -88,7 +91,7 @@ def post_user_decision(request: UserDecisionRequest):
         try:
             run = require_recommendation_run(request.recommendation_run_id)
             candidate = require_candidate(run, request.contract_symbol)
-            alpaca_account = get_safe_paper_account_summary()
+            alpaca_account = get_safe_paper_account_summary(trading_client=trading_client)
             available_cash = alpaca_account.get("available_csp_cash")
             cash_required = float(candidate.get("cashRequired") or 0)
             if available_cash is not None and cash_required > available_cash:
@@ -96,7 +99,7 @@ def post_user_decision(request: UserDecisionRequest):
                     f"Insufficient Alpaca paper buying power. This CSP requires ${cash_required:,.2f}, "
                     f"but Alpaca reports ${available_cash:,.2f} available."
                 )
-            alpaca_order = submit_cash_secured_put_order(candidate)
+            alpaca_order = submit_cash_secured_put_order(candidate, trading_client=trading_client)
         except Exception as error:
             store_action = "place_paper_order_failed"
             order_error = str(error)
@@ -107,7 +110,7 @@ def post_user_decision(request: UserDecisionRequest):
             return {
                 "decision": decision, "order_submitted": False,
                 "order_error": order_error, "refresh_recommendations": True,
-                "dashboard": get_dashboard_with_cash_context(alpaca_account),
+                "dashboard": get_dashboard_with_cash_context(alpaca_account, trading_client=trading_client),
             }
 
     decision = record_user_decision(
@@ -118,5 +121,5 @@ def post_user_decision(request: UserDecisionRequest):
         "decision": decision, "order_submitted": alpaca_order is not None,
         "alpaca_order": alpaca_order,
         "refresh_recommendations": request.action == UserDecisionAction.PLACE_PAPER_ORDER,
-        "dashboard": get_dashboard_with_cash_context(),
+        "dashboard": get_dashboard_with_cash_context(trading_client=trading_client),
     }

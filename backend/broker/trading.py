@@ -36,6 +36,23 @@ def get_trading_client():
     return create_trading_client(api_key, secret_key)
 
 
+## Validate a user-supplied Alpaca paper credential pair with a read-only account call.
+## Signup/onboarding uses this before saving anything so fake or mismatched broker keys do not become a HELIOS profile.
+def validate_alpaca_paper_credentials(api_key, secret_key):
+    account = create_trading_client(api_key, secret_key).get_account()
+    raw_account = serialize_alpaca_model(account)
+
+    return {
+        "account_id": raw_account.get("id"),
+        "account_number": raw_account.get("account_number"),
+        "status": str(raw_account.get("status")),
+        "currency": raw_account.get("currency"),
+        "cash": number_or_none(raw_account.get("cash")),
+        "portfolio_value": first_number(raw_account, "portfolio_value", "equity", "cash"),
+        "equity": first_number(raw_account, "equity"),
+    }
+
+
 ## Choose a conservative limit credit for selling one put contract.
 ## HELIOS starts from the candidate bid/premium data because CSP recommendations should assume the user receives a real quoted credit.
 def option_limit_price_from_candidate(candidate):
@@ -87,8 +104,9 @@ def first_number(raw_data, *keys):
 
 ## Read live paper-account balances and buying power from Alpaca.
 ## The resulting summary drives effective CSP cash, dashboard totals, and pre-trade affordability checks.
-def get_paper_account_summary():
-    account = get_trading_client().get_account()
+def get_paper_account_summary(trading_client=None):
+    trading_client = trading_client or get_trading_client()
+    account = trading_client.get_account()
     raw_account = serialize_alpaca_model(account)
     buying_power = first_number(
         raw_account,
@@ -184,27 +202,29 @@ def normalize_paper_position(raw_position):
 
 ## Fetch and normalize all open positions from the Alpaca paper account.
 ## The dashboard relies on this live broker view rather than stale local memory whenever possible.
-def get_paper_positions():
+def get_paper_positions(trading_client=None):
+    trading_client = trading_client or get_trading_client()
     return [
         normalize_paper_position(serialize_alpaca_model(model))
-        for model in get_trading_client().get_all_positions()
+        for model in trading_client.get_all_positions()
     ]
 
 
 ## Fetch recent Alpaca paper orders for reconciliation.
 ## Canceled orders are later filtered from display, while active/filled orders keep HELIOS memory aligned with the broker.
-def get_paper_orders(limit=500):
+def get_paper_orders(limit=500, trading_client=None):
+    trading_client = trading_client or get_trading_client()
     request = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=limit)
     return [
         serialize_alpaca_model(order)
-        for order in get_trading_client().get_orders(filter=request)
+        for order in trading_client.get_orders(filter=request)
     ]
 
 
 ## Submit a one-contract sell-to-open put limit order to Alpaca paper trading.
 ## The function intentionally supports only the recommended CSP flow so the prototype cannot place arbitrary trade types.
-def submit_cash_secured_put_order(candidate):
-    trading_client = get_trading_client()
+def submit_cash_secured_put_order(candidate, trading_client=None):
+    trading_client = trading_client or get_trading_client()
     contract_symbol = candidate["contractSymbol"]
     limit_price = option_limit_price_from_candidate(candidate)
 

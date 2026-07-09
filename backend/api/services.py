@@ -2,6 +2,8 @@
 
 import logging
 
+from fastapi import HTTPException
+
 from backend.broker.trading import (
     get_paper_account_summary,
     get_paper_orders,
@@ -16,9 +18,29 @@ from backend.config import (
 from backend.memory.capital_and_positions import get_dashboard_data
 from backend.memory.recommendations import find_candidate, get_recommendation_run
 from backend.memory.trades import reconcile_paper_orders
+from backend.users.auth import require_authenticated_user
+from backend.users.profiles import get_user_trading_client
 
 
 logger = logging.getLogger(__name__)
+
+
+## Try to build a user-specific Alpaca trading client from the authenticated request.
+## If the route is unauthenticated or the user has not onboarded broker keys yet, HELIOS falls back to the deployment-level client for now.
+def get_optional_user_trading_client(request=None):
+    if request is None:
+        return None
+
+    try:
+        user = require_authenticated_user(request)
+    except HTTPException:
+        return None
+
+    try:
+        return get_user_trading_client(user.user_id)
+    except Exception as error:
+        logger.warning("User broker client lookup failed: %s", type(error).__name__)
+        return None
 
 
 ## Fetch a saved recommendation run before a user acts on one of its contracts.
@@ -61,9 +83,9 @@ def candidates_to_records(candidates):
 
 ## Read Alpaca paper account balances while shielding routes from broker outages.
 ## If Alpaca is unavailable, the caller receives an explicit account_error instead of a crashed dashboard or recommendation response.
-def get_safe_paper_account_summary():
+def get_safe_paper_account_summary(trading_client=None):
     try:
-        return get_paper_account_summary()
+        return get_paper_account_summary(trading_client=trading_client)
     except Exception as error:
         logger.warning("Paper account lookup failed: %s", type(error).__name__)
         return {"available_csp_cash": None, "account_error": "Paper account unavailable."}
@@ -71,9 +93,9 @@ def get_safe_paper_account_summary():
 
 ## Read and normalize all current Alpaca paper positions.
 ## The returned error string lets the UI explain that live positions failed while still falling back to saved HELIOS memory where possible.
-def get_safe_paper_positions():
+def get_safe_paper_positions(trading_client=None):
     try:
-        return get_paper_positions(), None
+        return get_paper_positions(trading_client=trading_client), None
     except Exception as error:
         logger.warning("Paper position lookup failed: %s", type(error).__name__)
         return None, "Paper positions unavailable."
@@ -109,9 +131,9 @@ def account_total_capital(alpaca_account):
 
 ## Sync recent Alpaca orders into HELIOS memory without blocking the dashboard.
 ## Order reconciliation is helpful for history, but a temporary Alpaca failure should not prevent users from seeing current positions.
-def reconcile_orders_safely():
+def reconcile_orders_safely(trading_client=None):
     try:
-        return reconcile_paper_orders(get_paper_orders()), None
+        return reconcile_paper_orders(get_paper_orders(trading_client=trading_client)), None
     except Exception as error:
         logger.warning("Paper order synchronization failed: %s", type(error).__name__)
         return 0, "Paper order synchronization unavailable."
@@ -162,12 +184,12 @@ def compact_dashboard_memory_context(dashboard, trigger=None):
 
 ## Build the Capital & Positions payload shown in the frontend dashboard.
 ## This combines saved HELIOS memory, reconciled orders, live Alpaca positions, and current buying power into one response for the UI.
-def get_dashboard_with_cash_context(alpaca_account=None):
-    reconciled_orders, order_sync_error = reconcile_orders_safely()
-    safe_account = alpaca_account or get_safe_paper_account_summary()
+def get_dashboard_with_cash_context(alpaca_account=None, trading_client=None):
+    reconciled_orders, order_sync_error = reconcile_orders_safely(trading_client=trading_client)
+    safe_account = alpaca_account or get_safe_paper_account_summary(trading_client=trading_client)
     live_total_capital = account_total_capital(safe_account)
     dashboard = get_dashboard_data(live_total_capital, MAX_CSP_CAPITAL_PERCENT, MAX_OPEN_POSITIONS)
-    alpaca_positions, position_error = get_safe_paper_positions()
+    alpaca_positions, position_error = get_safe_paper_positions(trading_client=trading_client)
 
     if alpaca_positions is not None:
         csp_positions = csp_positions_from_all_positions(alpaca_positions)

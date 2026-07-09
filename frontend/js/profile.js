@@ -96,7 +96,7 @@ async function loadProfile() {
     });
 
     try {
-        const response = await apiFetch("/api/profile");
+        const response = await apiFetch("/api/profile", { auth: true });
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
         }
@@ -191,6 +191,25 @@ function showBrokerError(message) {
     brokerError.classList.remove("hidden");
 }
 
+// Extract the most useful backend error text so profile setup failures explain what actually went wrong.
+async function brokerErrorMessage(response) {
+    try {
+        const data = await response.json();
+
+        if (data?.detail) {
+            return data.detail;
+        }
+    } catch {
+        // If the response is not JSON, fall through to a status-based explanation.
+    }
+
+    if (response.status === 401 || response.status === 403) {
+        return "Your login session expired. Sign out, sign in again, then reconnect Alpaca.";
+    }
+
+    return "Couldn't save your broker keys. Please try again.";
+}
+
 // Dropdown item actions: Profile navigates, Settings opens the form, Sign out logs out.
 profileMenu?.addEventListener("click", (event) => {
     const item = event.target.closest("[data-profile-action]");
@@ -257,13 +276,14 @@ brokerForm?.addEventListener("submit", async (event) => {
 
     try {
         const response = await apiFetch("/api/profile/broker", {
+            auth: true,
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ broker, broker_api_key: apiKey, broker_secret_key: secretKey }),
         });
 
         if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`);
+            throw new Error(await brokerErrorMessage(response));
         }
 
         const data = await response.json();
@@ -272,7 +292,7 @@ brokerForm?.addEventListener("submit", async (event) => {
         showToast("Broker connected", "Your broker keys are saved.");
         renderProfile(data);
     } catch (error) {
-        showBrokerError("Couldn't save your broker keys. Please try again.");
+        showBrokerError(error.message || "Couldn't save your broker keys. Please try again.");
     } finally {
         submitButton.disabled = false;
         submitButton.textContent = "Connect broker";

@@ -4,9 +4,10 @@
 ## require a Cognito-authenticated request, store visible profile metadata in
 ## DynamoDB, and keep broker secret keys in AWS Secrets Manager.
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from backend.api.schemas import BrokerProfileRequest
+from backend.broker.trading import validate_alpaca_paper_credentials
 from backend.users.auth import require_authenticated_user
 from backend.users.profiles import (
     get_user_profile,
@@ -40,11 +41,30 @@ def get_profile(request: Request):
 ## The broker API key is stored with the profile for display; the broker secret key is written to Secrets Manager and is never returned.
 def post_broker_profile(payload: BrokerProfileRequest, request: Request):
     user = require_authenticated_user(request)
+    broker = payload.broker.strip().lower()
+    broker_api_key = payload.broker_api_key.strip()
+    broker_secret_key = payload.broker_secret_key.strip()
+
+    if broker != "alpaca":
+        raise HTTPException(
+            status_code=400,
+            detail="Alpaca paper trading is the only supported brokerage right now.",
+        )
+
+    try:
+        broker_account = validate_alpaca_paper_credentials(broker_api_key, broker_secret_key)
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Alpaca rejected those API credentials. Check that they belong to a paper-trading account.",
+        ) from None
+
     profile = save_broker_profile(
         user=user,
-        broker=payload.broker.strip().lower(),
-        broker_api_key=payload.broker_api_key.strip(),
-        broker_secret_key=payload.broker_secret_key.strip(),
+        broker=broker,
+        broker_api_key=broker_api_key,
+        broker_secret_key=broker_secret_key,
+        broker_account=broker_account,
     )
 
     return {
