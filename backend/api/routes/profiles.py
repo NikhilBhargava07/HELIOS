@@ -1,8 +1,9 @@
 ## User profile and broker-credential setup HTTP routes.
 ##
 ## These routes are backend-only foundations for the later Profile UI. They
-## require a Cognito-authenticated request, store visible profile metadata in
-## DynamoDB, and keep broker secret keys in AWS Secrets Manager.
+## require a Cognito-authenticated request and store broker setup data in
+## DynamoDB for the private paper-trading prototype. Broker secret storage must
+## move to AWS Secrets Manager before public launch or live-money trading.
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -38,7 +39,7 @@ def get_profile(request: Request):
 
 @router.post("/broker")
 ## Save or update the signed-in user's broker credentials.
-## The broker API key is stored with the profile for display; the broker secret key is written to Secrets Manager and is never returned.
+## The broker API key is stored with the profile for display; the broker secret key is stored through the secrets module and is never returned.
 def post_broker_profile(payload: BrokerProfileRequest, request: Request):
     user = require_authenticated_user(request)
     broker = payload.broker.strip().lower()

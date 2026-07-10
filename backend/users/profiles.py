@@ -1,8 +1,9 @@
 ## DynamoDB profile records for Cognito users and broker setup metadata.
 ##
 ## Profile records answer frontend questions like "is onboarding complete?"
-## and backend questions like "which broker API key and secret ARN belong to
-## this signed-in user?" The actual broker secret key stays in Secrets Manager.
+## and backend questions like "which broker API key and secret pointer belong to
+## this signed-in user?" Secret storage is currently DynamoDB-backed for the
+## private paper-trading prototype and should move to Secrets Manager later.
 
 from backend.memory.dynamodb_store import (
     from_dynamodb_value,
@@ -50,7 +51,7 @@ def get_user_profile(user_id):
 
 
 ## Save or update the signed-in user's broker setup.
-## The API key is stored in DynamoDB because the profile page may display it; the secret key is stored separately in Secrets Manager.
+## The API key is stored in DynamoDB because the profile page may display it; the secret key is stored separately through the secrets module.
 def save_broker_profile(user: AuthenticatedUser, broker, broker_api_key, broker_secret_key, broker_account=None):
     now = utc_now_text()
     existing_profile = get_user_profile(user.user_id) or {}

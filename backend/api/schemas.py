@@ -38,7 +38,7 @@ class TradeOutcomeRequest(BaseModel):
 
 
 ## Validate broker onboarding data after a user signs in with Google/Cognito.
-## The frontend should send the broker API key and secret key once; the backend stores the secret key in Secrets Manager.
+## The frontend sends the broker API key and secret key once; the backend stores the secret key through the current secret-storage layer.
 class BrokerProfileRequest(BaseModel):
 
     broker: str = "alpaca"
