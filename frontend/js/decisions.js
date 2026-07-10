@@ -10,6 +10,7 @@ async function submitDecision(action, contractSymbol) {
 
     try {
         const response = await apiFetch("/api/decisions", {
+            auth: true,
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

@@ -1,7 +1,6 @@
 ## Read Alpaca paper-account state and submit CSP paper orders.
 
 import re
-from functools import lru_cache
 from uuid import uuid4
 
 from alpaca.trading.client import TradingClient
@@ -13,8 +12,6 @@ from alpaca.trading.enums import (
     TimeInForce,
 )
 from alpaca.trading.requests import GetOrdersRequest, LimitOrderRequest
-from backend.broker.clients import get_alpaca_credentials
-
 OPTION_SYMBOL_PATTERN = re.compile(
     r"^(?P<ticker>[A-Z.]+)(?P<expiration>\d{6})(?P<type>[CP])(?P<strike>\d{8})$"
 )
@@ -26,14 +23,12 @@ def create_trading_client(api_key, secret_key):
     return TradingClient(api_key, secret_key, paper=True)
 
 
-## Create a cached authenticated client pinned to Alpaca paper trading.
-@lru_cache(maxsize=1)
-## Create an Alpaca trading client connected to the configured paper account.
-## All account, order, and position actions go through this helper so credentials and paper/live mode remain centralized.
-def get_trading_client():
-    api_key, secret_key = get_alpaca_credentials()
-
-    return create_trading_client(api_key, secret_key)
+## Require callers to pass an explicit trading client.
+## This prevents old APCA/ALPACA env keys from being used silently when a signed-in user has not connected broker credentials.
+def require_trading_client(trading_client):
+    if trading_client is None:
+        raise ValueError("Explicit Alpaca trading client required. Connect a user broker profile first.")
+    return trading_client
 
 
 ## Validate a user-supplied Alpaca paper credential pair with a read-only account call.
@@ -105,7 +100,7 @@ def first_number(raw_data, *keys):
 ## Read live paper-account balances and buying power from Alpaca.
 ## The resulting summary drives effective CSP cash, dashboard totals, and pre-trade affordability checks.
 def get_paper_account_summary(trading_client=None):
-    trading_client = trading_client or get_trading_client()
+    trading_client = require_trading_client(trading_client)
     account = trading_client.get_account()
     raw_account = serialize_alpaca_model(account)
     buying_power = first_number(
@@ -203,7 +198,7 @@ def normalize_paper_position(raw_position):
 ## Fetch and normalize all open positions from the Alpaca paper account.
 ## The dashboard relies on this live broker view rather than stale local memory whenever possible.
 def get_paper_positions(trading_client=None):
-    trading_client = trading_client or get_trading_client()
+    trading_client = require_trading_client(trading_client)
     return [
         normalize_paper_position(serialize_alpaca_model(model))
         for model in trading_client.get_all_positions()
@@ -213,7 +208,7 @@ def get_paper_positions(trading_client=None):
 ## Fetch recent Alpaca paper orders for reconciliation.
 ## Canceled orders are later filtered from display, while active/filled orders keep HELIOS memory aligned with the broker.
 def get_paper_orders(limit=500, trading_client=None):
-    trading_client = trading_client or get_trading_client()
+    trading_client = require_trading_client(trading_client)
     request = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=limit)
     return [
         serialize_alpaca_model(order)
@@ -224,7 +219,7 @@ def get_paper_orders(limit=500, trading_client=None):
 ## Submit a one-contract sell-to-open put limit order to Alpaca paper trading.
 ## The function intentionally supports only the recommended CSP flow so the prototype cannot place arbitrary trade types.
 def submit_cash_secured_put_order(candidate, trading_client=None):
-    trading_client = trading_client or get_trading_client()
+    trading_client = require_trading_client(trading_client)
     contract_symbol = candidate["contractSymbol"]
     limit_price = option_limit_price_from_candidate(candidate)
 

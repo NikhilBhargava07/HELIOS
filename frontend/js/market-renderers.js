@@ -149,7 +149,7 @@ async function refreshLatestPrices() {
     }
 
     try {
-        const response = await apiFetch("/api/market/prices");
+        const response = await apiFetch("/api/market/prices", { auth: true });
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);

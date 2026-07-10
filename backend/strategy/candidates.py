@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from alpaca.data.enums import DataFeed, OptionsFeed
 from alpaca.data.requests import OptionChainRequest, StockLatestTradeRequest
 from alpaca.trading.enums import ContractType
-from backend.broker.clients import get_option_data_client, get_stock_data_client
 from backend.strategy.dates import calculate_dte
 
 ## Parse an OCC option contract symbol into ticker, expiration, option type, and strike.
@@ -21,8 +20,7 @@ def parse_option_symbol(contract_symbol):
 
 ## Fetch the latest stock price for one ticker from Alpaca.
 ## The current underlying price is needed for strike distance, breakeven context, and dashboard display.
-def get_latest_stock_price(ticker_symbol):
-    stock_data_client = get_stock_data_client()
+def get_latest_stock_price(ticker_symbol, stock_data_client):
     request = StockLatestTradeRequest(
         symbol_or_symbols=ticker_symbol,
         feed=DataFeed.IEX,
@@ -185,8 +183,12 @@ def find_csp_candidates(
     min_roc_percent,
     available_capital,
     current_stock_price=None,
+    stock_data_client=None,
+    option_data_client=None,
 ):
-    option_data_client = get_option_data_client()
+    if stock_data_client is None or option_data_client is None:
+        raise ValueError("Explicit Alpaca market-data clients are required for CSP scans.")
+
     today = datetime.today().date()
     min_expiration = (today + timedelta(days=min_dte)).strftime("%Y-%m-%d")
     max_expiration = (today + timedelta(days=max_dte)).strftime("%Y-%m-%d")
@@ -201,7 +203,7 @@ def find_csp_candidates(
 
     snapshots = option_data_client.get_option_chain(request)
     if current_stock_price is None:
-        current_stock_price = get_latest_stock_price(ticker_symbol)
+        current_stock_price = get_latest_stock_price(ticker_symbol, stock_data_client)
     puts = build_put_rows_from_snapshots(ticker_symbol, snapshots, current_stock_price)
 
     if puts.empty:

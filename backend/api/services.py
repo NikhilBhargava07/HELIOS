@@ -19,28 +19,44 @@ from backend.memory.capital_and_positions import get_dashboard_data
 from backend.memory.recommendations import find_candidate, get_recommendation_run
 from backend.memory.trades import reconcile_paper_orders
 from backend.users.auth import require_authenticated_user
-from backend.users.profiles import get_user_trading_client
+from backend.users.profiles import get_user_market_data_clients, get_user_trading_client
 
 
 logger = logging.getLogger(__name__)
 
 
-## Try to build a user-specific Alpaca trading client from the authenticated request.
-## If the route is unauthenticated or the user has not onboarded broker keys yet, HELIOS falls back to the deployment-level client for now.
-def get_optional_user_trading_client(request=None):
-    if request is None:
-        return None
+## Build the signed-in user's Alpaca trading client from their saved broker profile.
+## HELIOS intentionally does not fall back to deployment-level APCA/ALPACA env keys here; user account actions must use the authenticated user's own broker connection.
+def get_required_user_trading_client(request):
+    user = require_authenticated_user(request)
 
     try:
-        user = require_authenticated_user(request)
-    except HTTPException:
-        return None
-
-    try:
-        return get_user_trading_client(user.user_id)
+        trading_client = get_user_trading_client(user.user_id)
     except Exception as error:
         logger.warning("User broker client lookup failed: %s", type(error).__name__)
-        return None
+        raise HTTPException(503, "Could not load your saved broker connection. Reconnect Alpaca from Profile.") from error
+
+    if trading_client is None:
+        raise HTTPException(428, "Connect Alpaca from the signup/profile page before using live paper-account features.")
+
+    return trading_client
+
+
+## Build the signed-in user's Alpaca stock and option data clients.
+## Market-data scans use this explicit path instead of APCA/ALPACA env keys, keeping recommendations tied to the user's connected broker account.
+def get_required_user_market_data_clients(request):
+    user = require_authenticated_user(request)
+
+    try:
+        stock_data_client, option_data_client = get_user_market_data_clients(user.user_id)
+    except Exception as error:
+        logger.warning("User market-data client lookup failed: %s", type(error).__name__)
+        raise HTTPException(503, "Could not load your saved broker market-data connection. Reconnect Alpaca from Profile.") from error
+
+    if stock_data_client is None or option_data_client is None:
+        raise HTTPException(428, "Connect Alpaca from the signup/profile page before loading market data.")
+
+    return stock_data_client, option_data_client
 
 
 ## Fetch a saved recommendation run before a user acts on one of its contracts.

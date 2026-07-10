@@ -107,3 +107,21 @@ def get_user_trading_client(user_id):
         return None
 
     return create_trading_client(credentials["api_key"], credentials["secret_key"])
+
+
+## Create user-specific Alpaca market-data clients from the saved broker profile.
+## Recommendation and trend routes use these clients so old APCA/ALPACA env keys cannot accidentally drive market scans.
+def get_user_market_data_clients(user_id):
+    from backend.broker.clients import create_option_data_client, create_stock_data_client
+
+    credentials = get_user_broker_credentials(user_id)
+    if not credentials:
+        return None, None
+
+    if credentials.get("broker") != "alpaca":
+        return None, None
+
+    return (
+        create_stock_data_client(credentials["api_key"], credentials["secret_key"]),
+        create_option_data_client(credentials["api_key"], credentials["secret_key"]),
+    )

@@ -48,7 +48,12 @@ def get_recommendation_results(
     current_csp_capital_committed=0,
     external_available_csp_capital=None,
     portfolio_context=None,
+    stock_data_client=None,
+    option_data_client=None,
 ):
+    if stock_data_client is None or option_data_client is None:
+        return _rejection("Broker market-data connection is not available.", "Connect Alpaca before running CSP scans.")
+
     if not can_open_new_position(current_open_positions, MAX_OPEN_POSITIONS):
         return _rejection(f"Max open positions reached ({MAX_OPEN_POSITIONS}).", "Position limits prevent overcommitting the account.")
 
@@ -64,7 +69,7 @@ def get_recommendation_results(
         return _rejection("No CSP capital available under current allocation rules.", "Capital rules keep the account from being overcommitted.")
 
     try:
-        latest_prices = get_latest_stock_prices(APPROVED_TICKERS)
+        latest_prices = get_latest_stock_prices(APPROVED_TICKERS, stock_data_client=stock_data_client)
     except Exception:
         latest_prices = {}
 
@@ -76,6 +81,8 @@ def get_recommendation_results(
                 MAX_SPREAD, MIN_QUOTE_SIZE, MIN_IV_PERCENT, MAX_IV_PERCENT,
                 MIN_ROC_PERCENT, available_capital,
                 current_stock_price=(latest_prices.get(ticker_symbol) or {}).get("price"),
+                stock_data_client=stock_data_client,
+                option_data_client=option_data_client,
             )
         except Exception:
             continue
@@ -89,7 +96,7 @@ def get_recommendation_results(
     combined = pd.concat(candidate_frames, ignore_index=True)
     top_candidates = combined.sort_values(by="score", ascending=False).head(MAX_RECOMMENDATIONS)
     candidate_tickers = top_candidates["tickerSymbol"].drop_duplicates().tolist()
-    market_context = build_candidate_review_context(candidate_tickers)
+    market_context = build_candidate_review_context(candidate_tickers, stock_data_client=stock_data_client)
     try:
         memory_context = build_memory_context(candidate_tickers)
     except Exception as error:

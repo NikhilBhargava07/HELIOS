@@ -12,6 +12,7 @@ from backend.config import APPROVED_TICKERS, COMPANY_NAMES
 from backend.market.ai_take import ai_market_take
 from backend.market.context import build_market_context
 from backend.memory.recommendations import get_latest_recommendation_run
+from backend.users.profiles import get_user_market_data_clients, get_user_trading_client
 
 try:
     from backend.memory.dynamodb_store import USER_PK, get_item, put_item, utc_now_text
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 ## Create a pending AI market-take job record in DynamoDB.
 ## The returned job id lets the browser poll while Lambda finishes the longer OpenAI call in the background.
-def create_market_take_job():
+def create_market_take_job(user_id):
     if not put_item:
         raise RuntimeError("Async AI jobs require DynamoDB memory backend.")
 
@@ -37,6 +38,7 @@ def create_market_take_job():
         "sk": f"AI_TAKE_JOB#{job_id}",
         "item_type": "ai_take_job",
         "job_id": job_id,
+        "user_id": user_id,
         "status": "pending",
         "created_at": now,
         "updated_at": now,
@@ -50,11 +52,15 @@ def create_market_take_job():
 
 ## Fetch one market-take job and return only public fields.
 ## This hides storage details while giving the UI status, result, or error information.
-def get_market_take_job(job_id):
+def get_market_take_job(job_id, user_id=None):
     if not get_item:
         raise RuntimeError("Async AI jobs require DynamoDB memory backend.")
     item = get_item(USER_PK, f"AI_TAKE_JOB#{job_id}")
-    return _public_job(item) if item else None
+    if not item:
+        return None
+    if user_id is not None and item.get("user_id") != user_id:
+        return None
+    return _public_job(item)
 
 
 ## Execute the background AI market-take workflow for one job id.
@@ -67,8 +73,14 @@ def run_market_take_job(job_id):
 
     _update_job(item, status="running")
     try:
-        context = build_market_context(APPROVED_TICKERS)
-        dashboard = get_dashboard_with_cash_context()
+        user_id = item.get("user_id")
+        trading_client = get_user_trading_client(user_id) if user_id else None
+        stock_data_client, _ = get_user_market_data_clients(user_id) if user_id else (None, None)
+        if trading_client is None or stock_data_client is None:
+            raise RuntimeError("Saved broker connection is required for AI market take jobs.")
+
+        context = build_market_context(APPROVED_TICKERS, stock_data_client=stock_data_client)
+        dashboard = get_dashboard_with_cash_context(trading_client=trading_client)
         context["portfolio"] = {
             "open_csp_positions": dashboard["open_positions"],
             "capital": dashboard["capital"],

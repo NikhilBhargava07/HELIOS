@@ -9,7 +9,8 @@ from backend.api.services import (
     compact_dashboard_memory_context,
     get_dashboard_with_cash_context,
     get_effective_available_csp_cash,
-    get_optional_user_trading_client,
+    get_required_user_market_data_clients,
+    get_required_user_trading_client,
     get_safe_paper_account_summary,
     require_candidate,
     require_recommendation_run,
@@ -31,7 +32,8 @@ router = APIRouter(prefix="/api", tags=["recommendations"])
 ## Generate a fresh CSP recommendation run for the frontend.
 ## The route scans candidates, adds market and memory context, asks the review agent, saves the run, and returns dashboard data in one response.
 def get_recommendations(background_tasks: BackgroundTasks, request: Request):
-    trading_client = get_optional_user_trading_client(request)
+    trading_client = get_required_user_trading_client(request)
+    stock_data_client, option_data_client = get_required_user_market_data_clients(request)
     alpaca_account = get_safe_paper_account_summary(trading_client=trading_client)
     dashboard = get_dashboard_with_cash_context(alpaca_account, trading_client=trading_client)
     capital = dashboard["capital"]
@@ -44,6 +46,8 @@ def get_recommendations(background_tasks: BackgroundTasks, request: Request):
             "capital": capital,
             "open_csp_positions": dashboard["open_positions"],
         },
+        stock_data_client=stock_data_client,
+        option_data_client=option_data_client,
     )
     if effective_cash <= 0 and alpaca_account.get("available_csp_cash") == 0:
         results["review"] = {
@@ -81,7 +85,7 @@ def get_recommendations(background_tasks: BackgroundTasks, request: Request):
 ## Record a user decision from the recommendation cards.
 ## Paper-place actions are submitted to Alpaca first, then the decision is stored in memory so later learning can compare recommendation versus user behavior.
 def post_user_decision(request: UserDecisionRequest, http_request: Request):
-    trading_client = get_optional_user_trading_client(http_request)
+    trading_client = get_required_user_trading_client(http_request)
     alpaca_order = None
     alpaca_account = None
     order_error = None

@@ -6,8 +6,6 @@ from alpaca.data.enums import DataFeed
 from alpaca.data.requests import StockBarsRequest, StockLatestTradeRequest
 from alpaca.data.timeframe import TimeFrame
 
-from backend.broker.clients import get_stock_data_client
-
 TREND_PERIODS = {"1d": 1, "5d": 5, "2w": 14, "1m": 30, "ytd": "ytd"}
 DEFAULT_TREND_PERIODS = ["1d", "5d", "2w", "1m", "ytd"]
 
@@ -55,9 +53,11 @@ def build_price_trend(ticker_symbol, period, ticker_bars):
 
 ## Build trend summaries for the approved ticker universe.
 ## Failures for one ticker are skipped so a single market-data issue does not break the whole page.
-def get_market_trends(ticker_symbols, periods=None):
+def get_market_trends(ticker_symbols, periods=None, stock_data_client=None):
+    if stock_data_client is None:
+        raise ValueError("Explicit Alpaca stock-data client is required for market trends.")
+
     periods = periods or DEFAULT_TREND_PERIODS
-    stock_data_client = get_stock_data_client()
     request = StockBarsRequest(
         symbol_or_symbols=ticker_symbols,
         timeframe=TimeFrame.Day,
@@ -91,8 +91,10 @@ def serialize_timestamp(value):
 
 ## Fetch current prices for the approved ticker list.
 ## The frontend calls this frequently to refresh price pills without rebuilding full trend history.
-def get_latest_stock_prices(ticker_symbols):
-    stock_data_client = get_stock_data_client()
+def get_latest_stock_prices(ticker_symbols, stock_data_client=None):
+    if stock_data_client is None:
+        raise ValueError("Explicit Alpaca stock-data client is required for latest prices.")
+
     request = StockLatestTradeRequest(symbol_or_symbols=ticker_symbols, feed=DataFeed.IEX)
     latest_trades = stock_data_client.get_stock_latest_trade(request)
     prices = {}

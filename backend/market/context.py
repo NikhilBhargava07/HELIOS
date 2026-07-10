@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 ## Build the general market evidence bundle used by the AI market take.
 ## The bundle combines approved ticker trends and reputable news into one object for prompting and debugging.
-def build_market_context(ticker_symbols):
-    trends = get_market_trends(ticker_symbols)
+def build_market_context(ticker_symbols, stock_data_client=None):
+    trends = get_market_trends(ticker_symbols, stock_data_client=stock_data_client)
     try:
         news = get_recent_news(ticker_symbols)
         news_error = None
@@ -26,11 +26,11 @@ def build_market_context(ticker_symbols):
 
 ## Build ticker-specific context for the CSP recommendation agent.
 ## Candidate news is grouped by symbol so the LLM can discuss why each recommended put may be helped or hurt.
-def build_candidate_review_context(ticker_symbols):
+def build_candidate_review_context(ticker_symbols, stock_data_client=None):
     candidate_tickers = list(dict.fromkeys(ticker_symbols))
     trend_tickers = list(dict.fromkeys([*MARKET_BENCHMARKS, *candidate_tickers]))
     try:
-        trends = get_market_trends(trend_tickers)
+        trends = get_market_trends(trend_tickers, stock_data_client=stock_data_client)
         trends_error = None
     except Exception as error:
         logger.warning("Market trend lookup failed: %s", type(error).__name__)

@@ -7,7 +7,7 @@ async function loadRecommendations() {
     recommendationStatus.textContent = "Scanning approved tickers and asking the agent...";
 
     try {
-        const response = await apiFetch("/api/recommendations");
+        const response = await apiFetch("/api/recommendations", { auth: true });
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
@@ -43,7 +43,7 @@ async function loadTrends() {
     trendStatus.textContent = "Loading market trends...";
 
     try {
-        const response = await apiFetch("/api/market/trends");
+        const response = await apiFetch("/api/market/trends", { auth: true });
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
@@ -91,6 +91,7 @@ async function loadMarketTake() {
 
     try {
         const response = await apiFetch("/api/market/take/jobs", {
+            auth: true,
             method: "POST",
         });
 
@@ -112,7 +113,7 @@ async function pollMarketTakeJob(jobId, attempt = 1) {
     const pollDelayMs = 2500;
 
     try {
-        const response = await apiFetch(`/api/market/take/jobs/${jobId}`);
+        const response = await apiFetch(`/api/market/take/jobs/${jobId}`, { auth: true });
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
@@ -156,7 +157,7 @@ async function loadDashboard(showLoading = true) {
     }
 
     try {
-        const response = await apiFetch("/api/dashboard");
+        const response = await apiFetch("/api/dashboard", { auth: true });
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
