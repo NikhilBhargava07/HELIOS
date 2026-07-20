@@ -99,6 +99,21 @@ function clearAuthSession() {
     sessionStorage.removeItem(AUTH_STORAGE.state);
 }
 
+// Clears an expired Cognito session and returns the user to the protected-app entry point.
+// Protected API loaders call this only after the backend confirms that the current token is
+// unauthorized. Keeping the behavior here ensures that every part of the frontend clears the
+// same local token data and renders the same signed-out state.
+function handleExpiredAuthSession() {
+    clearAuthSession();
+    renderAuthState();
+    window.location.hash = "#home";
+    showToast(
+        "Session expired",
+        "Your HELIOS session expired. Sign in again to continue.",
+        "error",
+    );
+}
+
 // Update login/logout buttons and status text based on the current stored Cognito session.
 function renderAuthState() {
     const signedInUser = getSignedInUser();

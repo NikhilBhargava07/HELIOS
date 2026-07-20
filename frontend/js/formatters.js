@@ -160,24 +160,6 @@ function trendDirectionClass(percentValue) {
 }
 
 /**
- * Build one rotating percentage/dollar trend row.
- * The row contains both values so CSS can rotate views without re-rendering the whole trend card.
- */
-function trendMetric(label, percentValue, dollarValue) {
-    const directionClass = trendDirectionClass(percentValue);
-
-    return `
-        <div class="trend-metric">
-            <span class="label">${label}:</span>
-            <span class="trend-value-window" aria-label="${label} move">
-                <span class="trend-value percent-value ${directionClass}">${signedPercent(percentValue)}</span>
-                <span class="trend-value dollar-value ${directionClass}">${signedMoney(dollarValue)}</span>
-            </span>
-        </div>
-    `;
-}
-
-/**
  * Format a current price while handling unavailable quotes.
  * Market-data APIs can occasionally miss a quote, so the UI needs a readable fallback.
  */
@@ -278,21 +260,6 @@ function formatDecision(value) {
     return String(value || "")
         .replaceAll("_", " ")
         .replace(/\b\w/g, letter => letter.toUpperCase());
-}
-
-/**
- * Describe whether an order filled, was canceled, or is still pending.
- * The Capital page uses this to distinguish active paper orders from completed broker events.
- */
-function orderStatusText(order) {
-    const status = String(order.status || "unknown").toLowerCase();
-    if (status === "filled") {
-        return "Filled";
-    }
-    if (["canceled", "expired", "rejected"].includes(status)) {
-        return formatDecision(status);
-    }
-    return `${formatDecision(status)} · Awaiting fill`;
 }
 
 /**

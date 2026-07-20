@@ -181,21 +181,6 @@ function startPriceRefresh() {
 }
 
 /**
- * Rotate trend cards between percent change and dollar change.
- * This gives users both views without doubling the amount of visible text in each card.
- */
-function startTrendMetricRotation() {
-    if (trendMetricRotateIntervalId) {
-        clearInterval(trendMetricRotateIntervalId);
-    }
-
-    trendList.classList.remove("show-dollar");
-    trendMetricRotateIntervalId = setInterval(() => {
-        trendList.classList.toggle("show-dollar");
-    }, TREND_METRIC_ROTATE_MS);
-}
-
-/**
  * Stop the latest-price polling timer when trends are not visible.
  * This keeps hidden tabs from making unnecessary market-data requests.
  */
@@ -205,19 +190,6 @@ function stopPriceRefresh() {
     }
 
     priceRefreshIntervalId = null;
-}
-
-/**
- * Stop the percent/dollar rotation animation and reset cards to percent view.
- * Resetting the class keeps the next visit predictable for the user.
- */
-function stopTrendMetricRotation() {
-    if (trendMetricRotateIntervalId) {
-        clearInterval(trendMetricRotateIntervalId);
-    }
-
-    trendMetricRotateIntervalId = null;
-    trendList.classList.remove("show-dollar");
 }
 
 /**

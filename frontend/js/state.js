@@ -42,7 +42,6 @@ let showAllNews = false;
 let trendFilter = "All";
 let trendSort = "default";
 let priceRefreshIntervalId = null;
-let trendMetricRotateIntervalId = null;
 let dashboardRefreshIntervalId = null;
 let dashboardRequestInFlight = false;
 // UI sizing, refresh, and formatting constants. These control how much data appears by default and how frequently live sections refresh.
@@ -58,7 +57,6 @@ const TREND_CATEGORIES = {
 const DEFAULT_NEWS_COUNT = 5;
 const PRICE_REFRESH_MS = 15000;
 const DASHBOARD_REFRESH_MS = 10000;
-const TREND_METRIC_ROTATE_MS = 5000;
 const NEUTRAL_TREND_PERCENT_THRESHOLD = 0.2;
 const TOAST_TIMEOUT_MS = 5200;
 // Beginner glossary used by AI Market Take hover chips. The terms explain options and macro vocabulary without making the main take overly long.

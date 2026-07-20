@@ -68,6 +68,7 @@ async function loadNews() {
 
     try {
         const response = await apiFetch(`/api/market/news?t=${Date.now()}`, {
+            auth: true,
             cache: "no-store",
         });
 
@@ -158,6 +159,15 @@ async function loadDashboard(showLoading = true) {
 
     try {
         const response = await apiFetch("/api/dashboard", { auth: true });
+
+        // A 401 means Cognito no longer recognizes the stored login token. Stop polling so the
+        // browser does not repeat the same unauthorized request every ten seconds, then return
+        // the user to the signed-out landing page where they can authenticate again.
+        if (response.status === 401) {
+            stopDashboardRefresh();
+            handleExpiredAuthSession();
+            return;
+        }
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);

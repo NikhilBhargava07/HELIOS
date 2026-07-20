@@ -23,20 +23,6 @@ class UserDecisionRequest(BaseModel):
     note: str = ""
 
 
-## Validate manually supplied trade-outcome data.
-## Outcome records let the learning layer compare why a trade was recommended with what eventually happened.
-class TradeOutcomeRequest(BaseModel):
-
-    decision_id: str
-    status: str = "complete"
-    outcome_label: str
-    closing_cost: float | None = None
-    realized_pnl: float | None = None
-    assigned: bool | None = None
-    expired_worthless: bool | None = None
-    notes: str = ""
-
-
 ## Validate broker onboarding data after a user signs in with Google/Cognito.
 ## The frontend sends the broker API key and secret key once; the backend stores the secret key through the current secret-storage layer.
 class BrokerProfileRequest(BaseModel):

@@ -1,10 +1,16 @@
 ## Shared API orchestration for candidates, Alpaca state, and dashboard data.
 
 import logging
+from dataclasses import dataclass
 
 from fastapi import HTTPException
 
+from backend.broker.clients import (
+    create_option_data_client,
+    create_stock_data_client,
+)
 from backend.broker.trading import (
+    create_trading_client,
     get_paper_account_summary,
     get_paper_orders,
     get_paper_positions,
@@ -19,50 +25,85 @@ from backend.memory.capital_and_positions import get_dashboard_data
 from backend.memory.recommendations import find_candidate, get_recommendation_run
 from backend.memory.trades import reconcile_paper_orders
 from backend.users.auth import require_authenticated_user
-from backend.users.profiles import get_user_market_data_clients, get_user_trading_client
+from backend.users.profiles import get_user_broker_credentials
 
 
 logger = logging.getLogger(__name__)
 
 
-## Build the signed-in user's Alpaca trading client from their saved broker profile.
-## HELIOS intentionally does not fall back to deployment-level APCA/ALPACA env keys here; user account actions must use the authenticated user's own broker connection.
-def get_required_user_trading_client(request):
+## Hold the authenticated user and all Alpaca clients created from one credential read.
+## Request-scoped reuse avoids repeated DynamoDB secret lookups and guarantees that trading and market data use the same connected broker account.
+@dataclass(frozen=True)
+class BrokerContext:
+    user: object
+    trading_client: object
+    stock_data_client: object
+    option_data_client: object
+
+
+## Load one user's broker credentials and construct all required Alpaca clients once per request.
+## The context is cached on request.state so routes can ask for individual clients without repeating profile or credential reads.
+def get_required_broker_context(request):
+    existing = getattr(request.state, "broker_context", None)
+    if existing is not None:
+        return existing
+
     user = require_authenticated_user(request)
+    try:
+        credentials = get_user_broker_credentials(user.user_id)
+    except Exception as error:
+        logger.warning("User broker credential lookup failed: %s", type(error).__name__)
+        raise HTTPException(
+            503,
+            "Could not load your saved broker connection. Reconnect Alpaca from Profile.",
+        ) from error
+
+    if not credentials:
+        raise HTTPException(
+            428,
+            "Connect Alpaca from the signup/profile page before using broker features.",
+        )
+    if credentials.get("broker") != "alpaca":
+        raise HTTPException(400, "The saved brokerage is not supported.")
 
     try:
-        trading_client = get_user_trading_client(user.user_id)
+        context = BrokerContext(
+            user=user,
+            trading_client=create_trading_client(
+                credentials["api_key"],
+                credentials["secret_key"],
+            ),
+            stock_data_client=create_stock_data_client(
+                credentials["api_key"],
+                credentials["secret_key"],
+            ),
+            option_data_client=create_option_data_client(
+                credentials["api_key"],
+                credentials["secret_key"],
+            ),
+        )
     except Exception as error:
-        logger.warning("User broker client lookup failed: %s", type(error).__name__)
-        raise HTTPException(503, "Could not load your saved broker connection. Reconnect Alpaca from Profile.") from error
+        logger.warning("User broker client creation failed: %s", type(error).__name__)
+        raise HTTPException(
+            503,
+            "Could not initialize your saved broker connection. Reconnect Alpaca from Profile.",
+        ) from error
 
-    if trading_client is None:
-        raise HTTPException(428, "Connect Alpaca from the signup/profile page before using live paper-account features.")
-
-    return trading_client
+    request.state.broker_context = context
+    return context
 
 
 ## Build the signed-in user's Alpaca stock and option data clients.
 ## Market-data scans use this explicit path instead of APCA/ALPACA env keys, keeping recommendations tied to the user's connected broker account.
 def get_required_user_market_data_clients(request):
-    user = require_authenticated_user(request)
-
-    try:
-        stock_data_client, option_data_client = get_user_market_data_clients(user.user_id)
-    except Exception as error:
-        logger.warning("User market-data client lookup failed: %s", type(error).__name__)
-        raise HTTPException(503, "Could not load your saved broker market-data connection. Reconnect Alpaca from Profile.") from error
-
-    if stock_data_client is None or option_data_client is None:
-        raise HTTPException(428, "Connect Alpaca from the signup/profile page before loading market data.")
-
-    return stock_data_client, option_data_client
+    context = get_required_broker_context(request)
+    return context.stock_data_client, context.option_data_client
 
 
 ## Fetch a saved recommendation run before a user acts on one of its contracts.
 ## Raising a clear validation error here keeps route handlers small and prevents unknown run ids from becoming confusing downstream failures.
-def require_recommendation_run(run_id):
-    run = get_recommendation_run(run_id)
+def require_recommendation_run(user_id, run_id):
+    run = get_recommendation_run(user_id, run_id)
     if run is None:
         raise ValueError("Recommendation run not found.")
     return run
@@ -147,9 +188,12 @@ def account_total_capital(alpaca_account):
 
 ## Sync recent Alpaca orders into HELIOS memory without blocking the dashboard.
 ## Order reconciliation is helpful for history, but a temporary Alpaca failure should not prevent users from seeing current positions.
-def reconcile_orders_safely(trading_client=None):
+def reconcile_orders_safely(user_id, trading_client=None):
     try:
-        return reconcile_paper_orders(get_paper_orders(trading_client=trading_client)), None
+        return reconcile_paper_orders(
+            user_id,
+            get_paper_orders(limit=100, trading_client=trading_client),
+        ), None
     except Exception as error:
         logger.warning("Paper order synchronization failed: %s", type(error).__name__)
         return 0, "Paper order synchronization unavailable."
@@ -167,12 +211,13 @@ def get_effective_available_csp_cash(capital_summary, alpaca_account):
 ## Add live broker buying-power context to the local capital summary.
 ## The frontend displays both strategy capacity and effective CSP cash so users can see why a trade may be filtered out.
 def attach_alpaca_cash_context(capital_summary, alpaca_account):
-    capital_summary["alpaca_available_csp_cash"] = (alpaca_account or {}).get("available_csp_cash")
-    capital_summary["effective_available_csp_capital"] = get_effective_available_csp_cash(
-        capital_summary,
+    enriched = dict(capital_summary)
+    enriched["alpaca_available_csp_cash"] = (alpaca_account or {}).get("available_csp_cash")
+    enriched["effective_available_csp_capital"] = get_effective_available_csp_cash(
+        enriched,
         alpaca_account,
     )
-    return capital_summary
+    return enriched
 
 
 ## Build a compact dashboard context for memory records and prompts.
@@ -200,11 +245,19 @@ def compact_dashboard_memory_context(dashboard, trigger=None):
 
 ## Build the Capital & Positions payload shown in the frontend dashboard.
 ## This combines saved HELIOS memory, reconciled orders, live Alpaca positions, and current buying power into one response for the UI.
-def get_dashboard_with_cash_context(alpaca_account=None, trading_client=None):
-    reconciled_orders, order_sync_error = reconcile_orders_safely(trading_client=trading_client)
+def get_dashboard_with_cash_context(user_id, alpaca_account=None, trading_client=None):
+    reconciled_orders, order_sync_error = reconcile_orders_safely(
+        user_id,
+        trading_client=trading_client,
+    )
     safe_account = alpaca_account or get_safe_paper_account_summary(trading_client=trading_client)
     live_total_capital = account_total_capital(safe_account)
-    dashboard = get_dashboard_data(live_total_capital, MAX_CSP_CAPITAL_PERCENT, MAX_OPEN_POSITIONS)
+    dashboard = get_dashboard_data(
+        user_id,
+        live_total_capital,
+        MAX_CSP_CAPITAL_PERCENT,
+        MAX_OPEN_POSITIONS,
+    )
     alpaca_positions, position_error = get_safe_paper_positions(trading_client=trading_client)
 
     if alpaca_positions is not None:

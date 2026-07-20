@@ -6,7 +6,7 @@ from alpaca.data.enums import DataFeed
 from alpaca.data.requests import StockBarsRequest, StockLatestTradeRequest
 from alpaca.data.timeframe import TimeFrame
 
-TREND_PERIODS = {"1d": 1, "5d": 5, "2w": 14, "1m": 30, "ytd": "ytd"}
+TREND_PERIODS = {"1d": 1, "5d": 5, "2w": 10, "1m": 21, "ytd": "ytd"}
 DEFAULT_TREND_PERIODS = ["1d", "5d", "2w", "1m", "ytd"]
 
 
@@ -17,7 +17,7 @@ def calculate_percent_change(start_price, end_price):
 
 
 ## Translate a trend window label into the historical start date to request.
-## Centralizing windows keeps the trend API and UI labels aligned.
+## Non-YTD values count trading sessions, so the extra calendar days cover weekends and ordinary market holidays.
 def get_start_date(period):
     today = datetime.now(timezone.utc)
     if period == "ytd":

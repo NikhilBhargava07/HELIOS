@@ -12,7 +12,7 @@ from backend.config import (
     APPROVED_TICKERS, CANDIDATES_PER_TICKER, DELTA_TOLERANCE, MAX_DTE,
     MAX_IV_PERCENT, MAX_OPEN_POSITIONS, MAX_RECOMMENDATIONS, MAX_SPREAD,
     MAX_CSP_CAPITAL_PERCENT, MIN_DTE, MIN_IV_PERCENT, MIN_QUOTE_SIZE,
-    MIN_ROC_PERCENT, STRATEGY_RULES, TARGET_DELTA, TOTAL_CAPITAL,
+    MIN_ROC_PERCENT, STRATEGY_RULES, TARGET_DELTA,
 )
 from backend.strategy.ai_review import review_csp_candidates
 from backend.strategy.candidates import find_csp_candidates
@@ -44,6 +44,8 @@ def calculate_available_csp_capital(
 ## Orchestrate one full recommendation run from broker state to saved AI review.
 ## The function gathers capital, candidates, context, memory, model review, and dashboard data for the API route.
 def get_recommendation_results(
+    user_id,
+    total_capital,
     current_open_positions=0,
     current_csp_capital_committed=0,
     external_available_csp_capital=None,
@@ -58,7 +60,7 @@ def get_recommendation_results(
         return _rejection(f"Max open positions reached ({MAX_OPEN_POSITIONS}).", "Position limits prevent overcommitting the account.")
 
     available_capital = calculate_available_csp_capital(
-        TOTAL_CAPITAL,
+        total_capital,
         MAX_CSP_CAPITAL_PERCENT,
         current_csp_capital_committed,
     )
@@ -70,10 +72,12 @@ def get_recommendation_results(
 
     try:
         latest_prices = get_latest_stock_prices(APPROVED_TICKERS, stock_data_client=stock_data_client)
-    except Exception:
+    except Exception as error:
+        logger.warning("Latest stock-price lookup failed: %s", type(error).__name__)
         latest_prices = {}
 
     candidate_frames = []
+    scan_errors = []
     for ticker_symbol in APPROVED_TICKERS:
         try:
             candidates = find_csp_candidates(
@@ -84,21 +88,30 @@ def get_recommendation_results(
                 stock_data_client=stock_data_client,
                 option_data_client=option_data_client,
             )
-        except Exception:
+        except Exception as error:
+            scan_errors.append(f"{ticker_symbol}:{type(error).__name__}")
             continue
 
         if not candidates.empty:
             candidate_frames.append(candidates.head(CANDIDATES_PER_TICKER))
 
     if not candidate_frames:
-        return _rejection("No CSP candidates found across approved tickers.", "The current filters may be too strict for today's market data.")
+        error_note = (
+            f" Market-data errors occurred for {len(scan_errors)} tickers."
+            if scan_errors
+            else ""
+        )
+        return _rejection(
+            "No CSP candidates found across approved tickers.",
+            f"The current filters may be too strict for today's market data.{error_note}",
+        )
 
     combined = pd.concat(candidate_frames, ignore_index=True)
     top_candidates = combined.sort_values(by="score", ascending=False).head(MAX_RECOMMENDATIONS)
     candidate_tickers = top_candidates["tickerSymbol"].drop_duplicates().tolist()
     market_context = build_candidate_review_context(candidate_tickers, stock_data_client=stock_data_client)
     try:
-        memory_context = build_memory_context(candidate_tickers)
+        memory_context = build_memory_context(user_id, candidate_tickers)
     except Exception as error:
         logger.warning("Memory retrieval failed: %s", type(error).__name__)
         memory_context = {

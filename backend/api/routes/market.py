@@ -1,31 +1,27 @@
 ## Market trends, prices, news, context, and AI-take HTTP routes.
 
 import json
+import logging
 import os
 
 import boto3
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from backend.api.services import (
-    get_dashboard_with_cash_context,
-    get_required_user_market_data_clients,
-    get_required_user_trading_client,
-)
+from backend.api.services import get_required_user_market_data_clients
 from backend.users.auth import require_authenticated_user
 from backend.config import APPROVED_TICKERS, COMPANY_NAMES
-from backend.market.ai_take import ai_market_take
 from backend.market.ai_take_jobs import create_market_take_job, get_market_take_job
 from backend.market.context import build_market_context
 from backend.market.news import NEWS_LOOKBACK_DAYS, get_recent_news, news_freshness_metadata
 from backend.market.trends import get_latest_stock_prices, get_market_trends
-from backend.memory.recommendations import get_latest_recommendation_run
 
 router = APIRouter(prefix="/api/market", tags=["market"])
+logger = logging.getLogger(__name__)
 
 
 ## Start the Lambda background worker for an AI market-take job.
 ## This avoids API Gateway timeouts by returning a job id immediately while the OpenAI call continues asynchronously.
-def enqueue_market_take_worker(job_id):
+def enqueue_market_take_worker(job_id, user_id):
     function_name = os.getenv("AWS_LAMBDA_FUNCTION_NAME")
     if not function_name:
         raise RuntimeError("AWS_LAMBDA_FUNCTION_NAME is required for async market-take jobs.")
@@ -33,9 +29,12 @@ def enqueue_market_take_worker(job_id):
     boto3.client("lambda").invoke(
         FunctionName=function_name,
         InvocationType="Event",
-        Payload=json.dumps({"worker_action": "market_take", "job_id": job_id}).encode("utf-8"),
+        Payload=json.dumps({
+            "worker_action": "market_take",
+            "job_id": job_id,
+            "user_id": user_id,
+        }).encode("utf-8"),
     )
-
 
 
 @router.get("/trends")
@@ -69,7 +68,8 @@ def get_prices(request: Request):
 @router.get("/news")
 ## Return filtered current-news headlines from approved and reputable sources.
 ## News items include freshness metadata and no-store headers so the user can tell when HELIOS checked live sources.
-def get_news(response: Response):
+def get_news(response: Response, request: Request):
+    require_authenticated_user(request)
     news = get_recent_news(APPROVED_TICKERS)
     response.headers["Cache-Control"] = "no-store, max-age=0"
     response.headers["Pragma"] = "no-cache"
@@ -87,24 +87,6 @@ def get_context(request: Request):
     return build_market_context(APPROVED_TICKERS, stock_data_client=stock_data_client)
 
 
-@router.post("/take")
-## Produce a synchronous AI market take for local development.
-## The hosted frontend normally uses the async job route because OpenAI responses can exceed API Gateway timing limits.
-def post_market_take(request: Request):
-    stock_data_client, _ = get_required_user_market_data_clients(request)
-    trading_client = get_required_user_trading_client(request)
-    context = build_market_context(APPROVED_TICKERS, stock_data_client=stock_data_client)
-    dashboard = get_dashboard_with_cash_context(trading_client=trading_client)
-    context["portfolio"] = {
-        "open_csp_positions": dashboard["open_positions"],
-        "capital": dashboard["capital"],
-        "position_source": dashboard["position_source"],
-    }
-    context["latest_recommendation"] = get_latest_recommendation_run()
-    take = ai_market_take(context)
-    take["company_names"] = COMPANY_NAMES
-    return take
-
 @router.post("/take/jobs")
 ## Create and enqueue an asynchronous AI market-take job.
 ## The frontend receives a job id quickly, then polls the matching status endpoint until the result is ready.
@@ -112,9 +94,17 @@ def create_market_take_job_route(request: Request):
     user = require_authenticated_user(request)
     job = create_market_take_job(user.user_id)
     try:
-        enqueue_market_take_worker(job["job_id"])
+        enqueue_market_take_worker(job["job_id"], user.user_id)
     except Exception as error:
-        raise HTTPException(status_code=503, detail=f"Could not start AI job: {type(error).__name__}") from error
+        logger.exception(
+            "Could not enqueue AI market-take job %s: %s",
+            job["job_id"],
+            type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Could not start the AI market-take job. Please try again.",
+        ) from error
     return job
 
 
@@ -127,4 +117,3 @@ def get_market_take_job_route(job_id, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="AI market-take job not found.")
     return job
-

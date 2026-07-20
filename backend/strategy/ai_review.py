@@ -2,9 +2,9 @@
 
 import json
 import logging
-import os
 
 from backend.config import OPENAI_MODEL
+from backend.openai_client import get_openai_client
 
 
 logger = logging.getLogger(__name__)
@@ -258,8 +258,8 @@ Return JSON only.
 
 
 ## Ask OpenAI to choose, reject, or flag the supplied CSP candidates.
-## The response is parsed into the structured agent review shown on the recommendations page.
-def openai_review_csp_candidates(
+## If the model is unavailable, return the deterministic fallback in the same response shape.
+def review_csp_candidates(
     ticker_symbol,
     candidates,
     strategy_rules,
@@ -267,17 +267,14 @@ def openai_review_csp_candidates(
     portfolio_context=None,
     memory_context=None,
 ):
-    try:
-        from openai import OpenAI
-    except ImportError:
+    client = get_openai_client()
+    if client is None:
         review = local_review_csp_candidates(ticker_symbol, candidates)
         review["risk_note"] = (
-            "OpenAI SDK is not installed yet, so local rule-based review was used. "
+            "OpenAI access is not configured, so local rule-based review was used. "
             + review["risk_note"]
         )
         return review
-
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     prompt = build_ai_prompt(
         ticker_symbol,
         candidates,
@@ -322,26 +319,3 @@ def openai_review_csp_candidates(
             + review["risk_note"]
         )
         return review
-
-
-## Run the AI review with a local fallback if the model call fails.
-## This keeps recommendation generation resilient while preserving the same output shape.
-def review_csp_candidates(
-    ticker_symbol,
-    candidates,
-    strategy_rules,
-    market_context=None,
-    portfolio_context=None,
-    memory_context=None,
-):
-    if not os.getenv("OPENAI_API_KEY"):
-        return local_review_csp_candidates(ticker_symbol, candidates)
-
-    return openai_review_csp_candidates(
-        ticker_symbol,
-        candidates,
-        strategy_rules,
-        market_context,
-        portfolio_context,
-        memory_context,
-    )

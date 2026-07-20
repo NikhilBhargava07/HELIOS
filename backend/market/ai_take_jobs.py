@@ -1,41 +1,48 @@
-## Async AI Market Take job orchestration for Lambda deployment.
+## Run user-scoped AI Market Take jobs outside API Gateway's request timeout.
 ##
-## API Gateway has a short request timeout, so the frontend creates a job and
-## polls DynamoDB while a separate asynchronous Lambda invocation calls OpenAI.
+## The browser creates a short-lived DynamoDB job, Lambda performs the slower
+## OpenAI request asynchronously, and the browser polls until a result is ready.
 
 import logging
-import traceback
+import time
 from uuid import uuid4
 
 from backend.api.services import get_dashboard_with_cash_context
-from backend.config import APPROVED_TICKERS, COMPANY_NAMES
+from backend.broker.clients import create_stock_data_client
+from backend.broker.trading import create_trading_client
+from backend.config import (
+    AI_JOB_TTL_SECONDS,
+    APPROVED_TICKERS,
+    COMPANY_NAMES,
+)
 from backend.market.ai_take import ai_market_take
 from backend.market.context import build_market_context
+from backend.memory.dynamodb_store import (
+    get_item,
+    put_item,
+    user_pk,
+    utc_now_text,
+)
 from backend.memory.recommendations import get_latest_recommendation_run
-from backend.users.profiles import get_user_market_data_clients, get_user_trading_client
-
-try:
-    from backend.memory.dynamodb_store import USER_PK, get_item, put_item, utc_now_text
-except ImportError:
-    USER_PK = None
-    get_item = None
-    put_item = None
-    utc_now_text = None
+from backend.users.profiles import get_user_broker_credentials
 
 logger = logging.getLogger(__name__)
 
 
-## Create a pending AI market-take job record in DynamoDB.
-## The returned job id lets the browser poll while Lambda finishes the longer OpenAI call in the background.
-def create_market_take_job(user_id):
-    if not put_item:
-        raise RuntimeError("Async AI jobs require DynamoDB memory backend.")
+## Build the sort key shared by all reads and writes for one AI job.
+## Keeping this format in one helper prevents route and worker code from drifting apart.
+def _job_sk(job_id):
+    return f"AI_TAKE_JOB#{job_id}"
 
+
+## Create a pending AI market-take job inside the authenticated user's partition.
+## The epoch expiration supports DynamoDB TTL cleanup once expires_at is enabled on the table.
+def create_market_take_job(user_id):
     job_id = str(uuid4())
     now = utc_now_text()
     item = {
-        "pk": USER_PK,
-        "sk": f"AI_TAKE_JOB#{job_id}",
+        "pk": user_pk(user_id),
+        "sk": _job_sk(job_id),
         "item_type": "ai_take_job",
         "job_id": job_id,
         "user_id": user_id,
@@ -43,6 +50,7 @@ def create_market_take_job(user_id):
         "created_at": now,
         "updated_at": now,
         "completed_at": None,
+        "expires_at": int(time.time()) + AI_JOB_TTL_SECONDS,
         "result": None,
         "error": None,
     }
@@ -50,72 +58,95 @@ def create_market_take_job(user_id):
     return _public_job(item)
 
 
-## Fetch one market-take job and return only public fields.
-## This hides storage details while giving the UI status, result, or error information.
-def get_market_take_job(job_id, user_id=None):
-    if not get_item:
-        raise RuntimeError("Async AI jobs require DynamoDB memory backend.")
-    item = get_item(USER_PK, f"AI_TAKE_JOB#{job_id}")
-    if not item:
-        return None
-    if user_id is not None and item.get("user_id") != user_id:
-        return None
-    return _public_job(item)
+## Fetch one job only from the requesting user's private partition.
+## A job id from another account therefore behaves exactly like a missing job.
+def get_market_take_job(job_id, user_id):
+    item = get_item(user_pk(user_id), _job_sk(job_id))
+    return _public_job(item) if item else None
 
 
-## Execute the background AI market-take workflow for one job id.
-## Lambda invokes this internally after the API route creates the job record.
-def run_market_take_job(job_id):
-    item = get_item(USER_PK, f"AI_TAKE_JOB#{job_id}")
+## Execute one background market-take job for its authenticated owner.
+## Credentials are loaded once, then used to construct both broker clients needed by the evidence workflow.
+def run_market_take_job(job_id, user_id):
+    item = get_item(user_pk(user_id), _job_sk(job_id))
     if not item:
         logger.warning("AI market take job not found: %s", job_id)
         return {"ok": False, "error": "job_not_found"}
 
     _update_job(item, status="running")
     try:
-        user_id = item.get("user_id")
-        trading_client = get_user_trading_client(user_id) if user_id else None
-        stock_data_client, _ = get_user_market_data_clients(user_id) if user_id else (None, None)
-        if trading_client is None or stock_data_client is None:
-            raise RuntimeError("Saved broker connection is required for AI market take jobs.")
+        credentials = get_user_broker_credentials(user_id)
+        if not credentials or credentials.get("broker") != "alpaca":
+            raise RuntimeError(
+                "Saved Alpaca connection is required for AI market take jobs."
+            )
 
-        context = build_market_context(APPROVED_TICKERS, stock_data_client=stock_data_client)
-        dashboard = get_dashboard_with_cash_context(trading_client=trading_client)
+        trading_client = create_trading_client(
+            credentials["api_key"],
+            credentials["secret_key"],
+        )
+        stock_data_client = create_stock_data_client(
+            credentials["api_key"],
+            credentials["secret_key"],
+        )
+        context = build_market_context(
+            APPROVED_TICKERS,
+            stock_data_client=stock_data_client,
+        )
+        dashboard = get_dashboard_with_cash_context(
+            user_id,
+            trading_client=trading_client,
+        )
         context["portfolio"] = {
             "open_csp_positions": dashboard["open_positions"],
             "capital": dashboard["capital"],
             "position_source": dashboard["position_source"],
         }
-        context["latest_recommendation"] = get_latest_recommendation_run()
+        context["latest_recommendation"] = get_latest_recommendation_run(
+            user_id
+        )
         result = ai_market_take(context)
         result["company_names"] = COMPANY_NAMES
-        _update_job(item, status="complete", result=result, completed_at=utc_now_text())
+        _update_job(
+            item,
+            status="complete",
+            result=result,
+            error=None,
+            completed_at=utc_now_text(),
+        )
         return {"ok": True, "job_id": job_id}
     except Exception as error:
-        logger.exception("AI market take job failed: %s", job_id)
+        logger.exception(
+            "AI market take job failed: %s (%s)",
+            job_id,
+            type(error).__name__,
+        )
         _update_job(
             item,
             status="failed",
             error={
-                "type": type(error).__name__,
-                "message": str(error),
-                "trace": traceback.format_exc(limit=6),
+                "code": "market_take_failed",
+                "message": "Could not generate the AI market take. Please try again.",
             },
             completed_at=utc_now_text(),
         )
-        return {"ok": False, "job_id": job_id, "error": type(error).__name__}
+        return {
+            "ok": False,
+            "job_id": job_id,
+            "error": "market_take_failed",
+        }
 
 
-## Update a market-take job record with status, result, or error details.
-## All job state changes go through one helper so DynamoDB writes remain consistent.
+## Persist a job status transition while retaining its identity and TTL fields.
+## All worker updates pass through this helper so timestamps remain consistent.
 def _update_job(item, **changes):
     updated = {**item, **changes, "updated_at": utc_now_text()}
     put_item(updated)
     return updated
 
 
-## Remove DynamoDB bookkeeping fields before returning a job to the frontend.
-## The UI only needs the job id, status, result, and any user-facing error.
+## Return only fields the polling frontend needs to render progress or a result.
+## DynamoDB partition keys, ownership metadata, and expiration bookkeeping stay private.
 def _public_job(item):
     return {
         "job_id": item["job_id"],

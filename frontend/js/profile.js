@@ -98,7 +98,6 @@ async function loadProfile() {
     renderProfile({
         profile: { name: user?.name, email: user?.email, broker_connected: false },
         needs_onboarding: true,
-        pending: true,
     });
 
     try {

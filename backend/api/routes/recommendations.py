@@ -9,8 +9,7 @@ from backend.api.services import (
     compact_dashboard_memory_context,
     get_dashboard_with_cash_context,
     get_effective_available_csp_cash,
-    get_required_user_market_data_clients,
-    get_required_user_trading_client,
+    get_required_broker_context,
     get_safe_paper_account_summary,
     require_candidate,
     require_recommendation_run,
@@ -18,10 +17,7 @@ from backend.api.services import (
 from backend.broker.trading import submit_cash_secured_put_order
 from backend.config import APPROVED_TICKERS, COMPANY_NAMES, STRATEGY_RULES
 from backend.memory.recommendations import save_recommendation_run
-from backend.memory.observations import (
-    capture_current_csp_outcome_snapshots,
-    capture_due_candidate_observations,
-)
+from backend.memory.observations import capture_current_csp_outcome_snapshots
 from backend.memory.trades import record_user_decision
 from backend.strategy.recommender import get_recommendation_results
 
@@ -32,13 +28,20 @@ router = APIRouter(prefix="/api", tags=["recommendations"])
 ## Generate a fresh CSP recommendation run for the frontend.
 ## The route scans candidates, adds market and memory context, asks the review agent, saves the run, and returns dashboard data in one response.
 def get_recommendations(background_tasks: BackgroundTasks, request: Request):
-    trading_client = get_required_user_trading_client(request)
-    stock_data_client, option_data_client = get_required_user_market_data_clients(request)
+    broker_context = get_required_broker_context(request)
+    user_id = broker_context.user.user_id
+    trading_client = broker_context.trading_client
     alpaca_account = get_safe_paper_account_summary(trading_client=trading_client)
-    dashboard = get_dashboard_with_cash_context(alpaca_account, trading_client=trading_client)
+    dashboard = get_dashboard_with_cash_context(
+        user_id,
+        alpaca_account,
+        trading_client=trading_client,
+    )
     capital = dashboard["capital"]
     effective_cash = get_effective_available_csp_cash(capital, alpaca_account)
     results = get_recommendation_results(
+        user_id=user_id,
+        total_capital=capital["total_capital"],
         current_open_positions=capital["open_position_count"],
         current_csp_capital_committed=capital["committed_capital"],
         external_available_csp_capital=effective_cash,
@@ -46,8 +49,8 @@ def get_recommendations(background_tasks: BackgroundTasks, request: Request):
             "capital": capital,
             "open_csp_positions": dashboard["open_positions"],
         },
-        stock_data_client=stock_data_client,
-        option_data_client=option_data_client,
+        stock_data_client=broker_context.stock_data_client,
+        option_data_client=broker_context.option_data_client,
     )
     if effective_cash <= 0 and alpaca_account.get("available_csp_cash") == 0:
         results["review"] = {
@@ -59,6 +62,7 @@ def get_recommendations(background_tasks: BackgroundTasks, request: Request):
 
     candidates = candidates_to_records(results["candidates"])
     run = save_recommendation_run(
+        user_id,
         candidates,
         results["review"],
         market_context=results.get("market_context"),
@@ -66,9 +70,9 @@ def get_recommendations(background_tasks: BackgroundTasks, request: Request):
         portfolio_context=results.get("portfolio_context"),
         memory_context=results.get("memory_context"),
     )
-    background_tasks.add_task(capture_due_candidate_observations)
     background_tasks.add_task(
         capture_current_csp_outcome_snapshots,
+        user_id,
         dashboard.get("open_positions", []),
         context=compact_dashboard_memory_context(dashboard, trigger="recommendations_refresh"),
     )
@@ -85,7 +89,9 @@ def get_recommendations(background_tasks: BackgroundTasks, request: Request):
 ## Record a user decision from the recommendation cards.
 ## Paper-place actions are submitted to Alpaca first, then the decision is stored in memory so later learning can compare recommendation versus user behavior.
 def post_user_decision(request: UserDecisionRequest, http_request: Request):
-    trading_client = get_required_user_trading_client(http_request)
+    broker_context = get_required_broker_context(http_request)
+    user_id = broker_context.user.user_id
+    trading_client = broker_context.trading_client
     alpaca_order = None
     alpaca_account = None
     order_error = None
@@ -93,7 +99,10 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
 
     if request.action == UserDecisionAction.PLACE_PAPER_ORDER:
         try:
-            run = require_recommendation_run(request.recommendation_run_id)
+            run = require_recommendation_run(
+                user_id,
+                request.recommendation_run_id,
+            )
             candidate = require_candidate(run, request.contract_symbol)
             alpaca_account = get_safe_paper_account_summary(trading_client=trading_client)
             available_cash = alpaca_account.get("available_csp_cash")
@@ -108,22 +117,34 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
             store_action = "place_paper_order_failed"
             order_error = str(error)
             decision = record_user_decision(
-                request.recommendation_run_id, request.contract_symbol,
+                user_id,
+                request.recommendation_run_id,
+                request.contract_symbol,
                 store_action, request.note, order_error=order_error,
             )
             return {
                 "decision": decision, "order_submitted": False,
                 "order_error": order_error, "refresh_recommendations": True,
-                "dashboard": get_dashboard_with_cash_context(alpaca_account, trading_client=trading_client),
+                "dashboard": get_dashboard_with_cash_context(
+                    user_id,
+                    alpaca_account,
+                    trading_client=trading_client,
+                ),
             }
 
     decision = record_user_decision(
-        request.recommendation_run_id, request.contract_symbol, store_action,
+        user_id,
+        request.recommendation_run_id,
+        request.contract_symbol,
+        store_action,
         request.note, alpaca_order=alpaca_order, order_error=order_error,
     )
     return {
         "decision": decision, "order_submitted": alpaca_order is not None,
         "alpaca_order": alpaca_order,
         "refresh_recommendations": request.action == UserDecisionAction.PLACE_PAPER_ORDER,
-        "dashboard": get_dashboard_with_cash_context(trading_client=trading_client),
+        "dashboard": get_dashboard_with_cash_context(
+            user_id,
+            trading_client=trading_client,
+        ),
     }

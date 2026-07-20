@@ -7,14 +7,15 @@
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(PROJECT_ROOT / ".env")
+
+if not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    from dotenv import load_dotenv
+
+    load_dotenv(PROJECT_ROOT / ".env")
 
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME", "helios-memory")
-USER_ID = os.getenv("HELIOS_USER_ID", "default")
 
 APPROVED_TICKERS = [
     "SPY", "QQQ", "IWM", "DIA", "XLF", "XLK", "XLV", "XLE", "XLY",
@@ -63,6 +64,8 @@ MAX_CSP_CAPITAL_PERCENT = 0.70
 MAX_OPEN_POSITIONS = 5
 CANDIDATES_PER_TICKER = 3
 MAX_RECOMMENDATIONS = 10
+MIN_PATTERN_SAMPLE_SIZE = 11
+AI_JOB_TTL_SECONDS = 86_400
 
 STRATEGY_RULES = {
     "strategy": "cash-secured put",
@@ -77,4 +80,5 @@ STRATEGY_RULES = {
     "min_roc_percent": MIN_ROC_PERCENT,
     "max_csp_capital_percent": MAX_CSP_CAPITAL_PERCENT,
     "max_open_positions": MAX_OPEN_POSITIONS,
+    "minimum_pattern_sample_size": MIN_PATTERN_SAMPLE_SIZE,
 }

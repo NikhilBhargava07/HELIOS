@@ -2,10 +2,10 @@
 
 import json
 import logging
-import os
 import re
 
 from backend.config import OPENAI_MODEL
+from backend.openai_client import get_openai_client
 
 
 logger = logging.getLogger(__name__)
@@ -67,8 +67,8 @@ def local_market_take(context):
     }
 
 
-## Sort trend records by recent absolute movement.
-## The fallback take uses the most active tickers to describe what the market is doing.
+## Sort trend records by their recent five-day return.
+## The fallback calls this in both directions to identify the strongest and weakest tickers.
 def _rank_trends(trends, reverse):
     missing_value = -999 if reverse else 999
     return sorted(
@@ -95,16 +95,13 @@ def parse_market_take_json(text):
 ## Ask OpenAI for a portfolio-aware market take, falling back locally on failure.
 ## This is the main reasoning entry point for the AI Market Take tab.
 def ai_market_take(context):
-    if not os.getenv("OPENAI_API_KEY"):
-        return local_market_take(context)
-    try:
-        from openai import OpenAI
-    except ImportError:
+    client = get_openai_client()
+    if client is None:
         return local_market_take(context)
 
     prompt = _build_market_take_prompt(context)
     try:
-        response = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=45).responses.create(
+        response = client.responses.create(
             model=OPENAI_MODEL,
             input=[
                 {"role": "system", "content": "You are a cautious market-context assistant for CSP paper trading."},

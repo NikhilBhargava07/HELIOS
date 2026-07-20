@@ -207,7 +207,7 @@ def get_paper_positions(trading_client=None):
 
 ## Fetch recent Alpaca paper orders for reconciliation.
 ## Canceled orders are later filtered from display, while active/filled orders keep HELIOS memory aligned with the broker.
-def get_paper_orders(limit=500, trading_client=None):
+def get_paper_orders(limit=100, trading_client=None):
     trading_client = require_trading_client(trading_client)
     request = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=limit)
     return [
@@ -248,5 +248,4 @@ def submit_cash_secured_put_order(candidate, trading_client=None):
         "limit_price": serialized_order.get("limit_price", limit_price),
         "qty": serialized_order.get("qty", "1"),
         "submitted_at": serialized_order.get("submitted_at"),
-        "raw_order": serialized_order,
     }

@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("")
 ## Return the signed-in user's profile and broker connection status.
-## The response may include the broker API key for display, but never includes the broker secret key or secret ARN.
+## The response may include the broker API key for display, but never includes the broker secret key or storage reference.
 def get_profile(request: Request):
     try:
         user = require_authenticated_user(request)
@@ -33,10 +33,16 @@ def get_profile(request: Request):
         raise
     except Exception as error:
         logger.exception("Profile load failed before response: %s", type(error).__name__)
-        raise HTTPException(status_code=500, detail="Could not load profile.") from None
+        raise HTTPException(
+            status_code=503,
+            detail="Could not load profile storage. Check Lambda DynamoDB access and table configuration.",
+        ) from None
 
     return {
-        "needs_onboarding": profile is None or not profile.get("broker_secret_arn"),
+        "needs_onboarding": (
+            profile is None
+            or not profile.get("broker_secret_ref")
+        ),
         "profile": public_profile(profile) or {
             "user_id": user.user_id,
             "email": user.email,
@@ -59,7 +65,10 @@ def post_broker_profile(payload: BrokerProfileRequest, request: Request):
         raise
     except Exception as error:
         logger.exception("Broker profile request setup failed: %s", type(error).__name__)
-        raise HTTPException(status_code=500, detail="Could not prepare broker profile request.") from None
+        raise HTTPException(
+            status_code=400,
+            detail="Could not read the broker setup form. Check that broker, API key, and secret key were submitted.",
+        ) from None
 
     if broker != "alpaca":
         raise HTTPException(
@@ -70,6 +79,7 @@ def post_broker_profile(payload: BrokerProfileRequest, request: Request):
     try:
         broker_account = validate_alpaca_paper_credentials(broker_api_key, broker_secret_key)
     except Exception:
+        logger.info("Alpaca credential validation failed for user %s", user.user_id)
         raise HTTPException(
             status_code=400,
             detail="Alpaca rejected those API credentials. Check that they belong to a paper-trading account.",
@@ -85,7 +95,10 @@ def post_broker_profile(payload: BrokerProfileRequest, request: Request):
         )
     except Exception as error:
         logger.exception("Broker profile save failed for user %s: %s", user.user_id, type(error).__name__)
-        raise HTTPException(status_code=500, detail="Could not save broker profile.") from None
+        raise HTTPException(
+            status_code=503,
+            detail="Could not save broker profile storage. Check Lambda DynamoDB access and table configuration.",
+        ) from None
 
     return {
         "saved": True,
