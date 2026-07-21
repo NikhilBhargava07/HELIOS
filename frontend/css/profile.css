@@ -8,7 +8,7 @@
     height: 38px;
     border-radius: 50%;
     background: rgba(240, 182, 77, 0.16);
-    color: #f0b64d;
+    color: var(--gold);
     font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
     font-weight: 600;
     font-size: 14px;
@@ -63,7 +63,7 @@
 .profile-menu-email {
     font-family: "JetBrains Mono", ui-monospace, monospace;
     font-size: 11px;
-    color: #7f8896;
+    color: var(--dim);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -110,24 +110,14 @@
 }
 
 .profile-menu-item.danger {
-    color: #f0716f;
+    color: var(--neg);
 }
 
 .profile-menu-item.danger svg {
-    stroke: #f0716f;
+    stroke: var(--neg);
 }
 
-/* ---- Profile page (#profile) ---- */
-#profile {
-    padding: clamp(20px, 2.6vw, 34px);
-    background: #0b0e13;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 20px;
-}
-
-#profile::before {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
+/* ---- Profile page (#profile) — panel shell shared in base.css ---- */
 
 #profile h1 {
     font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
@@ -147,7 +137,7 @@
 
 #profile .eyebrow {
     margin-bottom: 6px;
-    color: #f0b64d;
+    color: var(--gold);
 }
 
 .profile-content {
@@ -158,9 +148,9 @@
 
 .profile-card {
     padding: 16px 18px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--line);
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.025);
+    background: var(--surface);
 }
 
 .profile-identity {
@@ -220,12 +210,12 @@
 
 .profile-status.on {
     background: rgba(78, 201, 138, 0.14);
-    color: #4ec98a;
+    color: var(--pos);
 }
 
 .profile-status.off {
     background: rgba(240, 182, 77, 0.14);
-    color: #f0b64d;
+    color: var(--gold);
 }
 
 .profile-row {
@@ -238,12 +228,12 @@
 }
 
 .profile-lbl {
-    color: #7f8896;
+    color: var(--dim);
     font-size: 12px;
 }
 
 .profile-val {
-    color: #e6edf3;
+    color: var(--text);
     font-size: 13px;
 }
 
@@ -253,7 +243,7 @@
 }
 
 .profile-val.muted {
-    color: #7f8896;
+    color: var(--dim);
 }
 
 .profile-connect-note {
@@ -271,7 +261,7 @@
     padding: 9px 16px;
     border: 0;
     border-radius: 999px;
-    background: #f0b64d;
+    background: var(--gold);
     color: #1a1408;
     font-size: 13px;
     font-weight: 500;
@@ -329,7 +319,7 @@
     padding: 2px 6px;
     border: 0;
     background: transparent;
-    color: #7f8896;
+    color: var(--dim);
     font-size: 20px;
     line-height: 1;
     box-shadow: none;
@@ -337,7 +327,7 @@
 }
 
 .broker-modal-close:hover:not(:disabled) {
-    color: #e6edf3;
+    color: var(--text);
     transform: none;
     box-shadow: none;
 }
@@ -364,7 +354,7 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.03);
-    color: #e6edf3;
+    color: var(--text);
     font-family: "JetBrains Mono", ui-monospace, monospace;
     font-size: 13px;
 }
@@ -387,7 +377,7 @@ select.broker-field {
     align-items: flex-start;
     gap: 8px;
     margin: 4px 0 18px;
-    color: #7f8896;
+    color: var(--dim);
     font-size: 11.5px;
     line-height: 1.45;
 }
@@ -397,7 +387,7 @@ select.broker-field {
     height: 16px;
     flex: none;
     margin-top: 1px;
-    stroke: #4ec98a;
+    stroke: var(--pos);
     fill: none;
     stroke-width: 1.8;
     stroke-linecap: round;
@@ -418,7 +408,7 @@ select.broker-field {
     padding: 10px 0;
     border: 0;
     border-radius: 999px;
-    background: #f0b64d;
+    background: var(--gold);
     color: #1a1408;
     font-weight: 500;
     font-size: 13.5px;
@@ -449,7 +439,7 @@ select.broker-field {
 
 .broker-error {
     margin: 12px 0 0;
-    color: #f0716f;
+    color: var(--neg);
     font-size: 12.5px;
 }
 
@@ -549,7 +539,7 @@ body.onboarding {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    color: #4ec98a;
+    color: var(--pos);
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
     font-size: 11px;
 }
@@ -558,7 +548,7 @@ body.onboarding {
     width: 14px;
     height: 14px;
     fill: none;
-    stroke: #4ec98a;
+    stroke: var(--pos);
     stroke-width: 2.4;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -570,7 +560,7 @@ body.onboarding {
     padding: 12px 0;
     border: 0;
     border-radius: 999px;
-    background: #f0b64d;
+    background: var(--gold);
     color: #1a1408;
     font-weight: 500;
     font-size: 14px;
@@ -587,7 +577,7 @@ body.onboarding {
 .signup-foot {
     width: 100%;
     text-align: center;
-    color: #7f8896;
+    color: var(--dim);
     font-size: 12px;
 }
 
@@ -595,7 +585,7 @@ body.onboarding {
     padding: 0;
     border: 0;
     background: transparent;
-    color: #f0b64d;
+    color: var(--gold);
     font-size: 12px;
     box-shadow: none;
     cursor: pointer;

@@ -47,24 +47,7 @@
     display: none;
 }
 
-/* ---- AI Market Take page ---- */
-#market-take {
-    --mt-gold: #f0b64d;
-    --mt-pos: #4ec98a;
-    --mt-neg: #f0716f;
-    --mt-line: rgba(255, 255, 255, 0.08);
-    --mt-surface: rgba(255, 255, 255, 0.025);
-    --mt-muted: #7f8896;
-    --mt-text: #e6edf3;
-    padding: clamp(20px, 2.6vw, 34px);
-    background: #0b0e13;
-    border: 1px solid var(--mt-line);
-    border-radius: 20px;
-}
-
-#market-take::before {
-    border-top: 1px solid var(--mt-line);
-}
+/* ---- AI Market Take page (panel shell + palette tokens shared in base.css) ---- */
 
 #market-take h1 {
     font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
@@ -84,13 +67,13 @@
 
 #market-take .eyebrow {
     margin-bottom: 8px;
-    color: var(--mt-gold);
+    color: var(--gold);
 }
 
 #market-take .subhead {
     max-width: 680px;
     margin: 0 0 10px;
-    color: var(--mt-muted);
+    color: var(--dim);
     font-size: 0.95rem;
 }
 
@@ -99,7 +82,7 @@
     margin: 0;
     padding: 9px 16px;
     border-radius: 999px;
-    background: var(--mt-gold);
+    background: var(--gold);
     color: #1a1408;
     font-size: 0.85rem;
     font-weight: 500;
@@ -113,7 +96,7 @@
 }
 
 #market-take .status {
-    color: var(--mt-muted);
+    color: var(--dim);
     font-size: 0.85rem;
 }
 
@@ -128,16 +111,16 @@
 
 #market-take .agent-review.empty {
     padding: 14px;
-    border: 1px solid var(--mt-line);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    background: var(--mt-surface);
-    color: var(--mt-muted);
+    background: var(--surface);
+    color: var(--dim);
 }
 
 #market-take .mt-label {
     display: inline-block;
     margin-bottom: 8px;
-    color: var(--mt-gold);
+    color: var(--gold);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -145,15 +128,15 @@
 }
 
 #market-take .mt-label.muted {
-    color: var(--mt-muted);
+    color: var(--dim);
 }
 
 #market-take .mt-label-pos {
-    color: var(--mt-pos);
+    color: var(--pos);
 }
 
 #market-take .mt-label-neg {
-    color: var(--mt-neg);
+    color: var(--neg);
 }
 
 #market-take .mt-hero {
@@ -188,9 +171,9 @@
 
 #market-take .mt-card {
     padding: 13px 15px;
-    border: 1px solid var(--mt-line);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    background: var(--mt-surface);
+    background: var(--surface);
 }
 
 #market-take .mt-wide {
@@ -207,12 +190,12 @@
 }
 
 #market-take .mt-stat-gold {
-    color: var(--mt-gold);
+    color: var(--gold);
 }
 
 #market-take .mt-explainer {
     margin: 5px 0 0;
-    color: var(--mt-muted);
+    color: var(--dim);
     font-size: 12.5px;
     line-height: 1.45;
 }
@@ -252,13 +235,13 @@
     padding: 12px 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
-    background: var(--mt-surface);
+    background: var(--surface);
 }
 
 #market-take .mt-note strong {
     display: inline-block;
     margin-bottom: 6px;
-    color: var(--mt-gold);
+    color: var(--gold);
     font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
     font-size: 14px;
 }
@@ -280,7 +263,7 @@
 
 #market-take .mt-scenarios li {
     padding: 9px 12px;
-    border-left: 2px solid var(--mt-gold);
+    border-left: 2px solid var(--gold);
     border-radius: 0 8px 8px 0;
     background: rgba(240, 182, 77, 0.06);
     color: #d8dee9;
@@ -295,7 +278,7 @@
     gap: 8px;
     margin-top: 14px;
     padding-top: 11px;
-    border-top: 1px solid var(--mt-line);
+    border-top: 1px solid var(--line);
 }
 
 #market-take .glossary-chip {

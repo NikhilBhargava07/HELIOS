@@ -1,27 +1,11 @@
 /* Market trends page: dense sparkline watchlist with filter, sort, and click-to-expand tiles. Scoped to #trends. */
 
-#trends {
-    --tr-gold: #f0b64d;
-    --tr-pos: #4ec98a;
-    --tr-neg: #f0716f;
-    --tr-line: rgba(255, 255, 255, 0.08);
-    --tr-surface: rgba(255, 255, 255, 0.025);
-    --tr-muted: #7f8896;
-    --tr-text: #e6edf3;
-    padding: clamp(20px, 2.6vw, 34px);
-    background: #0b0e13;
-    border: 1px solid var(--tr-line);
-    border-radius: 20px;
-}
-
-#trends::before {
-    border-top: 1px solid var(--tr-line);
-}
+/* Panel shell + palette tokens are shared in base.css. */
 
 #trends .num {
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
     font-variant-numeric: tabular-nums;
-    color: var(--tr-text);
+    color: var(--text);
 }
 
 #trends h1 {
@@ -43,13 +27,13 @@
 
 #trends .eyebrow {
     margin-bottom: 8px;
-    color: var(--tr-gold);
+    color: var(--gold);
 }
 
 #trends .subhead {
     max-width: 680px;
     margin: 0 0 10px;
-    color: var(--tr-muted);
+    color: var(--dim);
     font-size: 0.95rem;
 }
 
@@ -58,7 +42,7 @@
     margin: 0;
     padding: 9px 16px;
     border-radius: 999px;
-    background: var(--tr-gold);
+    background: var(--gold);
     color: #1a1408;
     font-size: 0.85rem;
     font-weight: 500;
@@ -72,7 +56,7 @@
 }
 
 #trends .status {
-    color: var(--tr-muted);
+    color: var(--dim);
     font-size: 0.85rem;
 }
 
@@ -81,7 +65,7 @@
 }
 
 #trends .trend-empty {
-    color: var(--tr-muted);
+    color: var(--dim);
 }
 
 /* Filter + sort controls. */
@@ -102,7 +86,7 @@
 #trends .trend-pill,
 #trends .trend-sort {
     padding: 5px 11px;
-    border: 1px solid var(--tr-line);
+    border: 1px solid var(--line);
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.03);
     color: #aab2be;
@@ -119,7 +103,7 @@
 #trends .trend-sort.active {
     border-color: rgba(240, 182, 77, 0.32);
     background: rgba(240, 182, 77, 0.16);
-    color: var(--tr-gold);
+    color: var(--gold);
 }
 
 #trends .trend-pill:hover:not(:disabled),
@@ -139,9 +123,9 @@
 
 #trends .trend-tile {
     padding: 10px 12px;
-    border: 1px solid var(--tr-line);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    background: var(--tr-surface);
+    background: var(--surface);
     cursor: pointer;
     transition: border-color 140ms ease, transform 140ms ease;
 }
@@ -185,11 +169,11 @@
 }
 
 #trends .trend-up {
-    color: var(--tr-pos);
+    color: var(--pos);
 }
 
 #trends .trend-down {
-    color: var(--tr-neg);
+    color: var(--neg);
 }
 
 #trends .trend-neutral {
@@ -201,7 +185,7 @@
     display: none;
     margin-top: 8px;
     padding-top: 8px;
-    border-top: 1px solid var(--tr-line);
+    border-top: 1px solid var(--line);
 }
 
 #trends .trend-tile.expanded .trend-detail {
@@ -217,7 +201,7 @@
 }
 
 #trends .trend-dlabel {
-    color: var(--tr-muted);
+    color: var(--dim);
     font-size: 11px;
 }
 
@@ -226,7 +210,7 @@
 }
 
 #trends .trend-ddollar {
-    color: var(--tr-muted);
+    color: var(--dim);
     text-align: right;
 }
 
@@ -249,7 +233,7 @@
 
 #trends #toggle-trends:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.04);
-    color: var(--tr-text);
+    color: var(--text);
     transform: none;
     box-shadow: none;
 }

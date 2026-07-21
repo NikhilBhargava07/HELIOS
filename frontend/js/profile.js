@@ -268,6 +268,20 @@ brokerModal?.addEventListener("click", (event) => {
     }
 });
 
+/** POST broker credentials to the backend, returning the saved profile payload or throwing a readable error. */
+async function saveBrokerCredentials(broker, apiKey, secretKey) {
+    const response = await apiFetch("/api/profile/broker", {
+        auth: true,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ broker, broker_api_key: apiKey, broker_secret_key: secretKey }),
+    });
+    if (!response.ok) {
+        throw new Error(await brokerErrorMessage(response));
+    }
+    return response.json();
+}
+
 // Submit the broker credentials to the backend.
 brokerForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -287,18 +301,7 @@ brokerForm?.addEventListener("submit", async (event) => {
     submitButton.textContent = "Connecting...";
 
     try {
-        const response = await apiFetch("/api/profile/broker", {
-            auth: true,
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ broker, broker_api_key: apiKey, broker_secret_key: secretKey }),
-        });
-
-        if (!response.ok) {
-            throw new Error(await brokerErrorMessage(response));
-        }
-
-        const data = await response.json();
+        const data = await saveBrokerCredentials(broker, apiKey, secretKey);
         latestProfile = data.profile || null;
         closeBrokerModal();
         showToast("Broker connected", "Your broker keys are saved.");
@@ -403,18 +406,7 @@ signupForm?.addEventListener("submit", async (event) => {
     submitButton.textContent = "Creating account...";
 
     try {
-        const response = await apiFetch("/api/profile/broker", {
-            auth: true,
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ broker, broker_api_key: apiKey, broker_secret_key: secretKey }),
-        });
-
-        if (!response.ok) {
-            throw new Error(await brokerErrorMessage(response));
-        }
-
-        const data = await response.json();
+        const data = await saveBrokerCredentials(broker, apiKey, secretKey);
         latestProfile = data.profile || null;
         hideSignup();
         showToast("Account created", "Your broker is connected. Welcome to HELIOS.");

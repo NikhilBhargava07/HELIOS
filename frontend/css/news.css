@@ -1,21 +1,6 @@
 /* News page: clean, headline-first source cards. Scoped to #news. */
 
-#news {
-    --nw-gold: #f0b64d;
-    --nw-pos: #4ec98a;
-    --nw-line: rgba(255, 255, 255, 0.08);
-    --nw-surface: rgba(255, 255, 255, 0.025);
-    --nw-muted: #7f8896;
-    --nw-text: #e6edf3;
-    padding: clamp(20px, 2.6vw, 34px);
-    background: #0b0e13;
-    border: 1px solid var(--nw-line);
-    border-radius: 20px;
-}
-
-#news::before {
-    border-top: 1px solid var(--nw-line);
-}
+/* Panel shell + palette tokens are shared in base.css. */
 
 #news .num {
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -41,13 +26,13 @@
 
 #news .eyebrow {
     margin-bottom: 8px;
-    color: var(--nw-gold);
+    color: var(--gold);
 }
 
 #news .subhead {
     max-width: 680px;
     margin: 0 0 10px;
-    color: var(--nw-muted);
+    color: var(--dim);
     font-size: 0.95rem;
 }
 
@@ -56,7 +41,7 @@
     margin: 0;
     padding: 9px 16px;
     border-radius: 999px;
-    background: var(--nw-gold);
+    background: var(--gold);
     color: #1a1408;
     font-size: 0.85rem;
     font-weight: 500;
@@ -70,7 +55,7 @@
 }
 
 #news .status {
-    color: var(--nw-muted);
+    color: var(--dim);
     font-size: 0.85rem;
 }
 
@@ -82,14 +67,14 @@
 }
 
 #news .news-list.empty {
-    color: var(--nw-muted);
+    color: var(--dim);
 }
 
 #news .news-card {
     padding: 13px 15px;
-    border: 1px solid var(--nw-line);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    background: var(--nw-surface);
+    background: var(--surface);
     transition: border-color 140ms ease;
 }
 
@@ -111,11 +96,11 @@
 }
 
 #news .news-dot {
-    color: var(--nw-muted);
+    color: var(--dim);
 }
 
 #news .news-date {
-    color: var(--nw-muted);
+    color: var(--dim);
     font-size: 12px;
 }
 
@@ -128,7 +113,7 @@
 
 #news .news-quality.good {
     background: rgba(78, 201, 138, 0.12);
-    color: var(--nw-pos);
+    color: var(--pos);
 }
 
 #news .news-quality.unrated {
@@ -148,7 +133,7 @@
 }
 
 #news .news-headline:hover {
-    color: var(--nw-gold);
+    color: var(--gold);
 }
 
 #news .news-chip-row {
@@ -163,7 +148,7 @@
     border: 1px solid rgba(240, 182, 77, 0.28);
     border-radius: 6px;
     background: rgba(240, 182, 77, 0.12);
-    color: var(--nw-gold);
+    color: var(--gold);
     font-size: 11px;
     font-weight: 500;
 }
@@ -184,7 +169,7 @@
 }
 
 #news .news-why-label {
-    color: var(--nw-muted);
+    color: var(--dim);
 }
 
 #news .ticker-tooltip {
@@ -205,7 +190,7 @@
 
 #news #toggle-news:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.04);
-    color: var(--nw-text);
+    color: var(--text);
     transform: none;
     box-shadow: none;
 }

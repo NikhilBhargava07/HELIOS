@@ -1,28 +1,12 @@
 /* Capital & Positions page: dark, data-first restyle scoped to #capital.
    KPI stat cards, a CSP capital allocation bar, and aligned position/order tables. */
 
-#capital {
-    --cap-gold: #f0b64d;
-    --cap-pos: #4ec98a;
-    --cap-neg: #f0716f;
-    --cap-line: rgba(255, 255, 255, 0.08);
-    --cap-surface: rgba(255, 255, 255, 0.025);
-    --cap-muted: #7f8896;
-    --cap-text: #e6edf3;
-    padding: clamp(20px, 2.6vw, 34px);
-    background: #0b0e13;
-    border: 1px solid var(--cap-line);
-    border-radius: 20px;
-}
-
-#capital::before {
-    border-top: 1px solid var(--cap-line);
-}
+/* Panel shell + palette tokens are shared in base.css. */
 
 #capital .num {
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
     font-variant-numeric: tabular-nums;
-    color: var(--cap-text);
+    color: var(--text);
 }
 
 #capital h1 {
@@ -44,32 +28,32 @@
 
 #capital .eyebrow {
     margin-bottom: 8px;
-    color: var(--cap-gold);
+    color: var(--gold);
 }
 
 #capital .subhead {
     max-width: 680px;
     margin: 0;
-    color: var(--cap-muted);
+    color: var(--dim);
     font-size: 0.95rem;
 }
 
 #capital .cap-lbl {
-    color: var(--cap-muted);
+    color: var(--dim);
     font-size: 0.78rem;
     letter-spacing: 0.02em;
 }
 
 #capital .cap-muted {
-    color: var(--cap-muted);
+    color: var(--dim);
 }
 
 #capital .cap-pos {
-    color: var(--cap-pos);
+    color: var(--pos);
 }
 
 #capital .cap-neg {
-    color: var(--cap-neg);
+    color: var(--neg);
 }
 
 #capital .dashboard {
@@ -77,7 +61,7 @@
 }
 
 #capital .dashboard.empty {
-    color: var(--cap-muted);
+    color: var(--dim);
 }
 
 /* Data-source chip. */
@@ -91,12 +75,12 @@
 
 #capital .cap-source.live {
     background: rgba(78, 201, 138, 0.12);
-    color: var(--cap-pos);
+    color: var(--pos);
 }
 
 #capital .cap-source.memory {
     background: rgba(240, 182, 77, 0.12);
-    color: var(--cap-gold);
+    color: var(--gold);
 }
 
 /* KPI stat cards. */
@@ -114,7 +98,7 @@
     padding: 11px 13px;
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 12px;
-    background: var(--cap-surface);
+    background: var(--surface);
 }
 
 #capital .cap-kpi .num {
@@ -122,7 +106,7 @@
 }
 
 #capital .cap-kpi-sub {
-    color: var(--cap-muted);
+    color: var(--dim);
     font-size: 13px;
 }
 
@@ -130,9 +114,9 @@
 #capital .cap-alloc {
     margin-bottom: 16px;
     padding: 12px 14px;
-    border: 1px solid var(--cap-line);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    background: var(--cap-surface);
+    background: var(--surface);
 }
 
 #capital .cap-alloc-head {
@@ -156,7 +140,7 @@
 
 #capital .cap-alloc-fill {
     height: 100%;
-    background: var(--cap-gold);
+    background: var(--gold);
 }
 
 #capital .cap-alloc-foot {
@@ -167,7 +151,7 @@
 }
 
 #capital .cap-alloc-committed {
-    color: var(--cap-gold);
+    color: var(--gold);
 }
 
 /* Section headings. */
@@ -187,7 +171,7 @@
 
 #capital .cap-table th {
     padding: 0 0 8px;
-    color: var(--cap-muted);
+    color: var(--dim);
     font-size: 11px;
     font-weight: 400;
     text-align: left;
@@ -241,21 +225,21 @@
 
 #capital .cap-badge.filled {
     background: rgba(78, 201, 138, 0.14);
-    color: var(--cap-pos);
+    color: var(--pos);
 }
 
 #capital .cap-badge.pending {
     background: rgba(240, 182, 77, 0.14);
-    color: var(--cap-gold);
+    color: var(--gold);
 }
 
 #capital .cap-badge.rejected {
     background: rgba(240, 113, 111, 0.14);
-    color: var(--cap-neg);
+    color: var(--neg);
 }
 
 #capital .cap-empty {
-    color: var(--cap-muted);
+    color: var(--dim);
 }
 
 /* Keep ticker tooltips on the gold accent. */

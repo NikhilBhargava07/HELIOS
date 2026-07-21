@@ -2,30 +2,13 @@
    Everything here is namespaced under #recommendations so the home, Explore, and
    other tabs keep their existing look until the theme is rolled out to them. */
 
-#recommendations {
-    --rec-gold: #f0b64d;
-    --rec-pos: #4ec98a;
-    --rec-neg: #f0716f;
-    --rec-line: rgba(255, 255, 255, 0.08);
-    --rec-surface: rgba(255, 255, 255, 0.025);
-    --rec-muted: #7f8896;
-    --rec-text: #e6edf3;
-    padding: clamp(20px, 2.6vw, 34px);
-    background: #0b0e13;
-    border: 1px solid var(--rec-line);
-    border-radius: 20px;
-}
-
-/* Neutralize the yellow-tinted top hairline base.css adds to subpages. */
-#recommendations::before {
-    border-top: 1px solid var(--rec-line);
-}
+/* Panel shell + palette tokens are shared in base.css (:root + the grouped subpage rule). */
 
 /* Monospaced, tabular figures for every financial value on the page. */
 #recommendations .num {
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
     font-variant-numeric: tabular-nums;
-    color: var(--rec-text);
+    color: var(--text);
 }
 
 #recommendations h1,
@@ -56,13 +39,13 @@
 
 #recommendations .eyebrow {
     margin-bottom: 8px;
-    color: var(--rec-gold);
+    color: var(--gold);
 }
 
 #recommendations .subhead {
     max-width: 680px;
     margin: 10px 0 0;
-    color: var(--rec-muted);
+    color: var(--dim);
     font-size: 0.95rem;
 }
 
@@ -72,7 +55,7 @@
     margin: 0;
     padding: 9px 16px;
     border-radius: 999px;
-    background: var(--rec-gold);
+    background: var(--gold);
     color: #1a1408;
     font-size: 0.85rem;
     font-weight: 500;
@@ -87,7 +70,7 @@
 
 /* Shared muted micro-label used across metrics, stats, and cards. */
 #recommendations .rec-lbl {
-    color: var(--rec-muted);
+    color: var(--dim);
     font-size: 0.78rem;
     letter-spacing: 0.02em;
 }
@@ -96,9 +79,9 @@
 #recommendations .recs-metrics {
     display: flex;
     margin: 0 0 14px;
-    border: 1px solid var(--rec-line);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    background: var(--rec-surface);
+    background: var(--surface);
     overflow: hidden;
 }
 
@@ -112,7 +95,7 @@
     flex-direction: column;
     gap: 4px;
     padding: 11px 14px;
-    border-right: 1px solid var(--rec-line);
+    border-right: 1px solid var(--line);
 }
 
 #recommendations .rec-metric:last-child {
@@ -124,7 +107,7 @@
 }
 
 #recommendations .rec-metric-sub {
-    color: var(--rec-muted);
+    color: var(--dim);
     font-size: 0.8rem;
 }
 
@@ -133,13 +116,13 @@
     display: block;
     margin: 0 0 14px;
     padding: 13px 15px;
-    border: 1px solid var(--rec-line);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    background: var(--rec-surface);
+    background: var(--surface);
 }
 
 #recommendations .agent-review.empty {
-    color: var(--rec-muted);
+    color: var(--dim);
 }
 
 #recommendations .rec-review-head {
@@ -153,18 +136,18 @@
     padding: 3px 10px;
     border-radius: 999px;
     background: rgba(78, 201, 138, 0.14);
-    color: var(--rec-pos);
+    color: var(--pos);
     font-size: 0.72rem;
     font-weight: 500;
 }
 
 #recommendations .rec-badge.reject {
     background: rgba(240, 113, 111, 0.14);
-    color: var(--rec-neg);
+    color: var(--neg);
 }
 
 #recommendations .rec-review-sel {
-    color: var(--rec-muted);
+    color: var(--dim);
     font-size: 0.78rem;
 }
 
@@ -172,7 +155,7 @@
     margin-left: auto;
     padding: 7px 13px;
     border-radius: 999px;
-    background: var(--rec-gold);
+    background: var(--gold);
     color: #1a1408;
     font-size: 0.78rem;
     font-weight: 500;
@@ -205,7 +188,7 @@
     padding: 1px 7px;
     border-radius: 6px;
     background: rgba(240, 182, 77, 0.14);
-    color: var(--rec-gold);
+    color: var(--gold);
     font-size: 0.7rem;
 }
 
@@ -215,7 +198,7 @@
 }
 
 #recommendations .rec-empty {
-    color: var(--rec-muted);
+    color: var(--dim);
 }
 
 /* Featured recommendation card. */
@@ -238,7 +221,7 @@
 
 #recommendations .rec-eyebrow {
     margin: 0 0 3px;
-    color: var(--rec-gold);
+    color: var(--gold);
     font-size: 0.68rem;
     font-weight: 600;
     letter-spacing: 0.09em;
@@ -254,7 +237,7 @@
 
 #recommendations .rec-sub {
     margin: 4px 0 0;
-    color: var(--rec-muted);
+    color: var(--dim);
     font-size: 0.8rem;
 }
 
@@ -291,7 +274,7 @@
 }
 
 #recommendations .rec-pos {
-    color: var(--rec-pos);
+    color: var(--pos);
 }
 
 #recommendations .rec-detail-row {
@@ -299,8 +282,8 @@
     flex-wrap: wrap;
     gap: 8px 22px;
     padding: 11px 0;
-    border-top: 1px solid var(--rec-line);
-    border-bottom: 1px solid var(--rec-line);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
 }
 
 #recommendations .rec-detail-row .num {
@@ -316,7 +299,7 @@
 #recommendations .rec-actions button {
     padding: 9px 16px;
     border-radius: 999px;
-    background: var(--rec-gold);
+    background: var(--gold);
     color: #1a1408;
     font-size: 0.85rem;
     font-weight: 500;
@@ -337,7 +320,7 @@
 
 #recommendations .rec-actions .rec-ghost:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.04);
-    color: var(--rec-text);
+    color: var(--text);
 }
 
 /* Alternate candidates. */
@@ -354,7 +337,7 @@
 }
 
 #recommendations .rec-hint {
-    color: var(--rec-muted);
+    color: var(--dim);
     font-size: 0.76rem;
 }
 
@@ -367,9 +350,9 @@
 #recommendations .rec-alt {
     position: relative;
     padding: 11px 12px;
-    border: 1px solid var(--rec-line);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    background: var(--rec-surface);
+    background: var(--surface);
     cursor: pointer;
     transition: border-color 140ms ease, transform 140ms ease, opacity 160ms ease;
 }
@@ -459,7 +442,7 @@
     flex: 1;
     padding: 8px 0;
     border-radius: 999px;
-    background: var(--rec-gold);
+    background: var(--gold);
     color: #1a1408;
     font-size: 0.78rem;
     font-weight: 500;
@@ -482,7 +465,7 @@
 
 #recommendations .rec-alt-actions .rec-ghost:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.04);
-    color: var(--rec-text);
+    color: var(--text);
 }
 
 /* Exit animation shared by discarded and placed cards. */

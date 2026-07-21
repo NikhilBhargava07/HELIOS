@@ -16,6 +16,14 @@
     --yellow: #f2cc60;
     --muted: #8b949e;
     --soft-white: #f7fbff;
+    /* Shared dark-subpage palette (recommendations, capital, trends, news, market-take, profile). */
+    --gold: #f0b64d;
+    --pos: #4ec98a;
+    --neg: #f0716f;
+    --line: rgba(255, 255, 255, 0.08);
+    --surface: rgba(255, 255, 255, 0.025);
+    --dim: #7f8896;
+    --text: #e6edf3;
     --page-background:
         radial-gradient(circle at 85% 0%, rgba(240, 182, 77, 0.06), transparent 45rem),
         var(--bg);
@@ -32,6 +40,28 @@ body {
     width: 100%;
     min-height: 100vh;
     background: var(--page-background);
+}
+
+/* Shared dark panel shell for every redesigned subpage; page-specific rules live in each page's stylesheet. */
+#recommendations,
+#capital,
+#trends,
+#news,
+#market-take,
+#profile {
+    padding: clamp(20px, 2.6vw, 34px);
+    background: #0b0e13;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+}
+
+#recommendations::before,
+#capital::before,
+#trends::before,
+#news::before,
+#market-take::before,
+#profile::before {
+    border-top: 1px solid var(--line);
 }
 
 /* Floating feedback toast for success/error messages after actions like paper placing, failed API calls, or discarding candidates. */
