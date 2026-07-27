@@ -137,11 +137,6 @@ def run_recommendation_job(job_id, user_id):
             portfolio_context=results.get("portfolio_context"),
             memory_context=results.get("memory_context"),
         )
-        capture_current_csp_outcome_snapshots(
-            user_id,
-            dashboard.get("open_positions", []),
-            context=compact_dashboard_memory_context(dashboard, trigger="recommendations_refresh"),
-        )
         result = {
             "recommendation_run_id": run["id"], "approved_tickers": APPROVED_TICKERS,
             "company_names": COMPANY_NAMES, "strategy_rules": STRATEGY_RULES,
@@ -156,6 +151,18 @@ def run_recommendation_job(job_id, user_id):
             error=None,
             completed_at=utc_now_text(),
         )
+
+        # Outcome snapshots are auxiliary memory capture; the sync route ran them as a
+        # post-response background task, so a snapshot failure must not fail the scan.
+        try:
+            capture_current_csp_outcome_snapshots(
+                user_id,
+                dashboard.get("open_positions", []),
+                context=compact_dashboard_memory_context(dashboard, trigger="recommendations_refresh"),
+            )
+        except Exception as error:
+            logger.warning("Outcome snapshot capture failed after scan: %s", type(error).__name__)
+
         return {"ok": True, "job_id": job_id}
     except Exception as error:
         logger.exception(
@@ -168,7 +175,8 @@ def run_recommendation_job(job_id, user_id):
             status="failed",
             error={
                 "code": "recommendation_failed",
-                "message": "Could not generate CSP recommendations. Please try again.",
+                # Surface the real cause so the page explains the failure without CloudWatch digging.
+                "message": f"CSP scan failed — {type(error).__name__}: {str(error)[:300]}",
             },
             completed_at=utc_now_text(),
         )
