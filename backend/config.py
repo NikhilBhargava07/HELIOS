@@ -9,11 +9,8 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-if not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-    from dotenv import load_dotenv
-
-    load_dotenv(PROJECT_ROOT / ".env")
-
+# These values come from Lambda environment variables in AWS. Local development
+# uses the defaults so the project does not depend on unrelated values in .env.
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME", "helios-memory")
 

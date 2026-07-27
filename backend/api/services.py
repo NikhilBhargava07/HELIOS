@@ -1,6 +1,8 @@
 ## Shared API orchestration for candidates, Alpaca state, and dashboard data.
 
+import json
 import logging
+import os
 from dataclasses import dataclass
 
 from fastapi import HTTPException
@@ -29,6 +31,26 @@ from backend.users.profiles import get_user_broker_credentials
 
 
 logger = logging.getLogger(__name__)
+
+
+## Invoke this same Lambda asynchronously to run a background job (recommendation scan, AI market take).
+## InvocationType "Event" returns immediately, so API Gateway's request timeout never bounds the heavy work.
+def enqueue_worker(worker_action, job_id, user_id):
+    import boto3
+
+    function_name = os.getenv("AWS_LAMBDA_FUNCTION_NAME")
+    if not function_name:
+        raise RuntimeError("AWS_LAMBDA_FUNCTION_NAME is required for background jobs.")
+
+    boto3.client("lambda").invoke(
+        FunctionName=function_name,
+        InvocationType="Event",
+        Payload=json.dumps({
+            "worker_action": worker_action,
+            "job_id": job_id,
+            "user_id": user_id,
+        }).encode("utf-8"),
+    )
 
 
 ## Hold the authenticated user and all Alpaca clients created from one credential read.

@@ -1,13 +1,10 @@
 ## Market trends, prices, news, context, and AI-take HTTP routes.
 
-import json
 import logging
-import os
 
-import boto3
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from backend.api.services import get_required_user_market_data_clients
+from backend.api.services import enqueue_worker, get_required_user_market_data_clients
 from backend.users.auth import require_authenticated_user
 from backend.config import APPROVED_TICKERS, COMPANY_NAMES
 from backend.market.ai_take_jobs import create_market_take_job, get_market_take_job
@@ -17,24 +14,6 @@ from backend.market.trends import get_latest_stock_prices, get_market_trends
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 logger = logging.getLogger(__name__)
-
-
-## Start the Lambda background worker for an AI market-take job.
-## This avoids API Gateway timeouts by returning a job id immediately while the OpenAI call continues asynchronously.
-def enqueue_market_take_worker(job_id, user_id):
-    function_name = os.getenv("AWS_LAMBDA_FUNCTION_NAME")
-    if not function_name:
-        raise RuntimeError("AWS_LAMBDA_FUNCTION_NAME is required for async market-take jobs.")
-
-    boto3.client("lambda").invoke(
-        FunctionName=function_name,
-        InvocationType="Event",
-        Payload=json.dumps({
-            "worker_action": "market_take",
-            "job_id": job_id,
-            "user_id": user_id,
-        }).encode("utf-8"),
-    )
 
 
 @router.get("/trends")
@@ -94,7 +73,7 @@ def create_market_take_job_route(request: Request):
     user = require_authenticated_user(request)
     job = create_market_take_job(user.user_id)
     try:
-        enqueue_market_take_worker(job["job_id"], user.user_id)
+        enqueue_worker("market_take", job["job_id"], user.user_id)
     except Exception as error:
         logger.exception(
             "Could not enqueue AI market-take job %s: %s",

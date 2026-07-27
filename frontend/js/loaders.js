@@ -4,38 +4,96 @@ async function loadRecommendations() {
     if (button) {
         button.disabled = true;
     }
-    recommendationStatus.textContent = "Scanning approved tickers and asking the agent...";
+    setScanStatus("Starting CSP scan...");
 
     try {
-        const response = await apiFetch("/api/recommendations", { auth: true });
+        const response = await apiFetch("/api/recommendations/jobs", {
+            auth: true,
+            method: "POST",
+        });
+
+        if (!response.ok) {
+            throw new Error(await brokerErrorMessage(response));
+        }
+
+        const job = await response.json();
+        setScanStatus("Scanning approved tickers and asking the agent... this can take a bit.");
+        await pollRecommendationJob(job.job_id);
+    } catch (error) {
+        failScan(error.message);
+    }
+}
+
+// The scan runs as a background Lambda job (like AI market take), so the browser polls until it finishes.
+async function pollRecommendationJob(jobId, attempt = 1) {
+    const maxAttempts = 90;
+    const pollDelayMs = 2500;
+
+    try {
+        const response = await apiFetch(`/api/recommendations/jobs/${jobId}`, { auth: true });
 
         if (!response.ok) {
             throw new Error(`Request failed with status ${response.status}`);
         }
 
-        const data = await response.json();
-        const effectiveAvailableCash = data.capital?.effective_available_csp_capital;
-        const affordableCandidates = filterAffordableCandidates(data.candidates || [], effectiveAvailableCash);
-        const affordableReview = reviewWithAffordableSelection(
-            data.review,
-            affordableCandidates,
-            effectiveAvailableCash,
-        );
+        const job = await response.json();
 
-        currentRecommendationRunId = data.recommendation_run_id;
-        companyNames = data.company_names || companyNames;
-        renderReview(affordableReview);
-        renderCandidates(affordableCandidates, affordableReview?.selected_contract);
-        renderRecsMetrics(data.dashboard);
-        renderDashboard(data.dashboard);
-        recommendationStatus.textContent = `Scanned ${data.approved_tickers.length} approved tickers. Showing ${affordableCandidates.length} cash-backed candidates.`;
-    } catch (error) {
-        recommendationStatus.textContent = `Error: ${error.message}`;
-    } finally {
-        if (button) {
-            button.disabled = false;
+        if (job.status === "complete") {
+            renderRecommendations(job.result || {});
+            if (button) {
+                button.disabled = false;
+            }
+            return;
         }
+
+        if (job.status === "failed") {
+            throw new Error(job.error?.message || "CSP scan failed.");
+        }
+
+        if (attempt >= maxAttempts) {
+            throw new Error("CSP scan is still running. Try again in a moment.");
+        }
+
+        setTimeout(() => pollRecommendationJob(jobId, attempt + 1), pollDelayMs);
+    } catch (error) {
+        failScan(error.message);
     }
+}
+
+// Render a completed scan payload into the review, candidate, and dashboard panels.
+function renderRecommendations(data) {
+    const effectiveAvailableCash = data.capital?.effective_available_csp_capital;
+    const affordableCandidates = filterAffordableCandidates(data.candidates || [], effectiveAvailableCash);
+    const affordableReview = reviewWithAffordableSelection(
+        data.review,
+        affordableCandidates,
+        effectiveAvailableCash,
+    );
+
+    currentRecommendationRunId = data.recommendation_run_id;
+    companyNames = data.company_names || companyNames;
+    renderReview(affordableReview);
+    renderCandidates(affordableCandidates, affordableReview?.selected_contract);
+    renderRecsMetrics(data.dashboard);
+    renderDashboard(data.dashboard);
+    recommendationStatus.textContent = `Scanned ${(data.approved_tickers || []).length} approved tickers. Showing ${affordableCandidates.length} cash-backed candidates.`;
+}
+
+// Show scan progress on the recommendations page itself; the home-page status line is hidden here.
+function setScanStatus(message) {
+    recommendationStatus.textContent = message;
+    reviewEl.classList.add("empty");
+    reviewEl.textContent = message;
+}
+
+// Surface a scan failure where the user can actually see it, and re-enable the scan button.
+function failScan(message) {
+    if (button) {
+        button.disabled = false;
+    }
+    recommendationStatus.textContent = `Error: ${message}`;
+    reviewEl.classList.add("empty");
+    reviewEl.textContent = `Scan error: ${message}`;
 }
 
 async function loadTrends() {

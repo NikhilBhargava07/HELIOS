@@ -9,6 +9,7 @@ from mangum import Mangum
 
 from backend.api.app import app
 from backend.market.ai_take_jobs import run_market_take_job
+from backend.strategy.recommendation_jobs import run_recommendation_job
 
 api_handler = Mangum(app, lifespan="off")
 logger = logging.getLogger(__name__)
@@ -31,6 +32,12 @@ def request_log_context(event):
 def handler(event, context):
     if event.get("worker_action") == "market_take":
         return run_market_take_job(
+            event["job_id"],
+            event["user_id"],
+        )
+
+    if event.get("worker_action") == "recommendation_scan":
+        return run_recommendation_job(
             event["job_id"],
             event["user_id"],
         )

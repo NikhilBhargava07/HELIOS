@@ -43,18 +43,16 @@ def create_app(serve_frontend=None):
     application.add_exception_handler(Exception, unexpected_error_handler)
     allowed_origins = [
         origin.strip()
-        for origin in os.getenv(
-            "CORS_ALLOWED_ORIGINS",
-            "http://127.0.0.1:8000,http://localhost:8000",
-        ).split(",")
+        for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
         if origin.strip()
     ]
-    application.add_middleware(
-        CORSMiddleware,
-        allow_origins=allowed_origins,
-        allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", "Authorization"],
-    )
+    if allowed_origins:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Content-Type", "Authorization"],
+        )
     application.include_router(portfolio_router)
     application.include_router(profile_router)
     application.include_router(recommendation_router)

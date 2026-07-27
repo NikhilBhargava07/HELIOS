@@ -1,88 +1,61 @@
 ## Recommendation generation and user-decision HTTP routes.
 
-from fastapi import APIRouter, BackgroundTasks, Request
+import logging
+
+from fastapi import APIRouter, HTTPException, Request
 
 from backend.api.schemas import UserDecisionAction, UserDecisionRequest
 from backend.api.services import (
-    attach_alpaca_cash_context,
-    candidates_to_records,
-    compact_dashboard_memory_context,
+    enqueue_worker,
     get_dashboard_with_cash_context,
-    get_effective_available_csp_cash,
     get_required_broker_context,
     get_safe_paper_account_summary,
     require_candidate,
     require_recommendation_run,
 )
 from backend.broker.trading import submit_cash_secured_put_order
-from backend.config import APPROVED_TICKERS, COMPANY_NAMES, STRATEGY_RULES
-from backend.memory.recommendations import save_recommendation_run
-from backend.memory.observations import capture_current_csp_outcome_snapshots
 from backend.memory.trades import record_user_decision
-from backend.strategy.recommender import get_recommendation_results
+from backend.strategy.recommendation_jobs import (
+    create_recommendation_job,
+    get_recommendation_job,
+)
+from backend.users.auth import require_authenticated_user
 
 router = APIRouter(prefix="/api", tags=["recommendations"])
+logger = logging.getLogger(__name__)
 
 
-@router.get("/recommendations")
-## Generate a fresh CSP recommendation run for the frontend.
-## The route scans candidates, adds market and memory context, asks the review agent, saves the run, and returns dashboard data in one response.
-def get_recommendations(background_tasks: BackgroundTasks, request: Request):
+@router.post("/recommendations/jobs")
+## Start a background CSP recommendation scan and return its job id immediately.
+## The multi-ticker scan runs in a Lambda worker, so it is not bounded by the API Gateway request timeout that made the synchronous scan fail at ~30 seconds.
+def start_recommendation_job(request: Request):
     broker_context = get_required_broker_context(request)
     user_id = broker_context.user.user_id
-    trading_client = broker_context.trading_client
-    alpaca_account = get_safe_paper_account_summary(trading_client=trading_client)
-    dashboard = get_dashboard_with_cash_context(
-        user_id,
-        alpaca_account,
-        trading_client=trading_client,
-    )
-    capital = dashboard["capital"]
-    effective_cash = get_effective_available_csp_cash(capital, alpaca_account)
-    results = get_recommendation_results(
-        user_id=user_id,
-        total_capital=capital["total_capital"],
-        current_open_positions=capital["open_position_count"],
-        current_csp_capital_committed=capital["committed_capital"],
-        external_available_csp_capital=effective_cash,
-        portfolio_context={
-            "capital": capital,
-            "open_csp_positions": dashboard["open_positions"],
-        },
-        stock_data_client=broker_context.stock_data_client,
-        option_data_client=broker_context.option_data_client,
-    )
-    if effective_cash <= 0 and alpaca_account.get("available_csp_cash") == 0:
-        results["review"] = {
-            "decision": "reject_all", "selected_contract": None,
-            "summary": "Alpaca reports $0 options buying power, so no CSP can be backed right now.",
-            "risk_note": "Options approval, open orders, or broker collateral rules may be limiting buying power.",
-            "candidate_reviews": [],
-        }
+    job = create_recommendation_job(user_id)
+    try:
+        enqueue_worker("recommendation_scan", job["job_id"], user_id)
+    except Exception as error:
+        logger.exception(
+            "Could not enqueue recommendation job %s: %s",
+            job["job_id"],
+            type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Could not start the CSP scan. Please try again.",
+        ) from error
+    return job
 
-    candidates = candidates_to_records(results["candidates"])
-    run = save_recommendation_run(
-        user_id,
-        candidates,
-        results["review"],
-        market_context=results.get("market_context"),
-        strategy_rules=STRATEGY_RULES,
-        portfolio_context=results.get("portfolio_context"),
-        memory_context=results.get("memory_context"),
-    )
-    background_tasks.add_task(
-        capture_current_csp_outcome_snapshots,
-        user_id,
-        dashboard.get("open_positions", []),
-        context=compact_dashboard_memory_context(dashboard, trigger="recommendations_refresh"),
-    )
-    return {
-        "recommendation_run_id": run["id"], "approved_tickers": APPROVED_TICKERS,
-        "company_names": COMPANY_NAMES, "strategy_rules": STRATEGY_RULES,
-        "capital": attach_alpaca_cash_context(capital, alpaca_account),
-        "dashboard": dashboard,
-        "candidates": candidates, "review": results["review"],
-    }
+
+@router.get("/recommendations/jobs/{job_id}")
+## Return the latest status, and the full scan result once complete, for a recommendation job.
+## This backs the polling loop that keeps the multi-ticker scan from freezing the UI.
+def read_recommendation_job(job_id, request: Request):
+    user = require_authenticated_user(request)
+    job = get_recommendation_job(job_id, user.user_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Recommendation job not found.")
+    return job
 
 
 @router.post("/decisions")
