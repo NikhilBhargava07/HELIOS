@@ -13,7 +13,7 @@ async function loadRecommendations() {
         });
 
         if (!response.ok) {
-            throw new Error(await brokerErrorMessage(response));
+            throw new Error(await brokerErrorMessage(response, `Couldn't start the scan (status ${response.status}).`));
         }
 
         const job = await response.json();

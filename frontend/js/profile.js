@@ -203,8 +203,9 @@ function showBrokerError(message) {
     brokerError.classList.remove("hidden");
 }
 
-// Extract the most useful backend error text so profile setup failures explain what actually went wrong.
-async function brokerErrorMessage(response) {
+// Extract the most useful backend error text so failures explain what actually went wrong.
+// Callers pass a context-appropriate fallback for when the response carries no detail.
+async function brokerErrorMessage(response, fallback = "Couldn't save your broker keys. Please try again.") {
     try {
         const data = await response.json();
 
@@ -219,7 +220,7 @@ async function brokerErrorMessage(response) {
         return "Your login session expired. Sign out, sign in again, then reconnect Alpaca.";
     }
 
-    return "Couldn't save your broker keys. Please try again.";
+    return fallback;
 }
 
 // Dropdown item actions: Profile navigates, Settings opens the form, Sign out logs out.
