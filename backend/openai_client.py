@@ -9,6 +9,8 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
+from backend.config import OPENAI_MAX_RETRIES, OPENAI_TIMEOUT_SECONDS
+
 
 ## Load the local .env file only for OpenAI access during development.
 ## Lambda receives OPENAI_API_KEY from its own environment and does not package python-dotenv.
@@ -39,4 +41,8 @@ def get_openai_client():
     except ImportError:
         return None
 
-    return OpenAI(api_key=api_key, timeout=45)
+    return OpenAI(
+        api_key=api_key,
+        timeout=OPENAI_TIMEOUT_SECONDS,
+        max_retries=OPENAI_MAX_RETRIES,
+    )

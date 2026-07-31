@@ -111,7 +111,7 @@ function renderFeaturedCandidate(candidate) {
     return `
         <article class="rec-featured" data-contract="${candidate.contractSymbol}">
             <div class="rec-featured-top">
-                <div class="rec-featured-title">
+                <div>
                     <p class="rec-eyebrow">Recommended</p>
                     <h3>Sell 1 ${tickerTooltip(candidate.tickerSymbol)} $${Number(candidate.strike)} put</h3>
                     <p class="rec-sub">${escapeHtml(companyNameForTicker(candidate.tickerSymbol))} · ${escapeHtml(candidate.expiration)} · ${candidate.DTE} DTE</p>
