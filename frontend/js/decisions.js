@@ -31,7 +31,9 @@ async function submitDecision(action, contractSymbol) {
 
         if (action === "place_paper_order") {
             if (data.order_submitted) {
-                recommendationStatus.textContent = `Alpaca paper order submitted (${data.alpaca_order?.status || "submitted"}).`;
+                recommendationStatus.textContent = data.duplicate_prevented
+                    ? `This Alpaca paper order was already recorded (${data.alpaca_order?.status || "submitted"}).`
+                    : `Alpaca paper order submitted (${data.alpaca_order?.status || "submitted"}).`;
             } else {
                 recommendationStatus.textContent = `Alpaca paper order failed: ${data.order_error || "unknown error"}`;
             }
@@ -107,8 +109,10 @@ async function placeCandidate(clickedButton) {
     }
 
     showToast(
-        "Paper order placed",
-        `${candidate?.tickerSymbol || contractSymbol} ${money(candidate?.strike || 0)} put submitted to Alpaca (${result.alpaca_order?.status || "submitted"}).`,
+        result.duplicate_prevented ? "Paper order already placed" : "Paper order placed",
+        result.duplicate_prevented
+            ? `The earlier ${candidate?.tickerSymbol || contractSymbol} order was found, so HELIOS did not submit a duplicate.`
+            : `${candidate?.tickerSymbol || contractSymbol} ${money(candidate?.strike || 0)} put submitted to Alpaca (${result.alpaca_order?.status || "submitted"}).`,
     );
 
     if (card) {

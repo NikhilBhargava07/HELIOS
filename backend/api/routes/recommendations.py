@@ -9,11 +9,14 @@ from backend.api.services import (
     enqueue_worker,
     get_dashboard_with_cash_context,
     get_required_broker_context,
-    get_safe_paper_account_summary,
+    prepare_candidate_for_paper_order,
     require_candidate,
     require_recommendation_run,
 )
-from backend.broker.trading import submit_cash_secured_put_order
+from backend.broker.trading import (
+    build_helios_client_order_id,
+    submit_cash_secured_put_order,
+)
 from backend.memory.trades import record_user_decision
 from backend.strategy.recommendation_jobs import (
     create_recommendation_job,
@@ -65,10 +68,12 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
     broker_context = get_required_broker_context(http_request)
     user_id = broker_context.user.user_id
     trading_client = broker_context.trading_client
+    option_data_client = broker_context.option_data_client
     alpaca_order = None
     alpaca_account = None
     order_error = None
     store_action = request.action.value
+    duplicate_prevented = False
 
     if request.action == UserDecisionAction.PLACE_PAPER_ORDER:
         try:
@@ -77,15 +82,28 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
                 request.recommendation_run_id,
             )
             candidate = require_candidate(run, request.contract_symbol)
-            alpaca_account = get_safe_paper_account_summary(trading_client=trading_client)
-            available_cash = alpaca_account.get("available_csp_cash")
-            cash_required = float(candidate.get("cashRequired") or 0)
-            if available_cash is not None and cash_required > available_cash:
-                raise ValueError(
-                    f"Insufficient Alpaca paper buying power. This CSP requires ${cash_required:,.2f}, "
-                    f"but Alpaca reports ${available_cash:,.2f} available."
+            client_order_id = build_helios_client_order_id(
+                user_id,
+                request.recommendation_run_id,
+                request.contract_symbol,
+            )
+            placement = prepare_candidate_for_paper_order(
+                run,
+                candidate,
+                client_order_id,
+                trading_client,
+                option_data_client,
+            )
+            candidate = placement["candidate"]
+            alpaca_account = placement["account"]
+            alpaca_order = placement["existing_order"]
+            duplicate_prevented = alpaca_order is not None
+            if alpaca_order is None:
+                alpaca_order = submit_cash_secured_put_order(
+                    candidate,
+                    trading_client=trading_client,
+                    client_order_id=client_order_id,
                 )
-            alpaca_order = submit_cash_secured_put_order(candidate, trading_client=trading_client)
         except Exception as error:
             store_action = "place_paper_order_failed"
             order_error = str(error)
@@ -110,10 +128,15 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
         request.recommendation_run_id,
         request.contract_symbol,
         store_action,
-        request.note, alpaca_order=alpaca_order, order_error=order_error,
+        request.note,
+        alpaca_order=alpaca_order,
+        order_error=order_error,
+        candidate_override=(candidate if request.action == UserDecisionAction.PLACE_PAPER_ORDER else None),
     )
     return {
-        "decision": decision, "order_submitted": alpaca_order is not None,
+        "decision": decision,
+        "order_submitted": alpaca_order is not None,
+        "duplicate_prevented": duplicate_prevented,
         "alpaca_order": alpaca_order,
         "refresh_recommendations": request.action == UserDecisionAction.PLACE_PAPER_ORDER,
         "dashboard": get_dashboard_with_cash_context(

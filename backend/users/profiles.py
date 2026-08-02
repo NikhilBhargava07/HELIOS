@@ -7,7 +7,8 @@
 
 from backend.memory.dynamodb_store import (
     get_item,
-    put_item,
+    put_items,
+    query_items,
     utc_now_text,
 )
 from backend.users.auth import AuthenticatedUser
@@ -18,6 +19,9 @@ from backend.users.secrets import save_broker_secret
 ## Keeping all profile rows under USER_PROFILE#{sub} avoids mixing account setup data with strategy memory.
 def user_profile_pk(user_id):
     return f"USER_PROFILE#{user_id}"
+
+
+CONNECTED_USERS_PK = "SYSTEM#CONNECTED_BROKER_USERS"
 
 
 ## Return a profile response that is safe for the frontend to display.
@@ -80,7 +84,17 @@ def save_broker_profile(user: AuthenticatedUser, broker, broker_api_key, broker_
         "created_at": existing_profile.get("created_at", now),
         "updated_at": now,
     }
-    put_item(profile)
+    put_items([
+        profile,
+        {
+            "pk": CONNECTED_USERS_PK,
+            "sk": f"USER#{user.user_id}",
+            "item_type": "connected_broker_user",
+            "user_id": user.user_id,
+            "broker": broker,
+            "updated_at": now,
+        },
+    ])
     return profile
 
 
@@ -102,3 +116,17 @@ def get_user_broker_credentials(user_id):
         "api_key": profile.get("broker_api_key"),
         "secret_key": get_broker_secret(secret_ref),
     }
+
+
+## List users with a connected broker for scheduled lifecycle observations.
+## The small system registry avoids an expensive full-table scan and contains only opaque Cognito ids, never broker credentials.
+def list_connected_broker_user_ids(limit=500):
+    return [
+        item["user_id"]
+        for item in query_items(
+            CONNECTED_USERS_PK,
+            "USER#",
+            limit=limit,
+        )
+        if item.get("user_id")
+    ]

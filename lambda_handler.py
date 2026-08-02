@@ -9,6 +9,10 @@ from mangum import Mangum
 
 from backend.api.app import app
 from backend.market.ai_take_jobs import run_market_take_job
+from backend.memory.outcome_jobs import (
+    dispatch_scheduled_outcome_observations,
+    run_outcome_observation,
+)
 from backend.strategy.recommendation_jobs import run_recommendation_job
 
 api_handler = Mangum(app, lifespan="off")
@@ -30,6 +34,12 @@ def request_log_context(event):
 ## Decide whether a Lambda invocation is a normal HTTP request or an internal background job.
 ## API Gateway requests are forwarded into FastAPI through Mangum, while market-take worker events run directly so the UI can poll for long OpenAI responses instead of waiting on one request.
 def handler(event, context):
+    if event.get("worker_action") == "scheduled_outcome_dispatch":
+        return dispatch_scheduled_outcome_observations()
+
+    if event.get("worker_action") == "outcome_observation":
+        return run_outcome_observation(event["user_id"])
+
     if event.get("worker_action") == "market_take":
         return run_market_take_job(
             event["job_id"],

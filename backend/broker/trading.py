@@ -1,8 +1,10 @@
 ## Read Alpaca paper-account state and submit CSP paper orders.
 
+import hashlib
 import re
-from uuid import uuid4
 
+from alpaca.data.enums import OptionsFeed
+from alpaca.data.requests import OptionLatestQuoteRequest
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import (
     OrderClass,
@@ -15,6 +17,7 @@ from alpaca.trading.requests import GetOrdersRequest, LimitOrderRequest
 OPTION_SYMBOL_PATTERN = re.compile(
     r"^(?P<ticker>[A-Z.]+)(?P<expiration>\d{6})(?P<type>[CP])(?P<strike>\d{8})$"
 )
+OPTION_LIFECYCLE_ACTIVITY_TYPES = ("OPASN", "OPEXP", "OPCSH")
 
 
 ## Create an Alpaca paper-trading client from explicit credentials.
@@ -211,17 +214,148 @@ def get_paper_orders(limit=100, trading_client=None):
     trading_client = require_trading_client(trading_client)
     request = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=limit)
     return [
-        serialize_alpaca_model(order)
+        normalize_paper_order(serialize_alpaca_model(order))
         for order in trading_client.get_orders(filter=request)
     ]
 
 
+## Fetch option assignment, expiration, and cash-settlement evidence from Alpaca.
+## Paper option activities can arrive after positions change, so outcome finalization polls these REST records instead of treating a missing position as proof of assignment or expiration.
+def get_option_lifecycle_activities(
+    after=None,
+    trading_client=None,
+    activity_types=OPTION_LIFECYCLE_ACTIVITY_TYPES,
+):
+    trading_client = require_trading_client(trading_client)
+    activities = []
+    errors = []
+    query = {"direction": "desc", "page_size": 100}
+    if after:
+        query["after"] = after
+
+    for activity_type in activity_types:
+        try:
+            response = trading_client.get(
+                f"/account/activities/{activity_type}",
+                query,
+            )
+        except Exception as error:
+            errors.append(error)
+            continue
+        for activity in response or []:
+            normalized = dict(activity)
+            raw_type = normalized.get("activity_type") or activity_type
+            normalized["activity_type"] = str(
+                getattr(raw_type, "value", raw_type)
+            ).upper()
+            activities.append(normalized)
+
+    if errors and len(errors) == len(activity_types):
+        raise errors[0]
+    return activities
+
+
+## Convert an Alpaca order into the stable lifecycle shape saved by HELIOS.
+## Fill quantities, prices, and terminal timestamps are retained for reconciliation and later outcome learning.
+def normalize_paper_order(raw_order):
+    return {
+        field: raw_order.get(field)
+        for field in (
+            "id",
+            "client_order_id",
+            "status",
+            "symbol",
+            "side",
+            "type",
+            "time_in_force",
+            "position_intent",
+            "limit_price",
+            "qty",
+            "filled_qty",
+            "filled_avg_price",
+            "submitted_at",
+            "updated_at",
+            "filled_at",
+            "canceled_at",
+            "expired_at",
+            "failed_at",
+        )
+    }
+
+
+## Derive a repeatable, opaque Alpaca client order id from one user action target.
+## A browser retry for the same recommendation and contract therefore cannot create a second sell order.
+def build_helios_client_order_id(user_id, run_id, contract_symbol):
+    digest = hashlib.sha256(
+        f"{user_id}|{run_id}|{contract_symbol}".encode("utf-8")
+    ).hexdigest()[:32]
+    return f"helios-{digest}"
+
+
+## Re-fetch the exact option quote immediately before an order is submitted.
+## This prevents HELIOS from placing a limit order from an old scan when the bid, spread, or displayed liquidity has changed materially.
+def refresh_candidate_option_quote(
+    candidate,
+    option_data_client,
+    max_spread,
+    min_quote_size,
+):
+    contract_symbol = candidate["contractSymbol"]
+    request = OptionLatestQuoteRequest(
+        symbol_or_symbols=contract_symbol,
+        feed=OptionsFeed.INDICATIVE,
+    )
+    latest_quotes = option_data_client.get_option_latest_quote(request)
+    quote_model = latest_quotes.get(contract_symbol)
+    if quote_model is None:
+        raise ValueError("The latest option quote is unavailable. Run a new scan before placing this CSP.")
+
+    quote = serialize_alpaca_model(quote_model)
+    bid = number_or_none(quote.get("bid_price"))
+    ask = number_or_none(quote.get("ask_price"))
+    bid_size = number_or_none(quote.get("bid_size")) or 0
+    ask_size = number_or_none(quote.get("ask_size")) or 0
+    if bid is None or ask is None or bid <= 0 or ask <= 0 or ask < bid:
+        raise ValueError("The latest option bid/ask quote is not usable. Run a new scan before placing this CSP.")
+
+    spread = ask - bid
+    if spread > max_spread:
+        raise ValueError(
+            f"The option spread widened to ${spread:.2f}, above the ${max_spread:.2f} strategy limit."
+        )
+    if bid_size < min_quote_size or ask_size < min_quote_size:
+        raise ValueError("The latest option quote no longer meets the liquidity rule.")
+
+    refreshed = dict(candidate)
+    cash_required = float(refreshed["cashRequired"])
+    strike = float(refreshed["strike"])
+    premium = bid * 100
+    refreshed.update({
+        "bid": bid,
+        "ask": ask,
+        "spread": spread,
+        "bidSize": int(bid_size),
+        "askSize": int(ask_size),
+        "premiumIfSoldAtBid": premium,
+        "breakevenPrice": strike - bid,
+        "returnOnCashPercent": (premium / cash_required) * 100,
+        "quoteCheckedAt": str(quote.get("timestamp") or ""),
+    })
+    return refreshed
+
+
 ## Submit a one-contract sell-to-open put limit order to Alpaca paper trading.
 ## The function intentionally supports only the recommended CSP flow so the prototype cannot place arbitrary trade types.
-def submit_cash_secured_put_order(candidate, trading_client=None):
+def submit_cash_secured_put_order(
+    candidate,
+    trading_client=None,
+    client_order_id=None,
+):
     trading_client = require_trading_client(trading_client)
     contract_symbol = candidate["contractSymbol"]
     limit_price = option_limit_price_from_candidate(candidate)
+    if not client_order_id:
+        raise ValueError("A deterministic HELIOS client order id is required.")
 
     order_request = LimitOrderRequest(
         symbol=contract_symbol,
@@ -231,21 +365,14 @@ def submit_cash_secured_put_order(candidate, trading_client=None):
         limit_price=limit_price,
         order_class=OrderClass.SIMPLE,
         position_intent=PositionIntent.SELL_TO_OPEN,
-        client_order_id=f"helios-{uuid4().hex[:24]}",
+        client_order_id=client_order_id,
     )
 
     order = trading_client.submit_order(order_request)
     serialized_order = serialize_alpaca_model(order)
 
-    return {
-        "id": serialized_order.get("id"),
-        "client_order_id": serialized_order.get("client_order_id"),
-        "status": serialized_order.get("status"),
-        "symbol": serialized_order.get("symbol", contract_symbol),
-        "side": serialized_order.get("side"),
-        "type": serialized_order.get("type"),
-        "time_in_force": serialized_order.get("time_in_force"),
-        "limit_price": serialized_order.get("limit_price", limit_price),
-        "qty": serialized_order.get("qty", "1"),
-        "submitted_at": serialized_order.get("submitted_at"),
-    }
+    normalized = normalize_paper_order(serialized_order)
+    normalized["symbol"] = normalized.get("symbol") or contract_symbol
+    normalized["limit_price"] = normalized.get("limit_price") or limit_price
+    normalized["qty"] = normalized.get("qty") or "1"
+    return normalized

@@ -8,22 +8,51 @@ from backend.memory.dynamodb_store import (
     user_pk,
     utc_now_text,
 )
+from backend.memory.outcome_analysis import number_or_none
 from backend.memory.recommendations import (
     find_candidate,
     get_recommendation_run,
 )
 
 FILLED_ORDER_STATUSES = {"filled"}
+ORDER_LIFECYCLE_FIELDS = (
+    "limit_price",
+    "qty",
+    "filled_qty",
+    "filled_avg_price",
+    "submitted_at",
+    "updated_at",
+    "filled_at",
+    "canceled_at",
+    "expired_at",
+    "failed_at",
+)
+
+
+## Replace quoted economics with actual broker fill economics once Alpaca reports a fill.
+## The original recommendation quote remains available for later slippage and execution-quality analysis.
+def _apply_fill_economics(order):
+    filled_price = number_or_none(order.get("alpaca_filled_avg_price"))
+    filled_quantity = number_or_none(order.get("alpaca_filled_qty"))
+    if filled_price is None or not filled_quantity or filled_quantity <= 0:
+        return order
+
+    strike = float(order["strike"])
+    order["premium_received"] = filled_price * 100 * filled_quantity
+    order["cash_required"] = strike * 100 * filled_quantity
+    order["breakeven_price"] = strike - filled_price
+    return order
 
 
 ## Convert a broker submission into the normalized HELIOS paper-order record.
 ## Only fields used by the dashboard and learning system are retained; the full Alpaca payload is deliberately omitted.
 def _create_paper_order(decision, candidate, alpaca_order=None):
     alpaca_order = alpaca_order or {}
-    return {
+    order = {
         "id": str(uuid4()),
         "created_at": utc_now_text(),
         "decision_id": decision["id"],
+        "recommendation_run_id": decision["recommendation_run_id"],
         "status": alpaca_order.get("status", "local_recorded"),
         "side": "sell",
         "strategy": "cash-secured put",
@@ -31,6 +60,7 @@ def _create_paper_order(decision, candidate, alpaca_order=None):
         "ticker_symbol": candidate["tickerSymbol"],
         "expiration": candidate["expiration"],
         "strike": candidate["strike"],
+        "quoted_premium": candidate["premiumIfSoldAtBid"],
         "premium_received": candidate["premiumIfSoldAtBid"],
         "cash_required": candidate["cashRequired"],
         "breakeven_price": candidate["breakevenPrice"],
@@ -38,27 +68,73 @@ def _create_paper_order(decision, candidate, alpaca_order=None):
         "alpaca_client_order_id": alpaca_order.get("client_order_id"),
         "alpaca_limit_price": alpaca_order.get("limit_price"),
         "alpaca_submitted_at": alpaca_order.get("submitted_at"),
+        "alpaca_updated_at": alpaca_order.get("updated_at"),
+        "alpaca_qty": alpaca_order.get("qty"),
+        "alpaca_filled_qty": alpaca_order.get("filled_qty"),
+        "alpaca_filled_avg_price": alpaca_order.get("filled_avg_price"),
+        "alpaca_filled_at": alpaca_order.get("filled_at"),
+        "alpaca_canceled_at": alpaca_order.get("canceled_at"),
+        "alpaca_expired_at": alpaca_order.get("expired_at"),
+        "alpaca_failed_at": alpaca_order.get("failed_at"),
+        "entry_factors": {
+            "dte": candidate.get("DTE"),
+            "delta": candidate.get("delta"),
+            "iv_percent": candidate.get("ivPercent"),
+            "spread": candidate.get("spread"),
+            "return_on_cash_percent": candidate.get("returnOnCashPercent"),
+            "stock_price": candidate.get("currentStockPrice"),
+        },
     }
+    return _apply_fill_economics(order)
 
 
 ## Build a fallback open-position record after a filled paper order.
 ## Live Alpaca positions remain authoritative; this record is used only when the broker position endpoint is unavailable.
-def _create_open_position(order, candidate):
+def _create_open_position(order):
+    filled_quantity = number_or_none(order.get("alpaca_filled_qty"))
+    quantity = filled_quantity if filled_quantity and filled_quantity > 0 else 1
+    filled_price = number_or_none(order.get("alpaca_filled_avg_price"))
+    strike = float(order["strike"])
+    premium_received = (
+        filled_price * 100 * quantity
+        if filled_price is not None
+        else float(order["premium_received"])
+    )
+    breakeven_price = (
+        strike - filled_price
+        if filled_price is not None
+        else float(order["breakeven_price"])
+    )
     return {
-        "id": str(uuid4()),
+        "id": f"order-{order['id']}",
         "opened_at": utc_now_text(),
         "status": "open",
         "order_id": order["id"],
         "strategy": order["strategy"],
-        "contract_symbol": candidate["contractSymbol"],
-        "ticker_symbol": candidate["tickerSymbol"],
-        "expiration": candidate["expiration"],
-        "strike": candidate["strike"],
-        "premium_received": candidate["premiumIfSoldAtBid"],
-        "cash_required": candidate["cashRequired"],
-        "breakeven_price": candidate["breakevenPrice"],
+        "contract_symbol": order["contract_symbol"],
+        "ticker_symbol": order["ticker_symbol"],
+        "expiration": order["expiration"],
+        "strike": strike,
+        "quantity": quantity,
+        "premium_received": premium_received,
+        "cash_required": strike * 100 * quantity,
+        "breakeven_price": breakeven_price,
+        "average_fill_price": filled_price,
+        "filled_at": order.get("alpaca_filled_at"),
         "realized_pnl": 0,
     }
+
+
+## Save a filled-order fallback position under an idempotent sort key.
+## Repeated dashboard reconciliations overwrite the same record rather than creating duplicate positions.
+def _save_filled_order_position(owner_partition, order):
+    position = _create_open_position(order)
+    put_item({
+        "pk": owner_partition,
+        "sk": f"POSITION#ORDER#{order['id']}",
+        "item_type": "position",
+        **position,
+    })
 
 
 ## Decide whether a broker order represents an active filled CSP position.
@@ -77,6 +153,7 @@ def record_user_decision(
     note="",
     alpaca_order=None,
     order_error=None,
+    candidate_override=None,
 ):
     run = get_recommendation_run(user_id, run_id)
     if run is None:
@@ -85,8 +162,28 @@ def record_user_decision(
     candidate = find_candidate(run, contract_symbol)
     if candidate is None:
         raise ValueError("Candidate not found in recommendation run.")
+    if candidate_override:
+        if candidate_override.get("contractSymbol") != contract_symbol:
+            raise ValueError("Candidate override does not match the selected contract.")
+        candidate = candidate_override
 
     owner_partition = user_pk(user_id)
+    client_order_id = (alpaca_order or {}).get("client_order_id")
+    if action == "place_paper_order" and client_order_id:
+        existing_lookup = get_item(
+            f"{owner_partition}#ALPACA_CLIENT_ORDER#{client_order_id}",
+            "ORDER",
+        )
+        if existing_lookup:
+            decision_sk = existing_lookup.get("decision_sk")
+            existing_decision = (
+                get_item(owner_partition, decision_sk)
+                if decision_sk
+                else None
+            )
+            if existing_decision:
+                return existing_decision
+
     decision = {
         "id": str(uuid4()),
         "created_at": utc_now_text(),
@@ -126,14 +223,17 @@ def record_user_decision(
             "order_id": order["id"],
             "user_order_sk": order_sort_key,
         })
-    if _should_track_open_position(order):
-        position = _create_open_position(order, candidate)
+    if order.get("alpaca_client_order_id"):
         put_item({
-            "pk": owner_partition,
-            "sk": f"POSITION#{position['opened_at']}#{position['id']}",
-            "item_type": "position",
-            **position,
+            "pk": f"{owner_partition}#ALPACA_CLIENT_ORDER#{order['alpaca_client_order_id']}",
+            "sk": "ORDER",
+            "item_type": "client_order_lookup",
+            "order_id": order["id"],
+            "user_order_sk": order_sort_key,
+            "decision_sk": f"DECISION#{decision['created_at']}#{decision['id']}",
         })
+    if _should_track_open_position(order):
+        _save_filled_order_position(owner_partition, order)
     return decision
 
 
@@ -159,11 +259,39 @@ def reconcile_paper_orders(user_id, alpaca_orders):
         if not order_item:
             continue
 
+        for field in ORDER_LIFECYCLE_FIELDS:
+            value = alpaca_order.get(field)
+            if value is not None:
+                order_item[f"alpaca_{field}"] = value
         order_item["status"] = status
-        order_item["alpaca_limit_price"] = (
-            alpaca_order.get("limit_price")
-            or order_item.get("alpaca_limit_price")
-        )
+        _apply_fill_economics(order_item)
         put_item(order_item)
+        if _should_track_open_position(order_item):
+            _save_filled_order_position(owner_partition, order_item)
         updated_count += 1
     return updated_count
+
+
+## Close the DynamoDB fallback position created for one filled HELIOS order.
+## Live Alpaca positions remain authoritative, but marking this fallback prevents a resolved contract from reappearing if the broker position endpoint is temporarily unavailable.
+def close_fallback_order_position(
+    user_id,
+    order_id,
+    resolution_type,
+    closed_at,
+    outcome_sort_key,
+):
+    owner_partition = user_pk(user_id)
+    position_key = f"POSITION#ORDER#{order_id}"
+    position = get_item(owner_partition, position_key)
+    if not position:
+        return False
+
+    position.update({
+        "status": "closed",
+        "resolution_type": resolution_type,
+        "closed_at": closed_at,
+        "outcome_sk": outcome_sort_key,
+    })
+    put_item(position)
+    return True

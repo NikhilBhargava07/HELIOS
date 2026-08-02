@@ -2,21 +2,84 @@
 
 import json
 import logging
-import re
+import time
 
-from backend.config import OPENAI_MODEL
-from backend.openai_client import get_openai_client
+from backend.config import (
+    OPENAI_MARKET_TAKE_MAX_OUTPUT_TOKENS,
+    OPENAI_MODEL,
+    OPENAI_REASONING_EFFORT,
+)
+from backend.market.prompt_context import compact_market_take_context
+from backend.openai_client import (
+    classify_openai_error,
+    get_openai_client,
+    openai_error_message,
+)
 
 
 logger = logging.getLogger(__name__)
 
 
+MARKET_TAKE_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "headline": {"type": "string"},
+        "market_mood": {
+            "type": "string",
+            "enum": ["Calm", "Mixed", "Choppy", "Risky"],
+        },
+        "csp_stance": {
+            "type": "string",
+            "enum": ["Favorable", "Selective", "Cautious", "Wait"],
+        },
+        "reasoned_take": {"type": "string"},
+        "csp_take": {"type": "string"},
+        "portfolio_take": {"type": "string"},
+        "recommendation_take": {"type": "string"},
+        "action": {"type": "string"},
+        "avoid": {"type": "string"},
+        "company_notes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "ticker": {"type": "string"},
+                    "note": {"type": "string"},
+                },
+                "required": ["ticker", "note"],
+            },
+        },
+        "scenarios": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+    },
+    "required": [
+        "headline",
+        "market_mood",
+        "csp_stance",
+        "reasoned_take",
+        "csp_take",
+        "portfolio_take",
+        "recommendation_take",
+        "action",
+        "avoid",
+        "company_notes",
+        "scenarios",
+    ],
+}
+
+
 ## Produce a deterministic fallback market take when OpenAI is unavailable.
 ## The UI still receives a useful CSP-focused explanation instead of failing completely during API outages.
 def local_market_take(context):
-    if not context["trends"] and not context["news"]:
+    trends = context.get("trends") or []
+    news = context.get("news") or context.get("news_and_earnings") or []
+    if not trends and not news:
         return {
-            "headline": "No market context yet.", "market_mood": "Neutral",
+            "headline": "No market context yet.", "market_mood": "Mixed",
             "csp_stance": "Wait",
             "reasoned_take": "Load trends and news before leaning on the market take.",
             "csp_take": "Use only the hard CSP filters for now.",
@@ -26,24 +89,50 @@ def local_market_take(context):
             "avoid": "Do not force a trade without context.",
             "company_notes": [],
             "scenarios": ["Neutral: continue reviewing filtered CSP candidates only."],
+            "review_source": "local_fallback",
         }
 
-    strongest = _rank_trends(context["trends"], reverse=True)
-    weakest = _rank_trends(context["trends"], reverse=False)
+    strongest = _rank_trends(trends, reverse=True)
+    weakest = _rank_trends(trends, reverse=False)
     positions = context.get("portfolio", {}).get("open_csp_positions", [])
     candidates = (context.get("latest_recommendation") or {}).get("candidates", [])
-    position_tickers = [position["ticker_symbol"] for position in positions]
-    candidate_tickers = list(dict.fromkeys(candidate["tickerSymbol"] for candidate in candidates[:4]))
+    position_tickers = [
+        position.get("ticker_symbol")
+        for position in positions
+        if position.get("ticker_symbol")
+    ]
+    candidate_tickers = list(dict.fromkeys(
+        candidate.get("tickerSymbol")
+        for candidate in candidates[:4]
+        if candidate.get("tickerSymbol")
+    ))
+    if trends:
+        reasoned_take = (
+            f"Recent strength includes {', '.join(row['ticker'] for row in strongest)}, while "
+            f"{', '.join(row['ticker'] for row in weakest)} look weaker on the 5-day view. "
+            "Prefer filtered names with downside cushion that you would accept owning."
+        )
+        scenarios = [
+            f"Stronger 5-day names: {', '.join(row['ticker'] for row in strongest)}.",
+            f"Weaker 5-day names: {', '.join(row['ticker'] for row in weakest)}.",
+            "Scenario context, not a price prediction.",
+        ]
+    else:
+        reasoned_take = (
+            "Recent news is available, but usable trend rows are not. "
+            "Treat this fallback as limited context and rely on the hard CSP filters until trend data loads."
+        )
+        scenarios = [
+            "Trend data unavailable: avoid ranking tickers by recent momentum.",
+            "News context may identify risks but cannot establish price direction alone.",
+            "Scenario context, not a price prediction.",
+        ]
 
     return {
         "headline": "Use trend data as a risk check.",
         "market_mood": "Mixed",
         "csp_stance": "Selective",
-        "reasoned_take": (
-            f"Recent strength includes {', '.join(row['ticker'] for row in strongest)}, while "
-            f"{', '.join(row['ticker'] for row in weakest)} look weaker on the 5-day view. "
-            "Prefer filtered names with downside cushion that you would accept owning."
-        ),
+        "reasoned_take": reasoned_take,
         "csp_take": "Favor CSPs only when hard filters pass.",
         "portfolio_take": (
             f"Current open CSPs: {', '.join(position_tickers)}. Review their assignment risk before adding exposure."
@@ -59,11 +148,8 @@ def local_market_take(context):
             {"ticker": row["ticker"], "note": "Stronger 5-day trend; still inspect downside risk."}
             for row in strongest
         ],
-        "scenarios": [
-            f"Stronger 5-day names: {', '.join(row['ticker'] for row in strongest)}.",
-            f"Weaker 5-day names: {', '.join(row['ticker'] for row in weakest)}.",
-            "Scenario context, not a price prediction.",
-        ],
+        "scenarios": scenarios,
+        "review_source": "local_fallback",
     }
 
 
@@ -78,28 +164,17 @@ def _rank_trends(trends, reverse):
     )[:3]
 
 
-## Parse the model response into the structured market-take schema.
-## The parser tolerates fenced JSON because LLMs sometimes wrap otherwise valid JSON in markdown.
-def parse_market_take_json(text):
-    cleaned = re.sub(r"^```(?:json)?", "", text.strip())
-    cleaned = re.sub(r"```$", "", cleaned).strip()
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-        if not match:
-            raise
-        return json.loads(match.group(0))
-
-
 ## Ask OpenAI for a portfolio-aware market take, falling back locally on failure.
 ## This is the main reasoning entry point for the AI Market Take tab.
 def ai_market_take(context):
     client = get_openai_client()
     if client is None:
-        return local_market_take(context)
+        take = local_market_take(context)
+        take["ai_error_code"] = "not_configured"
+        return take
 
     prompt = _build_market_take_prompt(context)
+    started_at = time.monotonic()
     try:
         response = client.responses.create(
             model=OPENAI_MODEL,
@@ -107,19 +182,51 @@ def ai_market_take(context):
                 {"role": "system", "content": "You are a cautious market-context assistant for CSP paper trading."},
                 {"role": "user", "content": prompt},
             ],
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "market_take",
+                    "schema": MARKET_TAKE_SCHEMA,
+                    "strict": True,
+                }
+            },
+            reasoning={"effort": OPENAI_REASONING_EFFORT},
+            max_output_tokens=OPENAI_MARKET_TAKE_MAX_OUTPUT_TOKENS,
+            prompt_cache_key="helios-market-take-v1",
+            store=False,
         )
-        take = parse_market_take_json(response.output_text)
-        return _normalize_market_take(take)
+        take = _normalize_market_take(json.loads(response.output_text))
+        take["review_source"] = "openai"
+        take["ai_error_code"] = None
+        logger.info(
+            "OpenAI market take completed in %.2fs (prompt_chars=%s, response_id=%s)",
+            time.monotonic() - started_at,
+            len(prompt),
+            getattr(response, "id", None),
+        )
+        return take
     except Exception as error:
-        logger.warning("OpenAI market take failed: %s", type(error).__name__)
+        error_code = classify_openai_error(error)
+        logger.warning(
+            "OpenAI market take failed in %.2fs: %s/%s (status=%s, prompt_chars=%s)",
+            time.monotonic() - started_at,
+            error_code,
+            type(error).__name__,
+            getattr(error, "status_code", None),
+            len(prompt),
+        )
         fallback = local_market_take(context)
-        fallback["reasoned_take"] = "AI was unavailable, so the local market summary was used."
+        fallback["ai_error_code"] = error_code
+        fallback["reasoned_take"] = (
+            f"{openai_error_message(error_code)}, so the local market summary was used."
+        )
         return fallback
 
 
 ## Build the prompt that tells the LLM what evidence to use and what JSON to return.
 ## It includes trends, reputable news, open CSPs, latest recommendations, and memory context without exposing secrets.
 def _build_market_take_prompt(context):
+    compacted_context = compact_market_take_context(context)
     return f"""
 You are helping with an educational cash-secured put paper-trading dashboard.
 Do not pretend to know the future. Return only valid JSON with these keys:
@@ -170,7 +277,7 @@ sources that are not relevant to the current market situation. If the supplied e
 say the take is limited rather than filling gaps with generic market commentary.
 
 Context:
-{json.dumps(context, indent=2)}
+{json.dumps(compacted_context, separators=(",", ":"))}
 """
 
 

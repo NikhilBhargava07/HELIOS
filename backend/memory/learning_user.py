@@ -3,6 +3,7 @@
 from backend.config import MIN_PATTERN_SAMPLE_SIZE
 from backend.memory.dynamodb_store import query_items, user_pk
 from backend.memory.observations import get_recent_outcome_snapshots
+from backend.memory.outcomes import get_completed_trade_outcomes
 from backend.memory.recommendations import (
     find_candidate,
     get_recommendation_run,
@@ -26,6 +27,11 @@ def get_relevant_episodes(user_id, ticker_symbols, limit=8):
         )
         if item.get("ticker_symbol") in symbols
     ]
+    completed_outcomes = get_completed_trade_outcomes(user_id, limit=100)
+    outcomes_by_run_and_contract = {
+        (item.get("recommendation_run_id"), item.get("contract_symbol")): item
+        for item in completed_outcomes
+    }
     episodes = []
     for decision in decisions[:limit]:
         run = get_recommendation_run(
@@ -50,6 +56,10 @@ def get_relevant_episodes(user_id, ticker_symbols, limit=8):
                 "note": decision.get("note") or "",
                 "decided_at": decision.get("created_at"),
             },
+            "completed_outcome": outcomes_by_run_and_contract.get((
+                decision.get("recommendation_run_id"),
+                decision.get("contract_symbol"),
+            )),
         })
     return episodes
 
@@ -82,12 +92,7 @@ def build_user_profile(user_id):
         limit=200,
         scan_forward=False,
     )
-    outcomes = query_items(
-        owner_partition,
-        "OUTCOME#",
-        limit=200,
-        scan_forward=False,
-    )
+    outcomes = get_completed_trade_outcomes(user_id, limit=200)
     placed = [
         item
         for item in decisions
@@ -98,11 +103,7 @@ def build_user_profile(user_id):
         for item in decisions
         if item.get("action") == "discard"
     ]
-    completed_outcomes = [
-        item
-        for item in outcomes
-        if item.get("status") == "complete"
-    ]
+    completed_outcomes = outcomes
     assigned_outcomes = [
         item
         for item in completed_outcomes
@@ -117,6 +118,16 @@ def build_user_profile(user_id):
     assignment_rate = (
         len(assigned_outcomes) / len(completed_outcomes)
         if completed_outcomes
+        else None
+    )
+    retained_values = [
+        item.get("premium_retained_percent")
+        for item in completed_outcomes
+        if item.get("premium_retained_percent") is not None
+    ]
+    average_premium_retained = (
+        sum(retained_values) / len(retained_values)
+        if retained_values
         else None
     )
     return {
@@ -138,7 +149,7 @@ def build_user_profile(user_id):
             },
             "outcome_preferences": {
                 "assignment_rate": assignment_rate,
-                "average_premium_retained_percent": None,
+                "average_premium_retained_percent": average_premium_retained,
                 "assignment_tolerance": "unknown",
             },
             "interpretation_limits": (
@@ -151,6 +162,38 @@ def build_user_profile(user_id):
     }
 
 
+## Classify a completed option leg by its measurable economic result.
+## Assignment stays its own status because the acquired shares' gain or loss is not yet final.
+def _completed_financial_status(outcome):
+    if outcome.get("assigned"):
+        return "assigned_with_stock_outcome_pending"
+
+    option_pnl = outcome.get("option_realized_pnl")
+    if option_pnl is None:
+        return "unknown"
+    if option_pnl > 0:
+        return "profitable"
+    if option_pnl < 0:
+        return "loss"
+    return "flat"
+
+
+## Count one observation toward its ticker, resolution, and result pattern bucket.
+## Evidence without a ticker is skipped so unlabeled records cannot inflate a pattern's sample size.
+def _count_pattern(grouped, ticker_symbol, lesson_type, financial_status, summary):
+    if not ticker_symbol:
+        return
+
+    pattern = grouped.setdefault((ticker_symbol, lesson_type, financial_status), {
+        "ticker_symbol": ticker_symbol,
+        "lesson_type": lesson_type,
+        "financial_status": financial_status,
+        "sample_size": 0,
+        "latest_summary": summary,
+    })
+    pattern["sample_size"] += 1
+
+
 ## Aggregate repeated outcome lessons using distinct contracts as samples.
 ## Multiple daily snapshots of one contract remain longitudinal evidence rather than being miscounted as independent trades.
 def get_outcome_patterns(
@@ -159,8 +202,14 @@ def get_outcome_patterns(
     minimum_sample_size=MIN_PATTERN_SAMPLE_SIZE,
 ):
     symbols = set(ticker_symbols or [])
+    completed_outcomes = get_completed_trade_outcomes(user_id, limit=100)
     snapshots = get_recent_outcome_snapshots(user_id, limit=100)
     if symbols:
+        completed_outcomes = [
+            item
+            for item in completed_outcomes
+            if item.get("ticker_symbol") in symbols
+        ]
         snapshots = [
             item
             for item in snapshots
@@ -174,25 +223,50 @@ def get_outcome_patterns(
             latest_by_contract[contract_symbol] = item
 
     grouped = {}
+    for item in completed_outcomes:
+        _count_pattern(
+            grouped,
+            item.get("ticker_symbol"),
+            item.get("resolution_type"),
+            _completed_financial_status(item),
+            item.get("interpretation"),
+        )
+
+    completed_contracts = {
+        item.get("contract_symbol")
+        for item in completed_outcomes
+    }
     for item in latest_by_contract.values():
         snapshot = item.get("snapshot", {})
-        key = (
+        if snapshot.get("contract_symbol") in completed_contracts:
+            continue
+        _count_pattern(
+            grouped,
             snapshot.get("ticker_symbol"),
             snapshot.get("lesson_type"),
             snapshot.get("financial_status"),
+            item.get("summary"),
         )
-        if not key[0]:
-            continue
-        pattern = grouped.setdefault(key, {
-            "ticker_symbol": key[0],
-            "lesson_type": key[1],
-            "financial_status": key[2],
-            "sample_size": 0,
-            "latest_summary": item.get("summary"),
-        })
-        pattern["sample_size"] += 1
 
-    recent_lessons = [
+    completed_lessons = [
+        {
+            "ticker_symbol": item.get("ticker_symbol"),
+            "contract_symbol": item.get("contract_symbol"),
+            "financial_status": (
+                "assigned_with_stock_outcome_pending"
+                if item.get("assigned")
+                else "complete"
+            ),
+            "assignment_status": "assigned" if item.get("assigned") else "not_assigned",
+            "lesson_type": item.get("resolution_type"),
+            "summary": item.get("interpretation"),
+            "observed_at": item.get("completed_at"),
+            "premium_retained_percent": item.get("premium_retained_percent"),
+            "option_realized_pnl": item.get("option_realized_pnl"),
+        }
+        for item in completed_outcomes[:10]
+    ]
+    open_lessons = [
         {
             "ticker_symbol": item.get("snapshot", {}).get("ticker_symbol"),
             "contract_symbol": item.get("snapshot", {}).get("contract_symbol"),
@@ -204,6 +278,11 @@ def get_outcome_patterns(
         }
         for item in snapshots[:10]
     ]
+    recent_lessons = sorted(
+        [*completed_lessons, *open_lessons],
+        key=lambda item: item.get("observed_at") or "",
+        reverse=True,
+    )[:10]
     return {
         "patterns": [
             pattern

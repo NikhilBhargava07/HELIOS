@@ -18,6 +18,9 @@ class OutcomePatternTests(unittest.TestCase):
         with patch(
             "backend.memory.learning_user.get_recent_outcome_snapshots",
             return_value=snapshots,
+        ), patch(
+            "backend.memory.learning_user.get_completed_trade_outcomes",
+            return_value=[],
         ):
             result = get_outcome_patterns(
                 "user-1",

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
 
@@ -16,11 +17,16 @@ from backend.broker.trading import (
     get_paper_account_summary,
     get_paper_orders,
     get_paper_positions,
+    parse_option_contract_symbol,
+    refresh_candidate_option_quote,
 )
 from backend.config import (
     COMPANY_NAMES,
+    MAX_RECOMMENDATION_AGE_SECONDS,
     MAX_CSP_CAPITAL_PERCENT,
     MAX_OPEN_POSITIONS,
+    MAX_SPREAD,
+    MIN_QUOTE_SIZE,
     TOTAL_CAPITAL,
 )
 from backend.memory.capital_and_positions import get_dashboard_data
@@ -31,6 +37,16 @@ from backend.users.profiles import get_user_broker_credentials
 
 
 logger = logging.getLogger(__name__)
+
+ACTIVE_ORDER_STATUSES = {
+    "new",
+    "accepted",
+    "pending_new",
+    "partially_filled",
+    "held",
+    "pending_replace",
+    "pending_cancel",
+}
 
 
 ## Invoke this same Lambda asynchronously to run a background job (recommendation scan, AI market take).
@@ -138,6 +154,112 @@ def require_candidate(run, contract_symbol):
     if candidate is None:
         raise ValueError("Candidate not found in recommendation run.")
     return candidate
+
+
+## Reject a recommendation after its scan evidence has aged past the placement window.
+## Option greeks and market context can move quickly, so an old card must be rescanned even though its exact quote is also refreshed.
+def require_fresh_recommendation(run, maximum_age_seconds=MAX_RECOMMENDATION_AGE_SECONDS):
+    created_at = run.get("created_at")
+    if not created_at:
+        raise ValueError("Recommendation timestamp is missing. Run a new CSP scan.")
+    try:
+        created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    except (TypeError, ValueError) as error:
+        raise ValueError("Recommendation timestamp is invalid. Run a new CSP scan.") from error
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    age_seconds = (datetime.now(timezone.utc) - created).total_seconds()
+    if age_seconds > maximum_age_seconds:
+        raise ValueError("This recommendation is stale. Run a new CSP scan before placing it.")
+
+
+## Identify an unfilled sell-to-open put order that still has broker-side obligations.
+## Pending CSP orders count toward the position cap because they can become positions without another user action.
+def is_active_csp_order(order):
+    contract = parse_option_contract_symbol(order.get("symbol"))
+    side = str(order.get("side") or "").lower()
+    status = str(order.get("status") or "").lower()
+    return (
+        side == "sell"
+        and contract is not None
+        and contract["option_type"] == "put"
+        and status in ACTIVE_ORDER_STATUSES
+    )
+
+
+## Validate current broker and strategy limits, then refresh the selected option quote.
+## This is the final server-side gate before a CSP paper order reaches Alpaca.
+def prepare_candidate_for_paper_order(
+    run,
+    candidate,
+    client_order_id,
+    trading_client,
+    option_data_client,
+):
+    broker_orders = get_paper_orders(limit=100, trading_client=trading_client)
+    existing_order = next(
+        (
+            order
+            for order in broker_orders
+            if order.get("client_order_id") == client_order_id
+        ),
+        None,
+    )
+    if existing_order:
+        return {
+            "candidate": candidate,
+            "account": None,
+            "existing_order": existing_order,
+        }
+
+    require_fresh_recommendation(run)
+    account = get_paper_account_summary(trading_client=trading_client)
+    all_positions = get_paper_positions(trading_client=trading_client)
+    csp_positions = csp_positions_from_all_positions(all_positions)
+    active_csp_orders = [
+        order for order in broker_orders
+        if is_active_csp_order(order)
+    ]
+    contract_symbol = candidate["contractSymbol"]
+    if any(
+        position.get("contract_symbol") == contract_symbol
+        for position in csp_positions
+    ):
+        raise ValueError("This CSP contract is already an open position.")
+    if any(order.get("symbol") == contract_symbol for order in active_csp_orders):
+        raise ValueError("An active Alpaca order already exists for this CSP contract.")
+    if len(csp_positions) + len(active_csp_orders) >= MAX_OPEN_POSITIONS:
+        raise ValueError(
+            f"The {MAX_OPEN_POSITIONS}-position CSP limit includes pending orders and has been reached."
+        )
+
+    total_capital = account_total_capital(account)
+    committed = sum(float(position.get("cash_required") or 0) for position in csp_positions)
+    strategy_available = max(
+        0,
+        total_capital * MAX_CSP_CAPITAL_PERCENT - committed,
+    )
+    broker_available = account.get("available_csp_cash")
+    if broker_available is None:
+        raise ValueError("Alpaca did not report options buying power, so HELIOS cannot verify this CSP safely.")
+    available_cash = min(strategy_available, broker_available)
+    cash_required = float(candidate.get("cashRequired") or 0)
+    if cash_required > available_cash:
+        raise ValueError(
+            f"This CSP requires ${cash_required:,.2f}, but current strategy and broker limits allow ${available_cash:,.2f}."
+        )
+
+    refreshed_candidate = refresh_candidate_option_quote(
+        candidate,
+        option_data_client,
+        MAX_SPREAD,
+        MIN_QUOTE_SIZE,
+    )
+    return {
+        "candidate": refreshed_candidate,
+        "account": account,
+        "existing_order": None,
+    }
 
 
 ## Convert the candidate DataFrame into browser-safe JSON records.

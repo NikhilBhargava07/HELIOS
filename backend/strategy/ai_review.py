@@ -2,9 +2,23 @@
 
 import json
 import logging
+import time
 
-from backend.config import OPENAI_MODEL
-from backend.openai_client import get_openai_client
+from backend.config import (
+    OPENAI_CSP_MAX_OUTPUT_TOKENS,
+    OPENAI_MODEL,
+    OPENAI_REASONING_EFFORT,
+)
+from backend.market.prompt_context import (
+    compact_market_context,
+    compact_memory_context,
+    compact_portfolio_context,
+)
+from backend.openai_client import (
+    classify_openai_error,
+    get_openai_client,
+    openai_error_message,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -101,6 +115,7 @@ def local_review_csp_candidates(ticker_symbol, candidates):
             "summary": "No candidates passed the hard CSP filters.",
             "risk_note": "Try another approved ticker or loosen filters only after understanding the tradeoff.",
             "candidate_reviews": [],
+            "review_source": "local_fallback",
         }
 
     best_candidate = candidates.iloc[0]
@@ -136,6 +151,7 @@ def local_review_csp_candidates(ticker_symbol, candidates):
             "trade_rationale": "This contract ranked highest under the deterministic CSP rules.",
             "key_risk": "Assignment remains possible if the stock falls below the strike.",
         }],
+        "review_source": "local_fallback",
     }
 
 
@@ -150,6 +166,9 @@ def build_ai_prompt(
     memory_context=None,
 ):
     candidate_summaries = prepare_candidates_for_ai(candidates)
+    market_evidence = compact_market_context(market_context)
+    portfolio_evidence = compact_portfolio_context(portfolio_context)
+    memory_evidence = compact_memory_context(memory_context)
 
     return f"""
 You are reviewing cash-secured put candidates for an educational paper-trading prototype.
@@ -167,7 +186,9 @@ Important rules:
   Do not invent current events.
 - If relevant news or earnings evidence is absent, say so instead of inventing it.
 - Treat earnings as released only when the supplied headline or summary confirms a release;
-  do not describe previews, estimates, or upcoming reports as completed results.
+  do not describe previews, estimates, or upcoming reports as completed results. However, you may use the
+  estimates or previews to discuss risk and potential volatility and assess how they may affect the stock or option
+  during its lifetime.
 
 Review every provided contract. For each candidate, use relevant company news and earnings
 from the supplied 10-day context and explain how those events could help or hurt the stock
@@ -212,7 +233,7 @@ to cover the cash-secured put, whether the user already has a position in the sa
 and whether the user is in a bad position to take on more risk. If the user already has a position in the same ticker,
 consider whether the new CSP would be a reasonable addition to the existing position or whether
 it would increase risk exposure (likely, if the ticker is doing poorly, it is not a great idea
-to recommend the user another CSP for that ticker UNLESS YOU SEE EVIDENCE OF A POSITIVE OUTLOOK OR THAT THERE IS
+to recommend the user another CSP for that ticker. UNLESS YOU SEE EVIDENCE OF A POSITIVE OUTLOOK OR THAT THERE IS
 A POSITIVE PATTERN IN THE USER'S DECISIONS WITH THE TICKER (positive pattern = gaining money, shares held increases
 by a lot, user implements wheel strategy and sells said shares))). If the user has multiple positions in the same sector, consider
 whether the new CSP would increase sector concentration risk and furthermore create losses for the user.
@@ -238,13 +259,13 @@ Candidate CSPs:
 {json.dumps(candidate_summaries, indent=2)}
 
 Ten-day company news, earnings, and market trends:
-{json.dumps(market_context or {}, indent=2)}
+{json.dumps(market_evidence, separators=(",", ":"))}
 
 Current portfolio and capital context:
-{json.dumps(portfolio_context or {}, indent=2)}
+{json.dumps(portfolio_evidence, separators=(",", ":"))}
 
 Retrieved long-term memory:
-{json.dumps(memory_context or {}, indent=2)}
+{json.dumps(memory_evidence, separators=(",", ":"))}
 
 Memory rules:
 - Treat realized trade outcomes as facts, but candidate observations as counterfactual evidence.
@@ -270,6 +291,7 @@ def review_csp_candidates(
     client = get_openai_client()
     if client is None:
         review = local_review_csp_candidates(ticker_symbol, candidates)
+        review["ai_error_code"] = "not_configured"
         review["risk_note"] = (
             "OpenAI access is not configured, so local rule-based review was used. "
             + review["risk_note"]
@@ -284,6 +306,7 @@ def review_csp_candidates(
         memory_context,
     )
 
+    started_at = time.monotonic()
     try:
         response = client.responses.create(
             model=OPENAI_MODEL,
@@ -308,14 +331,35 @@ def review_csp_candidates(
                     "strict": True,
                 }
             },
+            reasoning={"effort": OPENAI_REASONING_EFFORT},
+            max_output_tokens=OPENAI_CSP_MAX_OUTPUT_TOKENS,
+            prompt_cache_key="helios-csp-review-v1",
+            store=False,
         )
-
-        return json.loads(response.output_text)
+        review = json.loads(response.output_text)
+        review["review_source"] = "openai"
+        review["ai_error_code"] = None
+        logger.info(
+            "OpenAI CSP review completed in %.2fs (prompt_chars=%s, response_id=%s)",
+            time.monotonic() - started_at,
+            len(prompt),
+            getattr(response, "id", None),
+        )
+        return review
     except Exception as error:
-        logger.warning("OpenAI CSP review failed: %s", type(error).__name__)
+        error_code = classify_openai_error(error)
+        logger.warning(
+            "OpenAI CSP review failed in %.2fs: %s/%s (status=%s, prompt_chars=%s)",
+            time.monotonic() - started_at,
+            error_code,
+            type(error).__name__,
+            getattr(error, "status_code", None),
+            len(prompt),
+        )
         review = local_review_csp_candidates(ticker_symbol, candidates)
+        review["ai_error_code"] = error_code
         review["risk_note"] = (
-            "OpenAI review was unavailable, so local rule-based review was used. "
+            f"{openai_error_message(error_code)}, so local rule-based review was used. "
             + review["risk_note"]
         )
         return review
