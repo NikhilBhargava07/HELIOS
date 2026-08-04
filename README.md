@@ -10,10 +10,18 @@ The central design principle:
 
 ---
 
+## Live application
+
+**[desaoanznv4ue.cloudfront.net](https://desaoanznv4ue.cloudfront.net)**
+
+Sign in with Google to explore the interface. Running a scan or placing a paper trade additionally requires connecting your own Alpaca paper-trading keys from the profile page — HELIOS never trades against an account you do not own.
+
+---
+
 ## Architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
     B["Browser<br/>S3 + CloudFront"] -->|"Bearer JWT"| G["API Gateway<br/>Cognito JWT authorizer"]
     G --> L["AWS Lambda"]
     L -->|Mangum| F["FastAPI routes"]
@@ -24,11 +32,10 @@ flowchart LR
     W --> OA["OpenAI API"]
 ```
 
-One Lambda serves five roles. Background jobs are dispatched at the top of `lambda_handler.py` before the request ever reaches FastAPI:
+A single Lambda handles both interactive traffic and background work. Every invocation is inspected for a `worker_action` field at the top of `lambda_handler.py`: invocations without one are ordinary HTTP requests and pass through to FastAPI, while the rest are dispatched directly to a background job.
 
-| `worker_action` | Role |
+| `worker_action` | Background job |
 | --- | --- |
-| *(absent)* | Normal HTTP request, handled by FastAPI through Mangum |
 | `recommendation_scan` | Full CSP scan and AI review |
 | `market_take` | Portfolio-aware market commentary |
 | `scheduled_outcome_dispatch` | Scheduled entry point; fans out one invocation per user |
@@ -125,23 +132,6 @@ tests/          Unit tests with mocked broker and AWS clients
 
 ---
 
-## Running locally
-
-Requires Python 3.12+, an OpenAI API key, and AWS credentials for a DynamoDB table.
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Create a `.env` file with your OpenAI key and DynamoDB table name, then start the API:
-
-```bash
-uvicorn api:app --reload
-```
-
-The application is served at `http://localhost:8000`. Each user connects their own Alpaca paper-trading keys through the in-app profile page; no brokerage credentials are read from the repository or from environment files.
-
 ## Tests
 
 ```bash
@@ -163,3 +153,11 @@ HELIOS is a working prototype, deliberately scoped:
 - **Tests are unit-level.** Broker and AWS interactions are mocked; there is no integration suite against a live brokerage.
 
 Nothing here is investment advice. It is an engineering project built around a trading strategy, not a recommendation to trade one.
+
+---
+
+## Usage and rights
+
+Copyright © 2026 Nikhil Bhargava. All rights reserved.
+
+This repository is published so that its design and implementation can be read and evaluated. It is **not** open source and is released under no license, meaning no permission is granted to copy, modify, redistribute, or build derivative work from it. To use or discuss the project beyond reading it, please get in touch.
