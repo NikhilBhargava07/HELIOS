@@ -1,12 +1,14 @@
 # HELIOS
 
-**A multi-tenant AI agent for cash-secured put trading.**
+**An AI trading agent for cash-secured puts, built for multiple users.**
 
-HELIOS scans an approved universe of ~55 tickers for cash-secured put (CSP) opportunities, enforces hard risk limits in code, asks a language model to review only the candidates that survive those limits, and places paper trades against each user's own brokerage account. It then observes those positions over time and finalizes outcomes from broker evidence, feeding what actually happened back into future recommendations.
+A cash-secured put is a trade where the seller agrees to buy a stock at a set price, collects a premium up front, and holds enough cash to cover the purchase if it happens. HELIOS looks through about 55 approved stocks for these trades, checks each one against strict risk rules written in code, and asks an AI model to review only the ones that pass. Approved trades are placed on the user's own Alpaca paper-trading account.
 
-The central design principle:
+HELIOS then keeps watching. It records how each position is doing and, once a trade actually closes, saves what really happened so future recommendations have real history to work from.
 
-> **The language model never has authority.** Deterministic code decides what is *permissible*; the model only chooses among options that already passed every hard filter.
+The idea behind the whole design:
+
+> **The AI never gets the final say.** Deterministic code decides which trades are allowed. The model only picks from options that already passed every safety check.
 
 ---
 
@@ -14,7 +16,7 @@ The central design principle:
 
 **[desaoanznv4ue.cloudfront.net](https://desaoanznv4ue.cloudfront.net)**
 
-Sign in with Google to explore the interface. Running a scan or placing a paper trade additionally requires connecting your own Alpaca paper-trading keys from the profile page — HELIOS never trades against an account you do not own.
+Signing in with Google gives access to the interface. Running a scan or placing a trade also requires connecting an Alpaca paper-trading account from the profile page — HELIOS never trades on an account the user does not own.
 
 ---
 
@@ -32,42 +34,44 @@ flowchart TB
     W --> OA["OpenAI API"]
 ```
 
-A single Lambda handles both interactive traffic and background work. Every invocation is inspected for a `worker_action` field at the top of `lambda_handler.py`: invocations without one are ordinary HTTP requests and pass through to FastAPI, while the rest are dispatched directly to a background job.
+One Lambda function handles two kinds of work: normal web requests, and slower jobs that run in the background. It tells them apart by checking for a `worker_action` field at the top of `lambda_handler.py`. If there isn't one, the event is a web request and goes to FastAPI. If there is one, it's a background job:
 
-| `worker_action` | Background job |
+| `worker_action` | What it does |
 | --- | --- |
-| `recommendation_scan` | Full CSP scan and AI review |
-| `market_take` | Portfolio-aware market commentary |
-| `scheduled_outcome_dispatch` | Scheduled entry point; fans out one invocation per user |
-| `outcome_observation` | One user's position snapshot and outcome finalization |
+| `recommendation_scan` | Runs a full scan and AI review |
+| `market_take` | Writes market commentary based on current holdings |
+| `scheduled_outcome_dispatch` | Kicks off the daily check, one job per user |
+| `outcome_observation` | Records one user's positions and closes out finished trades |
 
 ---
 
 ## How a scan works
 
-1. The browser calls `POST /api/recommendations/jobs`, which writes a job record and returns a job id immediately.
-2. The Lambda invokes itself asynchronously and runs the scan outside the API Gateway request path.
-3. The worker pulls option chains for the approved universe, applies every hard filter, and scores what remains.
-4. Surviving candidates plus market, portfolio, and memory context go to the model for a structured review.
-5. The result is persisted, and the browser polls `GET /api/recommendations/jobs/{id}` until it completes.
+1. The browser calls `POST /api/recommendations/jobs`. The server saves a job and sends back a job ID right away.
+2. The Lambda function calls itself in the background, so the scan isn't stuck inside that first web request.
+3. The background job pulls option data for the approved stocks, drops anything that breaks a risk rule, and ranks what's left.
+4. The surviving trades go to the AI along with current market data, open positions, and how similar past trades turned out.
+5. The answer gets saved, and the browser checks `GET /api/recommendations/jobs/{id}` every couple of seconds until it's ready.
 
 ---
 
-## Engineering decisions
+## Design decisions
 
-### Long work escapes the request timeout
+### Getting around the 30-second timeout
 
-API Gateway caps requests at roughly 30 seconds. A full scan walks dozens of tickers and then makes a reasoning call, which takes minutes. Rather than trimming the work to fit, HELIOS moves it off the request path: the API creates a job, self-invokes the Lambda asynchronously, and the client polls for completion. Because asynchronous invocations are retried on failure, workers are written to be idempotent.
+API Gateway kills any request that takes longer than about 30 seconds. A full scan pulls option chains for dozens of stocks and then makes an AI call, which takes minutes — nowhere close to fitting.
 
-### Duplicate orders are impossible, not merely unlikely
+Instead of cutting the work down to fit, HELIOS moves it off the web request entirely. The API saves a job, hands back an ID, and triggers the Lambda again in the background where no timeout applies. The browser checks back every few seconds. Since AWS retries background jobs that fail, the workers are idempotent: running one twice causes no harm.
 
-Every order carries a deterministic client order id derived from `SHA-256(user_id | run_id | contract_symbol)`. The same user acting on the same recommendation for the same contract always produces the same id, so the broker itself rejects a duplicate submission. A second layer stores that id in DynamoDB, so a repeated request returns the original decision instead of recording a new one.
+### The same order cannot be placed twice
 
-Before any order reaches the broker, placement re-fetches the live option quote and re-validates the spread and liquidity, rejects recommendations older than a short freshness window, counts pending orders against the open-position cap, and reconciles the strategy's capital limit against actual broker buying power.
+Every order gets a deterministic ID built by hashing together the user ID, the recommendation it came from, and the exact contract. The same user acting on the same recommendation always produces the same ID, so a duplicate submission is rejected by Alpaca itself. HELIOS also stores that ID, so a repeated request returns the original order instead of creating a second one.
 
-### Tenant isolation is structural
+Before anything reaches the broker, the order passes a few more checks. It re-pulls the current option quote to confirm the price and spread haven't moved, refuses recommendations older than a short window, counts pending orders toward the position limit, and compares the strategy's cash limit against what Alpaca reports as actually available.
 
-All user data lives in one DynamoDB table under a partition key of `USER#{cognito_sub}`, with sort-key prefixes separating entity types:
+### Users cannot see each other's data
+
+Everything lives in one DynamoDB table, and every row is stored under a key built from the signed-in user's Cognito ID:
 
 ```
 pk = USER#{sub}
@@ -76,25 +80,25 @@ sk = RUN#{ts}#{id} | CANDIDATE#{contract} | DECISION#{ts}#{id}
      OUTCOME_SNAPSHOT#{date}#{contract}
 ```
 
-Every read and write builds its key through a single helper that raises if the user id is missing. Cross-tenant access is not prevented by a check that could be forgotten; it is impossible to express, because no key can be constructed without a user id. A job id belonging to another account behaves exactly like a job that does not exist.
+Every read and write builds that key through a single helper that fails if the user ID is missing. So this isn't protected by a permission check somebody might forget to write — one account's data cannot be requested at all, because the key cannot be built without that account's ID. Passing in a job ID from another account simply looks like a job that doesn't exist.
 
-Timestamps embedded in sort keys provide chronological ordering for free, and prefix queries retrieve one entity type without scanning the table.
+Putting timestamps in the sort key also means data comes back in date order for free, and the prefixes make it possible to pull just orders, or just decisions, without scanning the whole table.
 
-### Risk rules live in code, not in a prompt
+### The risk rules live in code, not in the AI prompt
 
-Delta band, days to expiration, implied volatility range, maximum spread, minimum return on cash, capital allocation ceiling, and position count limits are all defined in `backend/config.py` and applied before the model is consulted. The model cannot invent a contract, relax a threshold, or exceed an allocation limit — it only ranks what already passed.
+Delta range, days until expiration, implied volatility limits, maximum spread, minimum return, how much cash can be tied up, and the cap on open positions are all set in `backend/config.py` and applied before the AI sees anything. The model can't invent a contract, loosen a threshold, or exceed a limit — it only ranks what already made it through.
 
-Model responses are requested under a strict JSON schema rather than parsed out of prose. Failures are classified into safe diagnostic codes, and a deterministic rule-based reviewer takes over when the model is unavailable, with the interface stating plainly that the fallback was used.
+The AI also has to answer in a fixed JSON format instead of writing free text that code has to pick apart. If the API fails, the error is sorted into a short list of known problems, and a plain rule-based reviewer takes over — with the interface saying clearly that the AI wasn't used.
 
-### Outcomes are measured, never inferred
+### Results come from real evidence, not guesses
 
-A position disappearing from the broker is not treated as evidence of anything. An outcome is finalized only from a filled closing order or an explicit broker lifecycle activity — assignment, expiration, or cash settlement. Without that evidence, the trade stays unresolved rather than being guessed.
+A position disappearing from Alpaca doesn't establish what happened to it. HELIOS marks a trade finished only with proof: a filled order that closed it, or an official Alpaca record showing it was assigned, expired, or settled. Without that, the trade stays open in the system rather than being labeled with a guess.
 
-Outcomes are also not reduced to success or failure. When a put is assigned, HELIOS records the premium retained *and* marks the underlying result as still pending, because the shares now held have their own unresolved economics. Repeated patterns require a minimum number of distinct contracts before they count as a pattern, so multiple daily snapshots of one position cannot inflate a sample.
+It also avoids reducing trades to wins and losses. When a put is assigned, HELIOS records the premium kept and notes that the outcome isn't final, because the account now holds shares whose gain or loss hasn't happened yet. A pattern counts as a pattern only after it shows up across enough separate contracts, so checking the same position every day can't make a single trade look like a trend.
 
-### Prompts stay bounded
+### Keeping the AI prompts small
 
-Historical context is compacted before it reaches the model: field allowlists, text truncation, and item caps keep old market snapshots and prior reasoning from recursively bloating new prompts.
+Old market data and past reasoning are trimmed before going into a new prompt: only certain fields are kept, long text is cut down, and lists are capped. Without that, every prompt would carry all the ones before it and keep growing.
 
 ---
 
@@ -105,12 +109,12 @@ Historical context is compacted before it reaches the model: field allowlists, t
 | API | Python, FastAPI, Mangum |
 | Compute | AWS Lambda |
 | Data | Amazon DynamoDB (single-table design) |
-| Auth | Amazon Cognito with Google identity, PKCE, API Gateway JWT authorizer |
+| Auth | Amazon Cognito with Google sign-in, PKCE, API Gateway JWT authorizer |
 | Brokerage | Alpaca (paper trading) |
-| Reasoning | OpenAI Responses API with strict structured output |
-| Frontend | Vanilla HTML, CSS, and JavaScript on S3 and CloudFront |
+| AI | OpenAI Responses API with structured output |
+| Frontend | Plain HTML, CSS, and JavaScript on S3 and CloudFront |
 
-No frontend framework and no build step: the interface is plain ES modules and CSS, served as static files.
+No frontend framework and no build step — the interface is plain JavaScript and CSS served as static files.
 
 ---
 
@@ -118,16 +122,16 @@ No frontend framework and no build step: the interface is plain ES modules and C
 
 ```
 backend/
-  api/          FastAPI application, routes, request schemas, shared orchestration
-  broker/       Alpaca clients, order submission, quote refresh, lifecycle activities
-  strategy/     Option math, candidate filtering, AI review, scan jobs
-  market/       Trends, news retrieval and scoring, market commentary, prompt compaction
-  memory/       DynamoDB access, recommendations, trades, observations, outcomes, learning
-  users/        Profiles, authentication, per-user broker credentials
+  api/          FastAPI app, routes, request validation, shared logic
+  broker/       Alpaca clients, order placement, quote refresh, trade lifecycle
+  strategy/     Option math, filtering, AI review, scan jobs
+  market/       Price trends, news, market commentary, prompt trimming
+  memory/       Database access, recommendations, trades, observations, outcomes
+  users/        Profiles, sign-in, per-user broker credentials
 frontend/
-  js/           State, API access, renderers, page loaders, auth, profile
+  js/           State, API calls, rendering, page loading, auth, profile
   css/          Shared theme plus per-page styles
-tests/          Unit tests with mocked broker and AWS clients
+tests/          Unit tests with the broker and AWS mocked out
 ```
 
 ---
@@ -138,21 +142,21 @@ tests/          Unit tests with mocked broker and AWS clients
 python -m unittest discover -s tests
 ```
 
-Thirty unit tests cover order safety, outcome finalization, scheduled observation dispatch, prompt compaction, model error handling, and cross-user data isolation. Broker and AWS clients are mocked, so no network access or credentials are required.
+Thirty tests cover order safety, closing out trades, scheduled jobs, prompt trimming, AI error handling, and keeping user data separate. The broker and AWS are mocked, so the tests need no network access or credentials.
 
 ---
 
 ## Status and limitations
 
-HELIOS is a working prototype, deliberately scoped:
+HELIOS is a working prototype, and it's scoped on purpose:
 
-- **Paper trading only.** Orders are submitted to Alpaca's paper environment. There is no live-money path.
-- **Alpaca is the only supported brokerage.** The profile model anticipates others, but only Alpaca is wired to trading.
-- **Scanning is sequential.** Tickers are fetched one at a time; parallelizing the option-chain requests is the clearest performance win available.
-- **One Lambda serves both the API and every background worker.** Appropriate at this scale, but workloads would be split under real traffic.
-- **Tests are unit-level.** Broker and AWS interactions are mocked; there is no integration suite against a live brokerage.
+- **Paper trading only.** Orders go to Alpaca's paper environment. There's no path to real money.
+- **Alpaca only.** The profile setup is built to support other brokers later, but only Alpaca is connected to trading right now.
+- **Scanning is one stock at a time.** Fetching option chains in parallel is the most obvious speed improvement available.
+- **One Lambda does everything** — both the API and every background job. That's fine at this size, but real traffic would call for splitting them up.
+- **Tests are unit tests.** The broker and AWS are mocked; there's no test suite running against a live brokerage.
 
-Nothing here is investment advice. It is an engineering project built around a trading strategy, not a recommendation to trade one.
+None of this is investment advice. It's an engineering project built around a trading strategy, not a suggestion to trade one.
 
 ---
 
@@ -160,4 +164,4 @@ Nothing here is investment advice. It is an engineering project built around a t
 
 Copyright © 2026 Nikhil Bhargava. All rights reserved.
 
-This repository is published so that its design and implementation can be read and evaluated. It is **not** open source and is released under no license, meaning no permission is granted to copy, modify, redistribute, or build derivative work from it. To use or discuss the project beyond reading it, please get in touch.
+This repository is public so the design and code can be read and evaluated. It is **not** open source and has no license, which means there is no permission to copy, modify, redistribute, or build on it. Inquiries about anything beyond reading it are welcome by direct contact.
