@@ -9,3 +9,8 @@ __pycache__/
 .pytest_cache/
 .lambda_build/
 lambda-package.zip
+
+# Local-only project docs and config template (kept out of the public repo).
+TODO.txt
+PROJECT_STRUCTURE.md
+.env.example
