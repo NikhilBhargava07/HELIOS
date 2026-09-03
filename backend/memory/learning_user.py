@@ -2,6 +2,7 @@
 
 from backend.config import MIN_PATTERN_SAMPLE_SIZE
 from backend.memory.dynamodb_store import query_items, user_pk
+from backend.memory.feedback import get_trade_feedback
 from backend.memory.observations import get_recent_outcome_snapshots
 from backend.memory.outcomes import get_completed_trade_outcomes
 from backend.memory.recommendations import (
@@ -32,6 +33,10 @@ def get_relevant_episodes(user_id, ticker_symbols, limit=8):
         (item.get("recommendation_run_id"), item.get("contract_symbol")): item
         for item in completed_outcomes
     }
+    feedback_by_run_and_contract = {
+        (item.get("recommendation_run_id"), item.get("contract_symbol")): item
+        for item in get_trade_feedback(user_id, limit=100)
+    }
     episodes = []
     for decision in decisions[:limit]:
         run = get_recommendation_run(
@@ -57,6 +62,10 @@ def get_relevant_episodes(user_id, ticker_symbols, limit=8):
                 "decided_at": decision.get("created_at"),
             },
             "completed_outcome": outcomes_by_run_and_contract.get((
+                decision.get("recommendation_run_id"),
+                decision.get("contract_symbol"),
+            )),
+            "user_feedback": feedback_by_run_and_contract.get((
                 decision.get("recommendation_run_id"),
                 decision.get("contract_symbol"),
             )),
@@ -93,6 +102,7 @@ def build_user_profile(user_id):
         scan_forward=False,
     )
     outcomes = get_completed_trade_outcomes(user_id, limit=200)
+    feedback = get_trade_feedback(user_id, limit=200)
     placed = [
         item
         for item in decisions
@@ -109,10 +119,16 @@ def build_user_profile(user_id):
         for item in completed_outcomes
         if item.get("assigned") is True
     ]
-    evidence_count = len(decisions)
+    completed_order_ids = {
+        item.get("opening_order_id")
+        for item in completed_outcomes
+        if item.get("opening_order_id")
+    }
+    independent_trade_count = max(len(placed), len(completed_order_ids))
+    decision_count = len(decisions)
     confidence = (
         "insufficient"
-        if evidence_count < MIN_PATTERN_SAMPLE_SIZE
+        if independent_trade_count < MIN_PATTERN_SAMPLE_SIZE
         else "low"
     )
     assignment_rate = (
@@ -130,14 +146,39 @@ def build_user_profile(user_id):
         if retained_values
         else None
     )
+    realized_pnl_values = [
+        item.get("option_realized_pnl")
+        for item in completed_outcomes
+        if item.get("option_realized_pnl") is not None
+    ]
+    satisfaction_counts = {}
+    reason_counts = {}
+    assignment_preference_counts = {}
+    for item in feedback:
+        satisfaction = item.get("satisfaction")
+        if satisfaction:
+            satisfaction_counts[satisfaction] = satisfaction_counts.get(satisfaction, 0) + 1
+        for reason in item.get("reason_tags") or []:
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+        assignment_preference = item.get("assignment_preference")
+        if assignment_preference and assignment_preference != "not_applicable":
+            assignment_preference_counts[assignment_preference] = (
+                assignment_preference_counts.get(assignment_preference, 0) + 1
+            )
+    would_repeat_count = sum(1 for item in feedback if item.get("would_repeat") is True)
+    explicit_assignment_tolerance = _explicit_assignment_tolerance(
+        assignment_preference_counts
+    )
     return {
         "profile": {
             "profile_type": "observed_and_inferred",
             "evidence": {
-                "total_decisions": evidence_count,
+                "total_decisions": decision_count,
                 "placed_orders": len(placed),
                 "discarded_candidates": len(discarded),
                 "completed_trade_outcomes": len(completed_outcomes),
+                "independent_trade_count": independent_trade_count,
+                "explicit_trade_feedback": len(feedback),
             },
             "observed_preferences": {
                 "most_selected_tickers": _top_selected_tickers(placed),
@@ -150,16 +191,46 @@ def build_user_profile(user_id):
             "outcome_preferences": {
                 "assignment_rate": assignment_rate,
                 "average_premium_retained_percent": average_premium_retained,
-                "assignment_tolerance": "unknown",
+                "total_option_realized_pnl": (
+                    sum(realized_pnl_values) if realized_pnl_values else None
+                ),
+                "assignment_tolerance": explicit_assignment_tolerance,
+                "assignment_preference_counts": assignment_preference_counts,
+                "would_repeat_rate": (
+                    would_repeat_count / len(feedback) if feedback else None
+                ),
+                "satisfaction_counts": satisfaction_counts,
+                "most_common_feedback_reasons": [
+                    {"value": reason, "count": count}
+                    for reason, count in sorted(
+                        reason_counts.items(),
+                        key=lambda pair: pair[1],
+                        reverse=True,
+                    )[:5]
+                ],
             },
             "interpretation_limits": (
                 "Evidence remains descriptive and must not override "
                 "hard strategy or capital rules."
             ),
         },
-        "evidence_count": evidence_count,
+        "evidence_count": independent_trade_count,
+        "independent_trade_count": independent_trade_count,
         "confidence": confidence,
     }
+
+
+## Translate explicit assignment feedback into a readable preference label.
+## User-declared evidence may be used immediately, but a mixed set remains selective rather than being overstated as a fixed preference.
+def _explicit_assignment_tolerance(counts):
+    total = sum(counts.values())
+    if not total:
+        return "unknown"
+    if counts.get("avoid", 0) / total > 0.5:
+        return "prefers_to_avoid"
+    if counts.get("welcome", 0) / total > 0.5:
+        return "welcomes_assignment"
+    return "accepts_selectively"
 
 
 ## Classify a completed option leg by its measurable economic result.
@@ -229,7 +300,8 @@ def get_outcome_patterns(
             item.get("ticker_symbol"),
             item.get("resolution_type"),
             _completed_financial_status(item),
-            item.get("interpretation"),
+            (item.get("outcome_review") or {}).get("summary")
+            or item.get("interpretation"),
         )
 
     completed_contracts = {
@@ -259,10 +331,14 @@ def get_outcome_patterns(
             ),
             "assignment_status": "assigned" if item.get("assigned") else "not_assigned",
             "lesson_type": item.get("resolution_type"),
-            "summary": item.get("interpretation"),
+            "summary": (
+                (item.get("outcome_review") or {}).get("summary")
+                or item.get("interpretation")
+            ),
             "observed_at": item.get("completed_at"),
             "premium_retained_percent": item.get("premium_retained_percent"),
             "option_realized_pnl": item.get("option_realized_pnl"),
+            "outcome_review": item.get("outcome_review"),
         }
         for item in completed_outcomes[:10]
     ]
@@ -289,6 +365,10 @@ def get_outcome_patterns(
             for pattern in grouped.values()
             if pattern["sample_size"] >= minimum_sample_size
         ],
+        "driver_patterns": _outcome_driver_patterns(
+            completed_outcomes,
+            minimum_sample_size,
+        ),
         "recent_lessons": recent_lessons,
         "minimum_sample_size": minimum_sample_size,
         "note": (
@@ -298,27 +378,64 @@ def get_outcome_patterns(
     }
 
 
+## Aggregate reviewed causal factors only after distinct contracts repeat them.
+## The evidence threshold prevents one dramatic outcome or repeated refreshes from becoming a supposed general rule.
+def _outcome_driver_patterns(outcomes, minimum_sample_size):
+    grouped = {}
+    for outcome in outcomes:
+        contract_symbol = outcome.get("contract_symbol")
+        for driver in (outcome.get("outcome_review") or {}).get("drivers") or []:
+            category = driver.get("category")
+            direction = driver.get("direction")
+            if not category or not direction or not contract_symbol:
+                continue
+            key = (category, direction)
+            pattern = grouped.setdefault(key, {
+                "category": category,
+                "direction": direction,
+                "contract_symbols": set(),
+                "latest_explanation": driver.get("explanation"),
+            })
+            pattern["contract_symbols"].add(contract_symbol)
+
+    return [
+        {
+            "category": pattern["category"],
+            "direction": pattern["direction"],
+            "sample_size": len(pattern["contract_symbols"]),
+            "latest_explanation": pattern["latest_explanation"],
+        }
+        for pattern in grouped.values()
+        if len(pattern["contract_symbols"]) >= minimum_sample_size
+    ]
+
+
 ## Build the complete memory package supplied to recommendation and market-take prompts.
 ## This is a read-only operation; viewing a page no longer creates redundant profile-version writes.
 def build_memory_context(user_id, ticker_symbols):
+    relevant_patterns = get_outcome_patterns(
+        user_id,
+        ticker_symbols,
+    )
+    portfolio_patterns = get_outcome_patterns(user_id)
     return {
         "relevant_episodes": get_relevant_episodes(
             user_id,
             ticker_symbols,
         ),
-        "outcome_patterns": get_outcome_patterns(
-            user_id,
-            ticker_symbols,
-        ),
+        "outcome_patterns": relevant_patterns,
+        "portfolio_outcome_patterns": portfolio_patterns,
         "recent_outcome_snapshots": get_recent_outcome_snapshots(
             user_id,
             limit=8,
         ),
         "user_profile": build_user_profile(user_id),
+        "explicit_trade_feedback": get_trade_feedback(user_id, limit=10),
         "memory_policy": {
             "minimum_pattern_sample_size": MIN_PATTERN_SAMPLE_SIZE,
             "unselected_candidates_are_counterfactual": True,
             "sparse_preferences_must_not_override_hard_rules": True,
+            "explicit_user_feedback_is_not_the_same_as_financial_outcome": True,
             "backend": "dynamodb",
         },
     }

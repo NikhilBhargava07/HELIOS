@@ -109,7 +109,19 @@ def get_recommendation_results(
     combined = pd.concat(candidate_frames, ignore_index=True)
     top_candidates = combined.sort_values(by="score", ascending=False).head(MAX_RECOMMENDATIONS)
     candidate_tickers = top_candidates["tickerSymbol"].drop_duplicates().tolist()
-    market_context = build_candidate_review_context(candidate_tickers, stock_data_client=stock_data_client)
+    open_position_tickers = [
+        position.get("ticker_symbol")
+        for position in (portfolio_context or {}).get("open_csp_positions", [])
+        if position.get("ticker_symbol")
+    ]
+    context_tickers = list(dict.fromkeys([
+        *candidate_tickers,
+        *open_position_tickers,
+    ]))
+    market_context = build_candidate_review_context(
+        context_tickers,
+        stock_data_client=stock_data_client,
+    )
     try:
         memory_context = build_memory_context(user_id, candidate_tickers)
     except Exception as error:

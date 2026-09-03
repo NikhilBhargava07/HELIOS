@@ -66,6 +66,17 @@ OUTCOME_FIELDS = (
     "effective_share_cost",
     "underlying_outcome_pending",
     "interpretation",
+    "outcome_review",
+)
+FEEDBACK_FIELDS = (
+    "ticker_symbol",
+    "contract_symbol",
+    "satisfaction",
+    "would_repeat",
+    "assignment_preference",
+    "reason_tags",
+    "note",
+    "updated_at",
 )
 
 
@@ -146,6 +157,19 @@ def compact_portfolio_context(context):
 def compact_episode(episode):
     review = episode.get("agent_review") or {}
     completed_outcome = episode.get("completed_outcome")
+    compacted_outcome = (
+        select_fields(
+            completed_outcome,
+            OUTCOME_FIELDS,
+            text_limit=280,
+        )
+        if completed_outcome
+        else None
+    )
+    if compacted_outcome and compacted_outcome.get("outcome_review"):
+        compacted_outcome["outcome_review"] = _compact_outcome_review(
+            compacted_outcome["outcome_review"]
+        )
     return {
         "recommended_at": episode.get("recommended_at"),
         "ticker_symbol": episode.get("ticker_symbol"),
@@ -161,15 +185,53 @@ def compact_episode(episode):
             "risk_note": compact_text(review.get("risk_note"), 240),
         },
         "user_decision": episode.get("user_decision") or {},
-        "completed_outcome": (
-            select_fields(
-                completed_outcome,
-                OUTCOME_FIELDS,
-                text_limit=280,
-            )
-            if completed_outcome
-            else None
+        "completed_outcome": compacted_outcome,
+        "user_feedback": select_fields(
+            episode.get("user_feedback") or {},
+            FEEDBACK_FIELDS,
+            text_limit=280,
         ),
+    }
+
+
+## Bound one saved post-trade review before it is embedded in another prompt.
+## The model receives structured drivers and lessons without recursively carrying the original evidence package.
+def _compact_outcome_review(review):
+    return {
+        "economic_result": review.get("economic_result"),
+        "entry_assessment": review.get("entry_assessment"),
+        "summary": compact_text(review.get("summary"), 300),
+        "drivers": [
+            {
+                "category": driver.get("category"),
+                "direction": driver.get("direction"),
+                "evidence_strength": driver.get("evidence_strength"),
+                "explanation": compact_text(driver.get("explanation"), 260),
+            }
+            for driver in (review.get("drivers") or [])[:4]
+        ],
+        "lessons": [
+            compact_text(lesson, 260)
+            for lesson in (review.get("lessons") or [])[:4]
+        ],
+        "uncertainties": [
+            compact_text(item, 220)
+            for item in (review.get("uncertainties") or [])[:3]
+        ],
+        "review_source": review.get("review_source"),
+    }
+
+
+## Keep one pattern bundle small while preserving its evidence threshold.
+## Relevant-ticker and portfolio-wide bundles use the same shape so prompts can compare local and general lessons.
+def _compact_outcome_patterns(patterns):
+    patterns = patterns or {}
+    return {
+        "patterns": (patterns.get("patterns") or [])[:8],
+        "driver_patterns": (patterns.get("driver_patterns") or [])[:8],
+        "recent_lessons": (patterns.get("recent_lessons") or [])[:6],
+        "minimum_sample_size": patterns.get("minimum_sample_size"),
+        "note": patterns.get("note"),
     }
 
 
@@ -178,26 +240,39 @@ def compact_episode(episode):
 def compact_memory_context(context):
     context = context or {}
     outcome_patterns = context.get("outcome_patterns") or {}
+    recent_snapshots = context.get("recent_outcome_snapshots") or []
+    latest_observation_context = (
+        (recent_snapshots[0].get("context") or {})
+        if recent_snapshots
+        else {}
+    )
     return {
         "relevant_episodes": [
             compact_episode(episode)
             for episode in (context.get("relevant_episodes") or [])[:6]
         ],
-        "outcome_patterns": {
-            "patterns": (outcome_patterns.get("patterns") or [])[:8],
-            "recent_lessons": (outcome_patterns.get("recent_lessons") or [])[:6],
-            "minimum_sample_size": outcome_patterns.get("minimum_sample_size"),
-            "note": outcome_patterns.get("note"),
-        },
+        "outcome_patterns": _compact_outcome_patterns(outcome_patterns),
+        "portfolio_outcome_patterns": _compact_outcome_patterns(
+            context.get("portfolio_outcome_patterns")
+        ),
         "recent_outcome_snapshots": [
             {
                 "observed_at": item.get("observed_at"),
                 "summary": compact_text(item.get("summary"), 280),
                 "snapshot": item.get("snapshot") or {},
             }
-            for item in (context.get("recent_outcome_snapshots") or [])[:6]
+            for item in recent_snapshots[:6]
         ],
+        "latest_open_position_market_context": compact_market_context(
+            latest_observation_context.get("market_context"),
+            news_limit=12,
+            trend_limit=12,
+        ),
         "user_profile": context.get("user_profile"),
+        "explicit_trade_feedback": [
+            select_fields(item, FEEDBACK_FIELDS, text_limit=280)
+            for item in (context.get("explicit_trade_feedback") or [])[:8]
+        ],
         "memory_policy": context.get("memory_policy") or {},
         "memory_error": context.get("memory_error"),
     }

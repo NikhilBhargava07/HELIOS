@@ -245,7 +245,13 @@ Remember that maximum CSP profit is limited to the premium and normally occurs w
 expires worthless; do not confuse maximum premium with the best risk-adjusted trade.
 
 Use prior user decisions only when they show a repeated preference. Never claim to have learned
-a user pattern from sparse history (sparse history is < 10 past CSPs, < 50 all-time positions), and never let a preference override strategy or capital rules.
+a repeated pattern until the supplied pattern sample_size reaches its minimum_sample_size, and never let a preference override strategy or capital rules.
+Treat explicit trade feedback as a direct statement about that user's experience, even when only
+one response exists, but do not turn one response into a general performance pattern. Keep measured
+P/L separate from satisfaction: a user may welcome assignment despite an option loss, or dislike a
+profitable trade because its risk or sizing was uncomfortable. Outcome-review drivers are reasoned
+interpretations rather than guaranteed causation, so respect each driver's evidence_strength and
+the listed uncertainties.
 Select the strongest supplied contract, mark the result needs_review, or reject all. Explain why
 the selected contract is better suited to the current market than the other candidates.
 
@@ -269,8 +275,10 @@ Retrieved long-term memory:
 
 Memory rules:
 - Treat realized trade outcomes as facts, but candidate observations as counterfactual evidence.
-- Do not claim a user preference or outcome pattern when its evidence count is sparse (again, no pattern-forming
-until >= 11 CSP orders have been placed and filled, or >= 51 all-time positions have been held).
+- Treat user feedback as explicit preference evidence, not as proof that a trade was financially good or bad.
+- Use portfolio-wide lessons for recurring trade-structure risk even when the next candidate has a different ticker.
+- Treat post-trade driver explanations as hypotheses bounded by their evidence strength, not established causation.
+- Do not claim a repeated preference or outcome pattern before its supplied minimum sample size is met.
 - State when memory is insufficient and rely on current evidence plus hard strategy rules.
 - Never let remembered preferences override affordability, position limits, or safety filters.
 

@@ -38,7 +38,11 @@ def handler(event, context):
         return dispatch_scheduled_outcome_observations()
 
     if event.get("worker_action") == "outcome_observation":
-        return run_outcome_observation(event["user_id"])
+        return run_outcome_observation(
+            event["user_id"],
+            job_id=event.get("job_id"),
+            trigger=event.get("trigger", "on_demand"),
+        )
 
     if event.get("worker_action") == "market_take":
         return run_market_take_job(

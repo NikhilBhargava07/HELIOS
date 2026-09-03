@@ -332,11 +332,15 @@ def account_total_capital(alpaca_account):
 
 ## Sync recent Alpaca orders into HELIOS memory without blocking the dashboard.
 ## Order reconciliation is helpful for history, but a temporary Alpaca failure should not prevent users from seeing current positions.
-def reconcile_orders_safely(user_id, trading_client=None):
+def reconcile_orders_safely(user_id, trading_client=None, broker_orders=None):
     try:
         return reconcile_paper_orders(
             user_id,
-            get_paper_orders(limit=100, trading_client=trading_client),
+            (
+                broker_orders
+                if broker_orders is not None
+                else get_paper_orders(limit=100, trading_client=trading_client)
+            ),
         ), None
     except Exception as error:
         logger.warning("Paper order synchronization failed: %s", type(error).__name__)
@@ -389,10 +393,16 @@ def compact_dashboard_memory_context(dashboard, trigger=None):
 
 ## Build the Capital & Positions payload shown in the frontend dashboard.
 ## This combines saved HELIOS memory, reconciled orders, live Alpaca positions, and current buying power into one response for the UI.
-def get_dashboard_with_cash_context(user_id, alpaca_account=None, trading_client=None):
+def get_dashboard_with_cash_context(
+    user_id,
+    alpaca_account=None,
+    trading_client=None,
+    broker_orders=None,
+):
     reconciled_orders, order_sync_error = reconcile_orders_safely(
         user_id,
         trading_client=trading_client,
+        broker_orders=broker_orders,
     )
     safe_account = alpaca_account or get_safe_paper_account_summary(trading_client=trading_client)
     live_total_capital = account_total_capital(safe_account)

@@ -5,6 +5,8 @@ from uuid import uuid4
 from backend.memory.dynamodb_store import (
     get_item,
     put_item,
+    put_items,
+    query_items,
     user_pk,
     utc_now_text,
 )
@@ -13,6 +15,7 @@ from backend.memory.recommendations import (
     find_candidate,
     get_recommendation_run,
 )
+from backend.broker.trading import parse_option_contract_symbol
 
 FILLED_ORDER_STATUSES = {"filled"}
 ORDER_LIFECYCLE_FIELDS = (
@@ -270,6 +273,131 @@ def reconcile_paper_orders(user_id, alpaca_orders):
             _save_filled_order_position(owner_partition, order_item)
         updated_count += 1
     return updated_count
+
+
+## Return one internal HELIOS paper-order record by its stable id.
+## Trade-feedback routes use this owner-scoped lookup so a user can never annotate another account's order.
+def get_paper_order_by_id(user_id, order_id, limit=500):
+    for order in query_items(
+        user_pk(user_id),
+        "ORDER#",
+        limit=limit,
+        scan_forward=False,
+    ):
+        if order.get("id") == order_id:
+            return order
+    return None
+
+
+## Import filled Alpaca CSP openings that predate HELIOS recommendation memory.
+## Imported orders retain broker fill economics and source attribution, but leave recommendation fields empty so later prompts do not claim the agent suggested them.
+def import_filled_csp_order_history(user_id, alpaca_orders):
+    owner_partition = user_pk(user_id)
+    existing_alpaca_order_ids = {
+        order.get("alpaca_order_id")
+        for order in query_items(
+            owner_partition,
+            "ORDER#",
+            limit=1000,
+            scan_forward=False,
+        )
+        if order.get("alpaca_order_id")
+    }
+    imported = []
+    skipped_ambiguous = 0
+    for alpaca_order in alpaca_orders or []:
+        contract = parse_option_contract_symbol(alpaca_order.get("symbol"))
+        is_filled_put_sale = (
+            str(alpaca_order.get("status") or "").lower() == "filled"
+            and str(alpaca_order.get("side") or "").lower() == "sell"
+            and contract is not None
+            and contract["option_type"] == "put"
+        )
+        if not is_filled_put_sale:
+            continue
+
+        # A filled put sale without an explicit sell_to_open intent could instead be
+        # closing a long put, so it is counted and skipped rather than imported as a CSP.
+        if str(alpaca_order.get("position_intent") or "").lower() != "sell_to_open":
+            skipped_ambiguous += 1
+            continue
+
+        alpaca_order_id = alpaca_order.get("id")
+        if not alpaca_order_id:
+            continue
+        lookup_pk = f"{owner_partition}#ALPACA_ORDER#{alpaca_order_id}"
+        if alpaca_order_id in existing_alpaca_order_ids:
+            continue
+
+        filled_price = number_or_none(alpaca_order.get("filled_avg_price"))
+        filled_quantity = number_or_none(alpaca_order.get("filled_qty"))
+        if filled_price is None or not filled_quantity or filled_quantity <= 0:
+            continue
+
+        created_at = (
+            alpaca_order.get("submitted_at")
+            or alpaca_order.get("filled_at")
+            or utc_now_text()
+        )
+        order_id = f"alpaca-{alpaca_order_id}"
+        strike = float(contract["strike"])
+        order = {
+            "id": order_id,
+            "created_at": created_at,
+            "source": "alpaca_history_import",
+            "status": "filled",
+            "side": "sell",
+            "strategy": "cash-secured put",
+            "contract_symbol": alpaca_order["symbol"],
+            "ticker_symbol": contract["ticker_symbol"],
+            "expiration": contract["expiration"],
+            "strike": strike,
+            "quoted_premium": (
+                (number_or_none(alpaca_order.get("limit_price")) or filled_price)
+                * 100
+                * filled_quantity
+            ),
+            "premium_received": filled_price * 100 * filled_quantity,
+            "cash_required": strike * 100 * filled_quantity,
+            "breakeven_price": strike - filled_price,
+            "alpaca_order_id": alpaca_order_id,
+            "alpaca_client_order_id": alpaca_order.get("client_order_id"),
+            "alpaca_limit_price": alpaca_order.get("limit_price"),
+            "alpaca_submitted_at": alpaca_order.get("submitted_at"),
+            "alpaca_updated_at": alpaca_order.get("updated_at"),
+            "alpaca_qty": alpaca_order.get("qty"),
+            "alpaca_filled_qty": alpaca_order.get("filled_qty"),
+            "alpaca_filled_avg_price": alpaca_order.get("filled_avg_price"),
+            "alpaca_filled_at": alpaca_order.get("filled_at"),
+            "entry_factors": {
+                "availability": "not_recorded_before_helios_import",
+            },
+        }
+        order_sort_key = f"ORDER#{created_at}#{order_id}"
+        put_items([
+            {
+                "pk": owner_partition,
+                "sk": order_sort_key,
+                "item_type": "paper_order",
+                **order,
+            },
+            {
+                "pk": lookup_pk,
+                "sk": "ORDER",
+                "item_type": "order_lookup",
+                "order_id": order_id,
+                "user_order_sk": order_sort_key,
+            },
+        ])
+        _save_filled_order_position(owner_partition, order)
+        existing_alpaca_order_ids.add(alpaca_order_id)
+        imported.append(order)
+
+    return {
+        "imported": len(imported),
+        "orders": imported,
+        "skipped_ambiguous_put_sales": skipped_ambiguous,
+    }
 
 
 ## Close the DynamoDB fallback position created for one filled HELIOS order.

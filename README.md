@@ -4,7 +4,7 @@
 
 A cash-secured put is a trade where the seller agrees to buy a stock at a set price, collects a premium up front, and holds enough cash to cover the purchase if it happens. HELIOS looks through about 55 approved stocks for these trades, checks each one against strict risk rules written in code, and asks an AI model to review only the ones that pass. Approved trades are placed on the user's own Alpaca paper-trading account.
 
-HELIOS then keeps watching. It records how each position is doing and, once a trade actually closes, saves what really happened so future recommendations have real history to work from.
+HELIOS refreshes learning whenever the user starts a CSP scan or explicitly requests a learning refresh. It records how each position is doing and, once a trade actually closes, saves what really happened so future recommendations have real history to work from. Automatic scheduled monitoring is intentionally deferred during the private prototype.
 
 The idea behind the whole design:
 
@@ -40,8 +40,8 @@ One Lambda function handles two kinds of work: normal web requests, and slower j
 | --- | --- |
 | `recommendation_scan` | Runs a full scan and AI review |
 | `market_take` | Writes market commentary based on current holdings |
-| `scheduled_outcome_dispatch` | Kicks off the daily check, one job per user |
-| `outcome_observation` | Records one user's positions and closes out finished trades |
+| `outcome_observation` | Imports CSP history, records positions, closes finished trades, and saves lessons |
+| `scheduled_outcome_dispatch` | Optional future daily dispatcher; not required by the current prototype |
 
 ---
 
@@ -52,6 +52,8 @@ One Lambda function handles two kinds of work: normal web requests, and slower j
 3. The background job pulls option data for the approved stocks, drops anything that breaks a risk rule, and ranks what's left.
 4. The surviving trades go to the AI along with current market data, open positions, and how similar past trades turned out.
 5. The answer gets saved, and the browser checks `GET /api/recommendations/jobs/{id}` every couple of seconds until it's ready.
+
+Before step 3, the same worker refreshes that user's Alpaca order history and completed outcomes. This gives the current scan the newest available memory without paying for a continuously scheduled service. The backend also exposes `POST /api/learning/jobs` and `GET /api/learning/jobs/{id}` for an explicit refresh.
 
 ---
 
@@ -77,7 +79,8 @@ Everything lives in one DynamoDB table, and every row is stored under a key buil
 pk = USER#{sub}
 sk = RUN#{ts}#{id} | CANDIDATE#{contract} | DECISION#{ts}#{id}
      ORDER#{ts}#{id} | POSITION#ORDER#{id} | OUTCOME#{ts}#{id}
-     OUTCOME_SNAPSHOT#{date}#{contract}
+     OUTCOME_SNAPSHOT#{date}#{contract} | TRADE_FEEDBACK#{order_id}
+     OUTCOME_JOB#{id}
 ```
 
 Every read and write builds that key through a single helper that fails if the user ID is missing. So this isn't protected by a permission check somebody might forget to write — one account's data cannot be requested at all, because the key cannot be built without that account's ID. Passing in a job ID from another account simply looks like a job that doesn't exist.
@@ -95,6 +98,10 @@ The AI also has to answer in a fixed JSON format instead of writing free text th
 A position disappearing from Alpaca doesn't establish what happened to it. HELIOS marks a trade finished only with proof: a filled order that closed it, or an official Alpaca record showing it was assigned, expired, or settled. Without that, the trade stays open in the system rather than being labeled with a guess.
 
 It also avoids reducing trades to wins and losses. When a put is assigned, HELIOS records the premium kept and notes that the outcome isn't final, because the account now holds shares whose gain or loss hasn't happened yet. A pattern counts as a pattern only after it shows up across enough separate contracts, so checking the same position every day can't make a single trade look like a trend.
+
+Filled Alpaca sell-to-open puts can be imported even when they predate the current HELIOS recommendation flow. Those trades are labeled as broker-history imports, so the agent can learn from their economics without falsely claiming it recommended them. Completed outcomes receive a structured post-trade review that separates supported evidence from possible causal explanations.
+
+User feedback is stored separately from financial performance. Satisfaction, willingness to repeat the trade, assignment preference, reason tags, and a note can therefore express cases such as “the option moved against me, but I still wanted the shares.” Explicit feedback may guide future recommendations immediately, while inferred performance patterns still require several independent contracts.
 
 ### Keeping the AI prompts small
 
@@ -126,7 +133,7 @@ backend/
   broker/       Alpaca clients, order placement, quote refresh, trade lifecycle
   strategy/     Option math, filtering, AI review, scan jobs
   market/       Price trends, news, market commentary, prompt trimming
-  memory/       Database access, recommendations, trades, observations, outcomes
+  memory/       Database access, recommendations, trades, observations, outcomes, feedback
   users/        Profiles, sign-in, per-user broker credentials
 frontend/
   js/           State, API calls, rendering, page loading, auth, profile
@@ -142,7 +149,7 @@ tests/          Unit tests with the broker and AWS mocked out
 python -m unittest discover -s tests
 ```
 
-Thirty tests cover order safety, closing out trades, scheduled jobs, prompt trimming, AI error handling, and keeping user data separate. The broker and AWS are mocked, so the tests need no network access or credentials.
+Thirty-nine tests cover order safety, history import, outcome review, user feedback, closing out trades, background jobs, prompt trimming, AI error handling, and keeping user data separate. The broker and AWS are mocked, so the tests need no network access or credentials.
 
 ---
 

@@ -178,6 +178,7 @@ def _build_completed_outcome(order, resolution, latest_snapshot):
         "status": "complete",
         "completed_at": resolution["closed_at"],
         "opening_order_id": order["id"],
+        "opening_source": order.get("source", "helios_recommendation"),
         "alpaca_opening_order_id": order.get("alpaca_order_id"),
         "recommendation_run_id": order.get("recommendation_run_id"),
         "contract_symbol": order.get("contract_symbol"),

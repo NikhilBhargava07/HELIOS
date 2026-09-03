@@ -4,24 +4,22 @@
 ## OpenAI request asynchronously, and the browser polls until a result is ready.
 
 import logging
-import time
-from uuid import uuid4
 
 from backend.api.services import get_dashboard_with_cash_context
 from backend.broker.clients import create_stock_data_client
 from backend.broker.trading import create_trading_client
 from backend.config import (
-    AI_JOB_TTL_SECONDS,
     APPROVED_TICKERS,
     COMPANY_NAMES,
 )
 from backend.market.ai_take import ai_market_take
 from backend.market.context import build_market_context
-from backend.memory.dynamodb_store import (
-    get_item,
-    put_item,
-    user_pk,
-    utc_now_text,
+from backend.memory.dynamodb_store import utc_now_text
+from backend.memory.jobs import (
+    create_job,
+    public_job,
+    read_job_item,
+    update_job,
 )
 from backend.memory.recommendations import get_latest_recommendation_run
 from backend.users.profiles import get_user_broker_credentials
@@ -29,51 +27,31 @@ from backend.users.profiles import get_user_broker_credentials
 logger = logging.getLogger(__name__)
 
 
-## Build the sort key shared by all reads and writes for one AI job.
-## Keeping this format in one helper prevents route and worker code from drifting apart.
-def _job_sk(job_id):
-    return f"AI_TAKE_JOB#{job_id}"
+JOB_SORT_KEY_PREFIX = "AI_TAKE_JOB"
 
 
 ## Create a pending AI market-take job inside the authenticated user's partition.
 ## The epoch expiration supports DynamoDB TTL cleanup once expires_at is enabled on the table.
 def create_market_take_job(user_id):
-    job_id = str(uuid4())
-    now = utc_now_text()
-    item = {
-        "pk": user_pk(user_id),
-        "sk": _job_sk(job_id),
-        "item_type": "ai_take_job",
-        "job_id": job_id,
-        "user_id": user_id,
-        "status": "pending",
-        "created_at": now,
-        "updated_at": now,
-        "completed_at": None,
-        "expires_at": int(time.time()) + AI_JOB_TTL_SECONDS,
-        "result": None,
-        "error": None,
-    }
-    put_item(item)
-    return _public_job(item)
+    return create_job(user_id, JOB_SORT_KEY_PREFIX, "ai_take_job")
 
 
 ## Fetch one job only from the requesting user's private partition.
 ## A job id from another account therefore behaves exactly like a missing job.
 def get_market_take_job(job_id, user_id):
-    item = get_item(user_pk(user_id), _job_sk(job_id))
-    return _public_job(item) if item else None
+    item = read_job_item(user_id, JOB_SORT_KEY_PREFIX, job_id)
+    return public_job(item) if item else None
 
 
 ## Execute one background market-take job for its authenticated owner.
 ## Credentials are loaded once, then used to construct both broker clients needed by the evidence workflow.
 def run_market_take_job(job_id, user_id):
-    item = get_item(user_pk(user_id), _job_sk(job_id))
+    item = read_job_item(user_id, JOB_SORT_KEY_PREFIX, job_id)
     if not item:
         logger.warning("AI market take job not found: %s", job_id)
         return {"ok": False, "error": "job_not_found"}
 
-    _update_job(item, status="running")
+    update_job(item, status="running")
     try:
         credentials = get_user_broker_credentials(user_id)
         if not credentials or credentials.get("broker") != "alpaca":
@@ -107,7 +85,7 @@ def run_market_take_job(job_id, user_id):
         )
         result = ai_market_take(context)
         result["company_names"] = COMPANY_NAMES
-        _update_job(
+        update_job(
             item,
             status="complete",
             result=result,
@@ -121,7 +99,7 @@ def run_market_take_job(job_id, user_id):
             job_id,
             type(error).__name__,
         )
-        _update_job(
+        update_job(
             item,
             status="failed",
             error={
@@ -137,23 +115,3 @@ def run_market_take_job(job_id, user_id):
         }
 
 
-## Persist a job status transition while retaining its identity and TTL fields.
-## All worker updates pass through this helper so timestamps remain consistent.
-def _update_job(item, **changes):
-    updated = {**item, **changes, "updated_at": utc_now_text()}
-    put_item(updated)
-    return updated
-
-
-## Return only fields the polling frontend needs to render progress or a result.
-## DynamoDB partition keys, ownership metadata, and expiration bookkeeping stay private.
-def _public_job(item):
-    return {
-        "job_id": item["job_id"],
-        "status": item["status"],
-        "created_at": item.get("created_at"),
-        "updated_at": item.get("updated_at"),
-        "completed_at": item.get("completed_at"),
-        "result": item.get("result"),
-        "error": item.get("error"),
-    }

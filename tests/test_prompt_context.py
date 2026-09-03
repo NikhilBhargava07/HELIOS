@@ -77,6 +77,34 @@ class PromptContextTests(unittest.TestCase):
         self.assertNotIn("market_context", recommendation)
         self.assertNotIn("url", compacted["news"][0])
 
+    ## Keep one bounded current-market context for open positions without copying it into every snapshot.
+    def test_memory_keeps_latest_open_position_context_once(self):
+        memory = {
+            "recent_outcome_snapshots": [{
+                "observed_at": "2026-08-10T12:00:00+00:00",
+                "summary": "INTC position is under pressure.",
+                "snapshot": {"ticker_symbol": "INTC", "unrealized_pnl": -445},
+                "context": {
+                    "market_context": {
+                        "trends": [{"ticker": "INTC", "5d": -8.2, "unused": True}],
+                        "news_and_earnings": [{
+                            "headline": "Current company evidence",
+                            "source": "Reuters",
+                            "url": "https://example.test/private-noise",
+                        }],
+                    },
+                },
+            }],
+        }
+
+        compacted = compact_memory_context(memory)
+        market = compacted["latest_open_position_market_context"]
+
+        self.assertEqual(market["trends"][0]["ticker"], "INTC")
+        self.assertNotIn("unused", market["trends"][0])
+        self.assertNotIn("url", market["news_and_earnings"][0])
+        self.assertNotIn("context", compacted["recent_outcome_snapshots"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

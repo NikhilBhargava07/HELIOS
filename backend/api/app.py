@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.api.routes.market import router as market_router
+from backend.api.routes.learning import router as learning_router
 from backend.api.routes.portfolio import router as portfolio_router
 from backend.api.routes.profiles import router as profile_router
 from backend.api.routes.recommendations import router as recommendation_router
@@ -57,6 +58,7 @@ def create_app(serve_frontend=None):
     application.include_router(profile_router)
     application.include_router(recommendation_router)
     application.include_router(market_router)
+    application.include_router(learning_router)
 
     if serve_frontend is None:
         serve_frontend = not bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))

@@ -3,7 +3,7 @@
 import unittest
 from unittest.mock import patch
 
-from backend.memory.learning_user import get_outcome_patterns
+from backend.memory.learning_user import build_user_profile, get_outcome_patterns
 
 
 class OutcomePatternTests(unittest.TestCase):
@@ -31,6 +31,38 @@ class OutcomePatternTests(unittest.TestCase):
         self.assertEqual(len(result["patterns"]), 1)
         self.assertEqual(result["patterns"][0]["sample_size"], 2)
         self.assertEqual(len(result["recent_lessons"]), 3)
+
+    ## Use explicit feedback immediately while keeping measured assignment outcomes separate.
+    @patch("backend.memory.learning_user.get_trade_feedback")
+    @patch("backend.memory.learning_user.get_completed_trade_outcomes")
+    @patch("backend.memory.learning_user.query_items", return_value=[])
+    def test_profile_separates_feedback_from_economics(
+        self,
+        decisions,
+        completed_outcomes,
+        feedback,
+    ):
+        completed_outcomes.return_value = [{
+            "assigned": True,
+            "option_realized_pnl": 200,
+            "premium_retained_percent": 100,
+        }]
+        feedback.return_value = [{
+            "satisfaction": "mixed",
+            "would_repeat": False,
+            "assignment_preference": "welcome",
+            "reason_tags": ["timing", "assignment"],
+        }]
+
+        result = build_user_profile("user-1")["profile"]
+
+        self.assertEqual(result["outcome_preferences"]["assignment_rate"], 1)
+        self.assertEqual(
+            result["outcome_preferences"]["assignment_tolerance"],
+            "welcomes_assignment",
+        )
+        self.assertEqual(result["outcome_preferences"]["would_repeat_rate"], 0)
+        self.assertEqual(result["outcome_preferences"]["total_option_realized_pnl"], 200)
 
     ## Build one realistic stored observation for the aggregation test.
     @staticmethod
