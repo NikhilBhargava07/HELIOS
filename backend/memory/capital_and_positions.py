@@ -1,5 +1,6 @@
 ## Build user-scoped capital, position, and paper-order memory views.
 
+from backend.capital import strategy_capacity
 from backend.memory.dynamodb_store import query_items, user_pk
 
 
@@ -42,15 +43,16 @@ def get_capital_summary(
         position["cash_required"]
         for position in positions
     )
-    max_csp_capital = total_capital * max_csp_capital_percent
+    max_csp_capital, available_csp_capital = strategy_capacity(
+        total_capital,
+        max_csp_capital_percent,
+        committed_capital,
+    )
     return {
         "total_capital": total_capital,
         "max_csp_capital": max_csp_capital,
         "committed_capital": committed_capital,
-        "available_csp_capital": max(
-            0,
-            max_csp_capital - committed_capital,
-        ),
+        "available_csp_capital": available_csp_capital,
         "open_position_count": len(positions),
         "max_open_positions": max_open_positions,
         "open_positions": positions,

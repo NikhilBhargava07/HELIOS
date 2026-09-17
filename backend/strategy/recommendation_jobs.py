@@ -23,7 +23,6 @@ from backend.broker.trading import create_trading_client, get_paper_orders
 from backend.config import (
     APPROVED_TICKERS,
     COMPANY_NAMES,
-    STRATEGY_RULES,
 )
 from backend.memory.dynamodb_store import utc_now_text
 from backend.memory.jobs import (
@@ -36,6 +35,7 @@ from backend.memory.observations import capture_current_csp_outcome_snapshots
 from backend.memory.outcome_jobs import run_outcome_observation
 from backend.memory.recommendations import save_recommendation_run
 from backend.strategy.recommender import get_recommendation_results
+from backend.strategy.registry import DEFAULT_STRATEGY_KEY, get_strategy
 from backend.users.profiles import get_user_broker_credentials
 
 logger = logging.getLogger(__name__)
@@ -103,14 +103,16 @@ def run_recommendation_job(job_id, user_id):
                 "Pre-scan outcome refresh failed without blocking recommendations: %s",
                 type(error).__name__,
             )
+        strategy = get_strategy(DEFAULT_STRATEGY_KEY)
         capital = dashboard["capital"]
         effective_cash = get_effective_available_csp_cash(capital, alpaca_account)
         results = get_recommendation_results(
+            strategy,
             user_id=user_id,
             total_capital=capital["total_capital"],
             current_open_positions=capital["open_position_count"],
-            current_csp_capital_committed=capital["committed_capital"],
-            external_available_csp_capital=effective_cash,
+            committed_capital=capital["committed_capital"],
+            external_available_capital=effective_cash,
             portfolio_context={
                 "capital": capital,
                 "open_csp_positions": dashboard["open_positions"],
@@ -132,13 +134,13 @@ def run_recommendation_job(job_id, user_id):
             candidates,
             results["review"],
             market_context=results.get("market_context"),
-            strategy_rules=STRATEGY_RULES,
+            strategy_rules=strategy.strategy_rules,
             portfolio_context=results.get("portfolio_context"),
             memory_context=results.get("memory_context"),
         )
         result = {
             "recommendation_run_id": run["id"], "approved_tickers": APPROVED_TICKERS,
-            "company_names": COMPANY_NAMES, "strategy_rules": STRATEGY_RULES,
+            "company_names": COMPANY_NAMES, "strategy_rules": strategy.strategy_rules,
             "capital": attach_alpaca_cash_context(capital, alpaca_account),
             "dashboard": dashboard,
             "candidates": candidates, "review": results["review"],

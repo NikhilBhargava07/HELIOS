@@ -20,15 +20,15 @@ from backend.broker.trading import (
     parse_option_contract_symbol,
     refresh_candidate_option_quote,
 )
+from backend.capital import strategy_capacity
 from backend.config import (
+    CAPITAL_BUDGETS,
     COMPANY_NAMES,
     MAX_RECOMMENDATION_AGE_SECONDS,
-    MAX_CSP_CAPITAL_PERCENT,
     MAX_OPEN_POSITIONS,
-    MAX_SPREAD,
-    MIN_QUOTE_SIZE,
     TOTAL_CAPITAL,
 )
+from backend.strategy.cash_secured_put import CASH_SECURED_PUT
 from backend.memory.capital_and_positions import get_dashboard_data
 from backend.memory.recommendations import find_candidate, get_recommendation_run
 from backend.memory.trades import reconcile_paper_orders
@@ -235,9 +235,10 @@ def prepare_candidate_for_paper_order(
 
     total_capital = account_total_capital(account)
     committed = sum(float(position.get("cash_required") or 0) for position in csp_positions)
-    strategy_available = max(
-        0,
-        total_capital * MAX_CSP_CAPITAL_PERCENT - committed,
+    _, strategy_available = strategy_capacity(
+        total_capital,
+        CAPITAL_BUDGETS[CASH_SECURED_PUT.key],
+        committed,
     )
     broker_available = account.get("available_csp_cash")
     if broker_available is None:
@@ -252,8 +253,8 @@ def prepare_candidate_for_paper_order(
     refreshed_candidate = refresh_candidate_option_quote(
         candidate,
         option_data_client,
-        MAX_SPREAD,
-        MIN_QUOTE_SIZE,
+        CASH_SECURED_PUT.rules.max_spread,
+        CASH_SECURED_PUT.rules.min_quote_size,
     )
     return {
         "candidate": refreshed_candidate,
@@ -409,7 +410,7 @@ def get_dashboard_with_cash_context(
     dashboard = get_dashboard_data(
         user_id,
         live_total_capital,
-        MAX_CSP_CAPITAL_PERCENT,
+        CAPITAL_BUDGETS[CASH_SECURED_PUT.key],
         MAX_OPEN_POSITIONS,
     )
     alpaca_positions, position_error = get_safe_paper_positions(trading_client=trading_client)
@@ -418,7 +419,11 @@ def get_dashboard_with_cash_context(
         csp_positions = csp_positions_from_all_positions(alpaca_positions)
         non_csp_positions = non_csp_positions_from_all_positions(alpaca_positions)
         committed = sum(position["cash_required"] for position in csp_positions)
-        max_csp_capital = live_total_capital * MAX_CSP_CAPITAL_PERCENT
+        max_csp_capital, available_csp_capital = strategy_capacity(
+            live_total_capital,
+            CAPITAL_BUDGETS[CASH_SECURED_PUT.key],
+            committed,
+        )
         dashboard["open_positions"] = csp_positions
         dashboard["stock_positions"] = non_csp_positions
         dashboard["all_positions"] = alpaca_positions
@@ -427,7 +432,7 @@ def get_dashboard_with_cash_context(
             "max_csp_capital": max_csp_capital,
             "open_positions": csp_positions,
             "committed_capital": committed,
-            "available_csp_capital": max(0, max_csp_capital - committed),
+            "available_csp_capital": available_csp_capital,
             "open_position_count": len(csp_positions),
             "total_open_position_count": len(alpaca_positions),
         })

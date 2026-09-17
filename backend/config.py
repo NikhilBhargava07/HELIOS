@@ -58,18 +58,10 @@ COMPANY_NAMES = {
     "AAL": "American Airlines", "UAL": "United Airlines",
 }
 
-MIN_DTE = 30
-MAX_DTE = 45
-TARGET_DELTA = -0.25
-DELTA_TOLERANCE = 0.05
-MAX_SPREAD = 0.50
-MIN_QUOTE_SIZE = 1
-MIN_IV_PERCENT = 20
-MAX_IV_PERCENT = 80
-MIN_ROC_PERCENT = 0.50
-
+# Portfolio-wide limits. These hold no matter which strategy is trading, so they
+# live here rather than inside any one strategy. A strategy's own thresholds, such
+# as a cash-secured put's target delta, live with that strategy in backend/strategy/.
 TOTAL_CAPITAL = 100_000
-MAX_CSP_CAPITAL_PERCENT = 0.70
 MAX_OPEN_POSITIONS = 5
 CANDIDATES_PER_TICKER = 3
 MAX_RECOMMENDATIONS = 10
@@ -77,18 +69,9 @@ MIN_PATTERN_SAMPLE_SIZE = 11
 AI_JOB_TTL_SECONDS = 86_400
 MAX_RECOMMENDATION_AGE_SECONDS = 900
 
-STRATEGY_RULES = {
-    "strategy": "cash-secured put",
-    "approved_tickers": APPROVED_TICKERS,
-    "target_delta": TARGET_DELTA,
-    "delta_tolerance": DELTA_TOLERANCE,
-    "min_dte": MIN_DTE,
-    "max_dte": MAX_DTE,
-    "max_spread": MAX_SPREAD,
-    "min_iv_percent": MIN_IV_PERCENT,
-    "max_iv_percent": MAX_IV_PERCENT,
-    "min_roc_percent": MIN_ROC_PERCENT,
-    "max_csp_capital_percent": MAX_CSP_CAPITAL_PERCENT,
-    "max_open_positions": MAX_OPEN_POSITIONS,
-    "minimum_pattern_sample_size": MIN_PATTERN_SAMPLE_SIZE,
+# The share of the account each strategy may commit, keyed by strategy. Only
+# strategies that consume buying power appear here; a covered call is secured by
+# shares already owned, so it ties up no capital and needs no budget.
+CAPITAL_BUDGETS = {
+    "cash_secured_put": 0.70,
 }

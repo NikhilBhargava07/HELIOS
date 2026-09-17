@@ -1,0 +1,42 @@
+[
+  {
+    "DTE": 35,
+    "ask": 3.2,
+    "askSize": 10,
+    "bid": 3.0,
+    "bidSize": 10,
+    "breakevenPrice": 177.0,
+    "cashRequired": 18000.0,
+    "contractSymbol": "AAPL<EXPOCC>P00180000",
+    "currentStockPrice": 190.0,
+    "delta": -0.25,
+    "expiration": "<EXP>",
+    "ivPercent": 30.0,
+    "premiumIfSoldAtBid": 300.0,
+    "returnOnCashPercent": 1.6666666667,
+    "score": 21.3458646617,
+    "spread": 0.2,
+    "strike": 180.0,
+    "tickerSymbol": "AAPL"
+  },
+  {
+    "DTE": 35,
+    "ask": 2.1,
+    "askSize": 5,
+    "bid": 2.0,
+    "bidSize": 5,
+    "breakevenPrice": 173.0,
+    "cashRequired": 17500.0,
+    "contractSymbol": "AAPL<EXPOCC>P00175000",
+    "currentStockPrice": 190.0,
+    "delta": -0.22,
+    "expiration": "<EXP>",
+    "ivPercent": 25.0,
+    "premiumIfSoldAtBid": 200.0,
+    "returnOnCashPercent": 1.1428571429,
+    "score": 14.115735768,
+    "spread": 0.1,
+    "strike": 175.0,
+    "tickerSymbol": "AAPL"
+  }
+]
