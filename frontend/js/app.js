@@ -99,7 +99,8 @@ exploreOverlay.addEventListener("click", (event) => {
 
     showTab(clickedLink.dataset.tab);
 
-    if (clickedLink.dataset.load === "recommendations") {
+    // Returning to recommendations keeps the results already on screen; only a first visit scans automatically.
+    if (clickedLink.dataset.load === "recommendations" && !currentRecommendationRunId) {
         loadRecommendations();
     }
 });

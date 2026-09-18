@@ -100,28 +100,49 @@ async function placeCandidate(clickedButton) {
         clickedButton.disabled = false;
         clickedButton.textContent = originalButtonText;
 
+        // A rejected order can mean buying power moved, so re-check what is on screen rather than rescanning it.
         if (result.refresh_recommendations) {
-            recommendationStatus.textContent = "Refreshing recommendations with current buying power...";
-            loadRecommendations();
+            candidatePool = filterAffordableCandidates(
+                candidatePool,
+                result.dashboard?.capital?.effective_available_csp_capital,
+            );
+            renderRecsMetrics(result.dashboard);
+            renderRecsCandidates();
         }
 
         return;
     }
 
+    // Placing an order spends buying power, so keep the recommendations the user is weighing and drop only
+    // the ones the account can no longer cash-secure. Rescanning here would replace them mid-decision.
+    const remaining = candidatePool.filter(pooled => pooled.contractSymbol !== contractSymbol);
+    const stillAffordable = filterAffordableCandidates(
+        remaining,
+        result.dashboard?.capital?.effective_available_csp_capital,
+    );
+    const droppedForCash = remaining.length - stillAffordable.length;
+    const droppedNote = droppedForCash
+        ? ` ${droppedForCash} other ${droppedForCash === 1 ? "candidate no longer fits" : "candidates no longer fit"} your buying power.`
+        : "";
+
     showToast(
         result.duplicate_prevented ? "Paper order already placed" : "Paper order placed",
-        result.duplicate_prevented
+        (result.duplicate_prevented
             ? `The earlier ${candidate?.tickerSymbol || contractSymbol} order was found, so HELIOS did not submit a duplicate.`
-            : `${candidate?.tickerSymbol || contractSymbol} ${money(candidate?.strike || 0)} put submitted to Alpaca (${result.alpaca_order?.status || "submitted"}).`,
+            : `${candidate?.tickerSymbol || contractSymbol} ${money(candidate?.strike || 0)} put submitted to Alpaca (${result.alpaca_order?.status || "submitted"}).`)
+            + droppedNote,
     );
+
+    renderRecsMetrics(result.dashboard);
+    const settlePool = () => {
+        candidatePool = stillAffordable;
+        renderRecsCandidates();
+    };
 
     if (card) {
         card.classList.add("discarding");
-        setTimeout(() => removeCandidateFromPool(contractSymbol), 180);
+        setTimeout(settlePool, 180);
     } else {
-        removeCandidateFromPool(contractSymbol);
+        settlePool();
     }
-
-    recommendationStatus.textContent = "Refreshing recommendations with updated buying power...";
-    loadRecommendations();
 }
