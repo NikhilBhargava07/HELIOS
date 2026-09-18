@@ -58,6 +58,27 @@ def fetch_option_snapshots(
     return option_data_client.get_option_chain(request)
 
 
+## Summarize the market facts of one option candidate for the model.
+## Every option strategy sends these same quote fields, so each strategy adds only the economics that make it distinct.
+def summarize_option_market(candidate):
+    return {
+        "ticker_symbol": candidate.tickerSymbol,
+        "contract_symbol": candidate.contractSymbol,
+        "expiration": candidate.expiration,
+        "dte": int(candidate.DTE),
+        "strike": float(candidate.strike),
+        "current_stock_price": float(candidate.currentStockPrice),
+        "delta": float(candidate.delta),
+        "iv_percent": float(candidate.ivPercent),
+        "bid": float(candidate.bid),
+        "ask": float(candidate.ask),
+        "spread": float(candidate.spread),
+        "bid_size": int(getattr(candidate, "bidSize", 0) or 0),
+        "ask_size": int(getattr(candidate, "askSize", 0) or 0),
+        "premium": float(candidate.premiumIfSoldAtBid),
+    }
+
+
 ## Convert option snapshots into one table of quotes, greeks, and strategy economics.
 ## Contracts without a usable quote are dropped here rather than being carried through the filters as empty rows.
 def build_candidate_rows(ticker_symbol, snapshots, current_stock_price, economics):

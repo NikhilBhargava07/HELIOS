@@ -70,19 +70,28 @@ def get_recommendation_results(
     if stock_data_client is None or option_data_client is None:
         return _rejection("Broker market-data connection is not available.", f"Connect Alpaca before running {strategy.short_label} scans.")
 
-    if not can_open_new_position(current_open_positions, MAX_OPEN_POSITIONS):
-        return _rejection(f"Max open positions reached ({MAX_OPEN_POSITIONS}).", "Position limits prevent overcommitting the account.")
-
     available_capital = available_strategy_capital(
         strategy,
         total_capital,
         committed_capital,
         external_available_capital,
     )
-    if available_capital is not None and available_capital <= 0:
+    commits_capital = available_capital is not None
+
+    # The position cap limits new capital commitments. A strategy secured by shares
+    # already owned commits none, and is bounded by the shares held instead.
+    if commits_capital and not can_open_new_position(current_open_positions, MAX_OPEN_POSITIONS):
+        return _rejection(f"Max open positions reached ({MAX_OPEN_POSITIONS}).", "Position limits prevent overcommitting the account.")
+
+    if commits_capital and available_capital <= 0:
         return _rejection(f"No {strategy.short_label} capital available under current allocation rules.", "Capital rules keep the account from being overcommitted.")
 
     eligible_tickers = strategy.eligible_tickers(portfolio_context)
+    if not eligible_tickers:
+        return _rejection(
+            f"No tickers currently qualify for a {strategy.short_label}.",
+            f"A {strategy.short_label} requires {strategy.eligibility_requirement}.",
+        )
 
     try:
         latest_prices = get_latest_stock_prices(eligible_tickers, stock_data_client=stock_data_client)
@@ -101,6 +110,11 @@ def get_recommendation_results(
                 current_stock_price=(latest_prices.get(ticker_symbol) or {}).get("price"),
                 stock_data_client=stock_data_client,
                 option_data_client=option_data_client,
+                economics=(
+                    strategy.bind_economics(ticker_symbol, portfolio_context)
+                    if strategy.bind_economics
+                    else None
+                ),
             )
         except Exception as error:
             scan_errors.append(f"{ticker_symbol}:{type(error).__name__}")

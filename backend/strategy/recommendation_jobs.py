@@ -1,4 +1,4 @@
-## Run user-scoped CSP recommendation scans outside API Gateway's request timeout.
+## Run user-scoped strategy recommendation scans outside API Gateway's request timeout.
 ##
 ## The multi-ticker option scan plus AI review can exceed API Gateway's 30-second
 ## limit, so the browser creates a short-lived DynamoDB job, Lambda performs the
@@ -25,6 +25,7 @@ from backend.config import (
     COMPANY_NAMES,
 )
 from backend.memory.dynamodb_store import utc_now_text
+from backend.memory.holdings import build_holdings
 from backend.memory.jobs import (
     create_job,
     public_job,
@@ -44,10 +45,15 @@ logger = logging.getLogger(__name__)
 JOB_SORT_KEY_PREFIX = "RECOMMENDATION_JOB"
 
 
-## Create a pending recommendation-scan job inside the authenticated user's partition.
-## The shared job store owns the record shape so every job type polls identically.
-def create_recommendation_job(user_id):
-    return create_job(user_id, JOB_SORT_KEY_PREFIX, "recommendation_job")
+## Create a pending recommendation-scan job for one strategy inside the authenticated user's partition.
+## The strategy is stored on the job, so the worker scans exactly what the user asked for.
+def create_recommendation_job(user_id, strategy_key=DEFAULT_STRATEGY_KEY):
+    return create_job(
+        user_id,
+        JOB_SORT_KEY_PREFIX,
+        "recommendation_job",
+        strategy_key=strategy_key,
+    )
 
 
 ## Fetch one job only from the requesting user's private partition.
@@ -57,7 +63,7 @@ def get_recommendation_job(job_id, user_id):
     return public_job(item) if item else None
 
 
-## Execute one background CSP scan for its owner and store the full response payload.
+## Execute one background strategy scan for its owner and store the full response payload.
 ## Credentials are loaded once, then used to build the trading and market-data clients the scan needs.
 def run_recommendation_job(job_id, user_id):
     item = read_job_item(user_id, JOB_SORT_KEY_PREFIX, job_id)
@@ -67,6 +73,7 @@ def run_recommendation_job(job_id, user_id):
 
     update_job(item, status="running")
     try:
+        strategy = get_strategy(item.get("strategy_key") or DEFAULT_STRATEGY_KEY)
         credentials = get_user_broker_credentials(user_id)
         if not credentials or credentials.get("broker") != "alpaca":
             raise RuntimeError("Saved Alpaca connection is required for recommendation jobs.")
@@ -103,7 +110,6 @@ def run_recommendation_job(job_id, user_id):
                 "Pre-scan outcome refresh failed without blocking recommendations: %s",
                 type(error).__name__,
             )
-        strategy = get_strategy(DEFAULT_STRATEGY_KEY)
         capital = dashboard["capital"]
         effective_cash = get_effective_available_csp_cash(capital, alpaca_account)
         results = get_recommendation_results(
@@ -116,14 +122,16 @@ def run_recommendation_job(job_id, user_id):
             portfolio_context={
                 "capital": capital,
                 "open_csp_positions": dashboard["open_positions"],
+                "holdings": build_holdings(user_id, dashboard.get("all_positions")),
             },
             stock_data_client=stock_data_client,
             option_data_client=option_data_client,
         )
-        if effective_cash <= 0 and alpaca_account.get("available_csp_cash") == 0:
+        needs_cash = strategy.capital_column is not None
+        if needs_cash and effective_cash <= 0 and alpaca_account.get("available_csp_cash") == 0:
             results["review"] = {
                 "decision": "reject_all", "selected_contract": None,
-                "summary": "Alpaca reports $0 options buying power, so no CSP can be backed right now.",
+                "summary": f"Alpaca reports $0 options buying power, so no {strategy.short_label} can be backed right now.",
                 "risk_note": "Options approval, open orders, or broker collateral rules may be limiting buying power.",
                 "candidate_reviews": [],
             }
@@ -139,7 +147,8 @@ def run_recommendation_job(job_id, user_id):
             memory_context=results.get("memory_context"),
         )
         result = {
-            "recommendation_run_id": run["id"], "approved_tickers": APPROVED_TICKERS,
+            "recommendation_run_id": run["id"], "strategy_key": strategy.key,
+            "approved_tickers": APPROVED_TICKERS,
             "company_names": COMPANY_NAMES, "strategy_rules": strategy.strategy_rules,
             "capital": attach_alpaca_cash_context(capital, alpaca_account),
             "dashboard": dashboard,

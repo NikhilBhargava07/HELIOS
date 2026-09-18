@@ -5,9 +5,11 @@
 ## here is the only step needed to make it scannable.
 
 from backend.strategy.cash_secured_put import CASH_SECURED_PUT
+from backend.strategy.covered_call import COVERED_CALL
 
 STRATEGIES = {
     CASH_SECURED_PUT.key: CASH_SECURED_PUT,
+    COVERED_CALL.key: COVERED_CALL,
 }
 
 DEFAULT_STRATEGY_KEY = CASH_SECURED_PUT.key

@@ -42,6 +42,13 @@ class ReviewConfig:
 ## capital_column names the column holding the cash a contract locks up, or None
 ## for strategies secured by something other than cash. A covered call is secured
 ## by shares already owned, so it commits no buying power and sets this to None.
+##
+## The optional fields exist for strategies whose rules depend on the account.
+## bind_economics returns economics tied to one ticker's holding, such as the real
+## cost basis of shares a covered call would sell. extra_filters are hard rules
+## beyond the shared thresholds, applied in the same pipeline so the model never
+## sees a contract that broke one. eligibility_requirement explains in plain words
+## why no ticker qualified, since "no candidates found" would hide the real reason.
 @dataclass(frozen=True)
 class OptionStrategy:
     key: str
@@ -55,3 +62,6 @@ class OptionStrategy:
     eligible_tickers: Callable
     strategy_rules: dict
     review: ReviewConfig
+    eligibility_requirement: str
+    bind_economics: Optional[Callable] = None
+    extra_filters: tuple = ()

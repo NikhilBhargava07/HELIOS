@@ -13,6 +13,7 @@ from backend.config import (
     MAX_OPEN_POSITIONS,
     MIN_PATTERN_SAMPLE_SIZE,
 )
+from backend.strategy.engine.option_chain import summarize_option_market
 from backend.strategy.spec import OptionRules, OptionStrategy, ReviewConfig
 
 
@@ -133,20 +134,7 @@ def eligible_tickers(portfolio_context=None):
 ## The model receives only the fields it needs to compare risk, reward, and assignment context.
 def summarize_candidate(candidate):
     return {
-        "ticker_symbol": candidate.tickerSymbol,
-        "contract_symbol": candidate.contractSymbol,
-        "expiration": candidate.expiration,
-        "dte": int(candidate.DTE),
-        "strike": float(candidate.strike),
-        "current_stock_price": float(candidate.currentStockPrice),
-        "delta": float(candidate.delta),
-        "iv_percent": float(candidate.ivPercent),
-        "bid": float(candidate.bid),
-        "ask": float(candidate.ask),
-        "spread": float(candidate.spread),
-        "bid_size": int(getattr(candidate, "bidSize", 0) or 0),
-        "ask_size": int(getattr(candidate, "askSize", 0) or 0),
-        "premium": float(candidate.premiumIfSoldAtBid),
+        **summarize_option_market(candidate),
         "cash_required": float(candidate.cashRequired),
         "breakeven_price": float(candidate.breakevenPrice),
         "return_on_cash_percent": float(candidate.returnOnCashPercent),
@@ -214,6 +202,7 @@ CASH_SECURED_PUT = OptionStrategy(
     economics=economics,
     eligible_tickers=eligible_tickers,
     strategy_rules=STRATEGY_RULES,
+    eligibility_requirement="enough available cash to secure the put",
     review=ReviewConfig(
         guidance=REVIEW_GUIDANCE,
         summarize_candidate=summarize_candidate,

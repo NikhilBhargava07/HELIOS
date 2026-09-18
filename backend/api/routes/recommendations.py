@@ -18,6 +18,7 @@ from backend.broker.trading import (
     submit_cash_secured_put_order,
 )
 from backend.memory.trades import record_user_decision
+from backend.strategy.registry import DEFAULT_STRATEGY_KEY, get_strategy
 from backend.strategy.recommendation_jobs import (
     create_recommendation_job,
     get_recommendation_job,
@@ -29,12 +30,18 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/recommendations/jobs")
-## Start a background CSP recommendation scan and return its job id immediately.
+## Start a background recommendation scan for one strategy and return its job id immediately.
 ## The multi-ticker scan runs in a Lambda worker, so it is not bounded by the API Gateway request timeout that made the synchronous scan fail at ~30 seconds.
-def start_recommendation_job(request: Request):
+## An unknown strategy is rejected before any job is created, so a typo cannot leave an orphaned job behind.
+def start_recommendation_job(request: Request, strategy: str = DEFAULT_STRATEGY_KEY):
+    try:
+        scan_strategy = get_strategy(strategy)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
     broker_context = get_required_broker_context(request)
     user_id = broker_context.user.user_id
-    job = create_recommendation_job(user_id)
+    job = create_recommendation_job(user_id, scan_strategy.key)
     try:
         enqueue_worker("recommendation_scan", job["job_id"], user_id)
     except Exception as error:
@@ -45,7 +52,7 @@ def start_recommendation_job(request: Request):
         )
         raise HTTPException(
             status_code=503,
-            detail="Could not start the CSP scan. Please try again.",
+            detail=f"Could not start the {scan_strategy.short_label} scan. Please try again.",
         ) from error
     return job
 

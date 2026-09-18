@@ -18,11 +18,12 @@ from backend.memory.dynamodb_store import (
 
 
 ## Create a pending job of one type inside the authenticated user's partition.
-## The epoch expiration supports DynamoDB TTL cleanup once expires_at is enabled on the table.
-def create_job(user_id, sort_key_prefix, item_type):
+## Extra fields record what the worker should do, such as which strategy to scan; the core fields always win, so a caller cannot overwrite status or ownership.
+def create_job(user_id, sort_key_prefix, item_type, **fields):
     job_id = str(uuid4())
     now = utc_now_text()
     item = {
+        **fields,
         "pk": user_pk(user_id),
         "sk": f"{sort_key_prefix}#{job_id}",
         "item_type": item_type,

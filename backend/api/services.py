@@ -38,6 +38,9 @@ from backend.users.profiles import get_user_broker_credentials
 
 logger = logging.getLogger(__name__)
 
+# Kept off saved candidate records: quotes are re-fetched live before any order, and the score is internal ranking.
+RECORD_EXCLUDED_COLUMNS = {"bid", "ask", "bidSize", "askSize", "score"}
+
 ACTIVE_ORDER_STATUSES = {
     "new",
     "accepted",
@@ -196,6 +199,17 @@ def prepare_candidate_for_paper_order(
     trading_client,
     option_data_client,
 ):
+    # Only cash-secured puts have a placement gate so far. Sending another strategy down this
+    # put-shaped path would skip checks it depends on, such as a covered call confirming the
+    # shares that secure it are actually held; without them it would be a naked call. It is
+    # refused here, before any broker call, rather than left to fail by accident further down.
+    strategy_name = (run.get("strategy_rules") or {}).get("strategy", CASH_SECURED_PUT.stored_name)
+    if strategy_name != CASH_SECURED_PUT.stored_name:
+        raise ValueError(
+            f"{strategy_name.capitalize()} recommendations can't be placed through HELIOS yet, "
+            "because placement does not yet verify the shares that would secure them. No order was sent."
+        )
+
     broker_orders = get_paper_orders(limit=100, trading_client=trading_client)
     existing_order = next(
         (
@@ -268,12 +282,9 @@ def prepare_candidate_for_paper_order(
 def candidates_to_records(candidates):
     if candidates.empty:
         return []
-    columns = [
-        "tickerSymbol", "contractSymbol", "expiration", "DTE", "strike",
-        "currentStockPrice", "delta", "ivPercent", "spread",
-        "premiumIfSoldAtBid", "cashRequired", "breakevenPrice",
-        "returnOnCashPercent",
-    ]
+    # Each strategy displays its own columns, so records keep whatever the strategy produced
+    # rather than a fixed put-shaped list that would break on a covered call's missing cashRequired.
+    columns = [column for column in candidates.columns if column not in RECORD_EXCLUDED_COLUMNS]
     records = candidates[columns].to_dict(orient="records")
     for record in records:
         for key, value in record.items():

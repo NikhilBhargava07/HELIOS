@@ -55,12 +55,21 @@ def filter_by_capital(contracts, capital_column, available_capital):
 
 
 ## Apply the full hard-filter pipeline in order.
-## The model only ever reviews contracts that already satisfied every rule here.
-def apply_option_filters(contracts, rules, capital_column, available_capital):
+## Strategy-specific rules run last in the same pipeline, so the model only ever reviews contracts that satisfied every rule.
+def apply_option_filters(
+    contracts,
+    rules,
+    capital_column,
+    available_capital,
+    extra_filters=(),
+):
     filtered = filter_valid_quotes(contracts, rules.max_spread, rules.min_quote_size)
     filtered = filter_by_delta(filtered, rules.target_delta, rules.delta_tolerance)
     filtered = filter_by_iv(filtered, rules.min_iv_percent, rules.max_iv_percent)
     filtered = filter_by_roc(filtered, rules.min_roc_percent)
     filtered = filter_by_capital(filtered, capital_column, available_capital)
+
+    for extra_filter in extra_filters:
+        filtered = extra_filter(filtered)
 
     return filtered

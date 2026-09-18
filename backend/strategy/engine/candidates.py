@@ -73,6 +73,7 @@ def find_option_candidates(
         strategy.rules,
         strategy.capital_column,
         available_capital,
+        strategy.extra_filters,
     )
     if filtered.empty:
         return pd.DataFrame()
