@@ -2,18 +2,29 @@
 ##
 ## Nothing here knows which strategy is being reviewed. The response shape is the
 ## same for every strategy, so this module owns the request, the schema, the
-## error classification, and the fallback wiring, while the strategy supplies its
-## own prompt, its own candidate summary, and its own local review.
+## error classification, and the fallback wiring. The strategy supplies only its
+## guidance, its candidate summary, and its local review; review_prompt.py
+## composes those into the full prompt.
 
 import json
 import logging
 import time
 
-from backend.config import OPENAI_MODEL, OPENAI_REASONING_EFFORT
+from backend.config import (
+    OPENAI_MODEL,
+    OPENAI_REASONING_EFFORT,
+    OPENAI_REVIEW_MAX_OUTPUT_TOKENS,
+)
 from backend.openai_client import (
     classify_openai_error,
     get_openai_client,
     openai_error_message,
+)
+from backend.strategy.review_prompt import (
+    REVIEW_AGENT_DESCRIPTION,
+    REVIEW_CACHE_KEY,
+    REVIEW_SCHEMA_NAME,
+    build_review_prompt,
 )
 
 
@@ -86,7 +97,6 @@ def review_candidates(
     portfolio_context=None,
     memory_context=None,
 ):
-    review_config = strategy.review
     client = get_openai_client()
     if client is None:
         return _fallback_review(
@@ -97,8 +107,8 @@ def review_candidates(
             "OpenAI access is not configured, so local rule-based review was used.",
         )
 
-    prompt = review_config.build_prompt(
-        ticker_symbol,
+    prompt = build_review_prompt(
+        strategy,
         candidates,
         strategy.strategy_rules,
         market_context,
@@ -113,7 +123,7 @@ def review_candidates(
             input=[
                 {
                     "role": "system",
-                    "content": review_config.agent_description,
+                    "content": REVIEW_AGENT_DESCRIPTION,
                 },
                 {
                     "role": "user",
@@ -123,24 +133,26 @@ def review_candidates(
             text={
                 "format": {
                     "type": "json_schema",
-                    "name": review_config.schema_name,
+                    "name": REVIEW_SCHEMA_NAME,
                     "schema": REVIEW_SCHEMA,
                     "strict": True,
                 }
             },
             reasoning={"effort": OPENAI_REASONING_EFFORT},
-            max_output_tokens=review_config.max_output_tokens,
-            prompt_cache_key=review_config.cache_key,
+            max_output_tokens=OPENAI_REVIEW_MAX_OUTPUT_TOKENS,
+            prompt_cache_key=REVIEW_CACHE_KEY,
             store=False,
         )
         review = json.loads(response.output_text)
         review["review_source"] = "openai"
         review["ai_error_code"] = None
+        usage = getattr(response, "usage", None)
         logger.info(
-            "OpenAI %s review completed in %.2fs (prompt_chars=%s, response_id=%s)",
+            "OpenAI %s review completed in %.2fs (input_tokens=%s, cached_tokens=%s, response_id=%s)",
             strategy.key,
             time.monotonic() - started_at,
-            len(prompt),
+            getattr(usage, "input_tokens", None),
+            getattr(getattr(usage, "input_tokens_details", None), "cached_tokens", None),
             getattr(response, "id", None),
         )
         return review

@@ -16,6 +16,7 @@ from unittest.mock import Mock
 
 from backend.strategy.cash_secured_put import CASH_SECURED_PUT
 from backend.strategy.engine.candidates import find_option_candidates
+from backend.strategy.review_prompt import build_review_prompt
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
 WRITE_GOLDEN = os.getenv("HELIOS_WRITE_GOLDEN") == "1"
@@ -112,8 +113,8 @@ def run_scan(option_data_client=None):
 ## Build the CSP review prompt for the surviving candidates.
 ## This is the single call site that moves when the prompt is owned by the strategy.
 def run_prompt(candidates):
-    return CASH_SECURED_PUT.review.build_prompt(
-        "top filtered ticker set",
+    return build_review_prompt(
+        CASH_SECURED_PUT,
         candidates,
         STRATEGY_RULES_FIXTURE,
         market_context=MARKET_CONTEXT_FIXTURE,

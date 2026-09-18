@@ -25,15 +25,14 @@ class OptionRules:
     min_roc_percent: float
 
 
-## Everything the review step needs to describe one strategy to the model.
-## Grouping it here keeps strategy identity separate from prompt plumbing.
+## The parts of a model review that genuinely differ between strategies.
+##
+## Only these three vary. The system message, response schema, and cache key are
+## shared on purpose: they precede the prompt, so any strategy-specific wording
+## there would stop strategies from sharing a cached prefix.
 @dataclass(frozen=True)
 class ReviewConfig:
-    agent_description: str
-    schema_name: str
-    cache_key: str
-    max_output_tokens: int
-    build_prompt: Callable
+    guidance: str
     summarize_candidate: Callable
     local_review: Callable
 

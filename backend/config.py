@@ -15,8 +15,13 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 OPENAI_TIMEOUT_SECONDS = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "180"))
 OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "2"))
 OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT", "low")
-OPENAI_CSP_MAX_OUTPUT_TOKENS = int(
-    os.getenv("OPENAI_CSP_MAX_OUTPUT_TOKENS", "5000")
+# Output budget for a strategy review. The older OPENAI_CSP_MAX_OUTPUT_TOKENS name is
+# still honored so a value already set in the Lambda environment keeps taking effect.
+OPENAI_REVIEW_MAX_OUTPUT_TOKENS = int(
+    os.getenv(
+        "OPENAI_REVIEW_MAX_OUTPUT_TOKENS",
+        os.getenv("OPENAI_CSP_MAX_OUTPUT_TOKENS", "5000"),
+    )
 )
 OPENAI_MARKET_TAKE_MAX_OUTPUT_TOKENS = int(
     os.getenv("OPENAI_MARKET_TAKE_MAX_OUTPUT_TOKENS", "3000")
