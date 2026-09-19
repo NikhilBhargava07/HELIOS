@@ -7,6 +7,7 @@
 
 from alpaca.trading.enums import ContractType
 
+from backend.capital import strategy_capacity
 from backend.config import (
     APPROVED_TICKERS,
     CAPITAL_BUDGETS,
@@ -18,6 +19,7 @@ from backend.strategy.spec import OptionRules, OptionStrategy, ReviewConfig
 
 
 KEY = "cash_secured_put"
+STORED_NAME = "cash-secured put"
 
 # A return this far above normal usually means the market is pricing in real trouble.
 HIGH_ROC_WARNING_PERCENT = 2.00
@@ -56,7 +58,7 @@ DISPLAY_COLUMNS = (
 )
 
 STRATEGY_RULES = {
-    "strategy": "cash-secured put",
+    "strategy": STORED_NAME,
     "approved_tickers": APPROVED_TICKERS,
     "target_delta": RULES.target_delta,
     "delta_tolerance": RULES.delta_tolerance,
@@ -141,6 +143,46 @@ def summarize_candidate(candidate):
     }
 
 
+## Confirm against live broker state that this put can still be secured with cash.
+##
+## The scan's capital view is already minutes old by the time a user clicks, and
+## an unfilled sell order commits its cash just as an open position does, so both
+## the position count and the committed cash are recounted here. Selling a put is
+## the same trade whatever cash backs it, so the economics need no binding.
+def secure_candidate(candidate, context):
+    open_puts = [
+        position for position in context.positions
+        if position.get("strategy") == STORED_NAME
+    ]
+    pending_puts = [
+        order for order in context.active_sell_orders
+        if order["contract"]["option_type"] == "put"
+    ]
+    if len(open_puts) + len(pending_puts) >= MAX_OPEN_POSITIONS:
+        raise ValueError(
+            f"The {MAX_OPEN_POSITIONS}-position CSP limit includes pending orders and has been reached."
+        )
+
+    committed = sum(float(position.get("cash_required") or 0) for position in open_puts)
+    _, strategy_available = strategy_capacity(
+        context.total_capital,
+        CAPITAL_BUDGETS[KEY],
+        committed,
+    )
+    broker_available = context.account.get("available_csp_cash")
+    if broker_available is None:
+        raise ValueError("Alpaca did not report options buying power, so HELIOS cannot verify this CSP safely.")
+
+    available_cash = min(strategy_available, broker_available)
+    cash_required = float(candidate.get("cashRequired") or 0)
+    if cash_required > available_cash:
+        raise ValueError(
+            f"This CSP requires ${cash_required:,.2f}, but current strategy and broker limits allow ${available_cash:,.2f}."
+        )
+
+    return economics
+
+
 ## Produce a deterministic recommendation when OpenAI is unavailable.
 ## The fallback keeps the app usable for demonstrations while still respecting hard strategy rules.
 def local_review(ticker_symbol, candidates):
@@ -194,15 +236,17 @@ def local_review(ticker_symbol, candidates):
 CASH_SECURED_PUT = OptionStrategy(
     key=KEY,
     short_label="CSP",
-    stored_name="cash-secured put",
+    stored_name=STORED_NAME,
     contract_type=ContractType.PUT,
     rules=RULES,
     capital_column="cashRequired",
+    collateral_basis_column=None,
     display_columns=DISPLAY_COLUMNS,
     economics=economics,
     eligible_tickers=eligible_tickers,
     strategy_rules=STRATEGY_RULES,
     eligibility_requirement="enough available cash to secure the put",
+    secure_candidate=secure_candidate,
     review=ReviewConfig(
         guidance=REVIEW_GUIDANCE,
         summarize_candidate=summarize_candidate,

@@ -29,6 +29,8 @@ from backend.config import (
     TOTAL_CAPITAL,
 )
 from backend.strategy.cash_secured_put import CASH_SECURED_PUT
+from backend.strategy.registry import find_strategy_by_stored_name
+from backend.strategy.spec import PlacementContext
 from backend.memory.capital_and_positions import get_dashboard_data
 from backend.memory.recommendations import find_candidate, get_recommendation_run
 from backend.memory.trades import reconcile_paper_orders
@@ -164,52 +166,62 @@ def require_candidate(run, contract_symbol):
 def require_fresh_recommendation(run, maximum_age_seconds=MAX_RECOMMENDATION_AGE_SECONDS):
     created_at = run.get("created_at")
     if not created_at:
-        raise ValueError("Recommendation timestamp is missing. Run a new CSP scan.")
+        raise ValueError("Recommendation timestamp is missing. Run a new scan.")
     try:
         created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
     except (TypeError, ValueError) as error:
-        raise ValueError("Recommendation timestamp is invalid. Run a new CSP scan.") from error
+        raise ValueError("Recommendation timestamp is invalid. Run a new scan.") from error
     if created.tzinfo is None:
         created = created.replace(tzinfo=timezone.utc)
     age_seconds = (datetime.now(timezone.utc) - created).total_seconds()
     if age_seconds > maximum_age_seconds:
-        raise ValueError("This recommendation is stale. Run a new CSP scan before placing it.")
+        raise ValueError("This recommendation is stale. Run a new scan before placing it.")
 
 
-## Identify an unfilled sell-to-open put order that still has broker-side obligations.
-## Pending CSP orders count toward the position cap because they can become positions without another user action.
-def is_active_csp_order(order):
-    contract = parse_option_contract_symbol(order.get("symbol"))
-    side = str(order.get("side") or "").lower()
-    status = str(order.get("status") or "").lower()
-    return (
-        side == "sell"
-        and contract is not None
-        and contract["option_type"] == "put"
-        and status in ACTIVE_ORDER_STATUSES
-    )
+## Identify unfilled sell-to-open option orders and attach their parsed contract details.
+## An accepted but unfilled sell order already commits the cash or shares behind it, so placement must count it exactly as it counts an open position.
+def active_short_option_orders(broker_orders):
+    orders = []
+
+    for order in broker_orders:
+        contract = parse_option_contract_symbol(order.get("symbol"))
+        side = str(order.get("side") or "").lower()
+        status = str(order.get("status") or "").lower()
+        if contract and side == "sell" and status in ACTIVE_ORDER_STATUSES:
+            orders.append({**order, "contract": contract})
+
+    return orders
+
+
+## Resolve which strategy produced a saved recommendation run.
+## Placement rules come entirely from the strategy, so an unrecognized name must stop the order instead of falling back to put-shaped checks.
+def strategy_for_run(run):
+    stored_name = (run.get("strategy_rules") or {}).get("strategy", CASH_SECURED_PUT.stored_name)
+    strategy = find_strategy_by_stored_name(stored_name)
+    if strategy is None:
+        raise ValueError(
+            f"HELIOS can no longer place a {stored_name}. Run a new scan and place from its results."
+        )
+
+    return strategy
 
 
 ## Validate current broker and strategy limits, then refresh the selected option quote.
-## This is the final server-side gate before a CSP paper order reaches Alpaca.
+##
+## This is the final server-side gate before a paper order reaches Alpaca. The
+## checks that apply to any short option live here: the contract is not already
+## held or pending, and the scan behind it is recent. Whatever secures the
+## contract is the strategy's own rule, so the strategy verifies that against
+## live broker state and returns the economics to reprice the quote with.
 def prepare_candidate_for_paper_order(
+    user_id,
     run,
     candidate,
     client_order_id,
     trading_client,
     option_data_client,
 ):
-    # Only cash-secured puts have a placement gate so far. Sending another strategy down this
-    # put-shaped path would skip checks it depends on, such as a covered call confirming the
-    # shares that secure it are actually held; without them it would be a naked call. It is
-    # refused here, before any broker call, rather than left to fail by accident further down.
-    strategy_name = (run.get("strategy_rules") or {}).get("strategy", CASH_SECURED_PUT.stored_name)
-    if strategy_name != CASH_SECURED_PUT.stored_name:
-        raise ValueError(
-            f"{strategy_name.capitalize()} recommendations can't be placed through HELIOS yet, "
-            "because placement does not yet verify the shares that would secure them. No order was sent."
-        )
-
+    strategy = strategy_for_run(run)
     broker_orders = get_paper_orders(limit=100, trading_client=trading_client)
     existing_order = next(
         (
@@ -224,56 +236,43 @@ def prepare_candidate_for_paper_order(
             "candidate": candidate,
             "account": None,
             "existing_order": existing_order,
+            "strategy": strategy,
         }
 
     require_fresh_recommendation(run)
     account = get_paper_account_summary(trading_client=trading_client)
     all_positions = get_paper_positions(trading_client=trading_client)
-    csp_positions = csp_positions_from_all_positions(all_positions)
-    active_csp_orders = [
-        order for order in broker_orders
-        if is_active_csp_order(order)
-    ]
+    active_sell_orders = active_short_option_orders(broker_orders)
     contract_symbol = candidate["contractSymbol"]
     if any(
         position.get("contract_symbol") == contract_symbol
-        for position in csp_positions
+        for position in all_positions
     ):
-        raise ValueError("This CSP contract is already an open position.")
-    if any(order.get("symbol") == contract_symbol for order in active_csp_orders):
-        raise ValueError("An active Alpaca order already exists for this CSP contract.")
-    if len(csp_positions) + len(active_csp_orders) >= MAX_OPEN_POSITIONS:
-        raise ValueError(
-            f"The {MAX_OPEN_POSITIONS}-position CSP limit includes pending orders and has been reached."
-        )
+        raise ValueError("This contract is already an open position.")
+    if any(order.get("symbol") == contract_symbol for order in active_sell_orders):
+        raise ValueError("An active Alpaca order already exists for this contract.")
 
-    total_capital = account_total_capital(account)
-    committed = sum(float(position.get("cash_required") or 0) for position in csp_positions)
-    _, strategy_available = strategy_capacity(
-        total_capital,
-        CAPITAL_BUDGETS[CASH_SECURED_PUT.key],
-        committed,
+    economics = strategy.secure_candidate(
+        candidate,
+        PlacementContext(
+            user_id=user_id,
+            account=account,
+            total_capital=account_total_capital(account),
+            positions=tuple(all_positions),
+            active_sell_orders=tuple(active_sell_orders),
+        ),
     )
-    broker_available = account.get("available_csp_cash")
-    if broker_available is None:
-        raise ValueError("Alpaca did not report options buying power, so HELIOS cannot verify this CSP safely.")
-    available_cash = min(strategy_available, broker_available)
-    cash_required = float(candidate.get("cashRequired") or 0)
-    if cash_required > available_cash:
-        raise ValueError(
-            f"This CSP requires ${cash_required:,.2f}, but current strategy and broker limits allow ${available_cash:,.2f}."
-        )
-
     refreshed_candidate = refresh_candidate_option_quote(
         candidate,
         option_data_client,
-        CASH_SECURED_PUT.rules.max_spread,
-        CASH_SECURED_PUT.rules.min_quote_size,
+        strategy,
+        economics,
     )
     return {
         "candidate": refreshed_candidate,
         "account": account,
         "existing_order": None,
+        "strategy": strategy,
     }
 
 

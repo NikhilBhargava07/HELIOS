@@ -6,16 +6,42 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from backend.api.services import (
-    is_active_csp_order,
+    active_short_option_orders,
     prepare_candidate_for_paper_order,
     require_fresh_recommendation,
 )
+from backend.strategy.cash_secured_put import CASH_SECURED_PUT, economics
 from backend.broker.trading import (
     build_helios_client_order_id,
     get_option_lifecycle_activities,
     refresh_candidate_option_quote,
 )
 from backend.memory.trades import reconcile_paper_orders
+
+
+## Run the placement gate for one cash-secured put against a mocked broker account.
+def place_cash_secured_put(get_orders, get_account, get_positions):
+    return prepare_candidate_for_paper_order(
+        "user-a",
+        {
+            "strategy_rules": {"strategy": "cash-secured put"},
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+        {
+            "contractSymbol": "AAPL260821P00200000",
+            "tickerSymbol": "AAPL",
+            "strike": 200,
+            "currentStockPrice": 205,
+            "DTE": 35,
+            "cashRequired": 20_000,
+            "premiumIfSoldAtBid": 100,
+            "breakevenPrice": 199,
+            "returnOnCashPercent": 0.5,
+        },
+        "helios-new-order",
+        Mock(),
+        Mock(),
+    )
 
 
 class OrderSafetyTests(unittest.TestCase):
@@ -39,23 +65,21 @@ class OrderSafetyTests(unittest.TestCase):
                 maximum_age_seconds=60,
             )
 
-    ## Count only valid pending sell-put orders as CSP exposure.
-    def test_active_csp_order_requires_valid_occ_put_symbol(self):
-        self.assertTrue(is_active_csp_order({
-            "symbol": "AAPL260821P00200000",
-            "side": "sell",
-            "status": "accepted",
-        }))
-        self.assertFalse(is_active_csp_order({
-            "symbol": "AAPL260821C00200000",
-            "side": "sell",
-            "status": "accepted",
-        }))
-        self.assertFalse(is_active_csp_order({
-            "symbol": "not-an-option",
-            "side": "sell",
-            "status": "accepted",
-        }))
+    ## Count every unfilled short option order, of either type, as live exposure with its contract parsed.
+    def test_active_short_orders_parse_each_pending_sell(self):
+        orders = active_short_option_orders([
+            {"symbol": "AAPL260821P00200000", "side": "sell", "status": "accepted"},
+            {"symbol": "AAPL260821C00200000", "side": "sell", "status": "new"},
+            # Filled, bought, or unparseable orders commit nothing further.
+            {"symbol": "AAPL260821P00195000", "side": "sell", "status": "filled"},
+            {"symbol": "AAPL260821P00190000", "side": "buy", "status": "accepted"},
+            {"symbol": "not-an-option", "side": "sell", "status": "accepted"},
+        ])
+
+        self.assertEqual(
+            [(order["contract"]["option_type"], order["contract"]["strike"]) for order in orders],
+            [("put", 200.0), ("call", 200.0)],
+        )
 
     ## Treat a matching broker client id as a successful retry without another submission path.
     @patch("backend.api.services.refresh_candidate_option_quote")
@@ -77,6 +101,7 @@ class OrderSafetyTests(unittest.TestCase):
         get_orders.return_value = [existing]
 
         result = prepare_candidate_for_paper_order(
+            "user-a",
             {"created_at": "invalid-but-unused"},
             {"contractSymbol": "AAPL260821P00200000"},
             "helios-repeat",
@@ -88,6 +113,34 @@ class OrderSafetyTests(unittest.TestCase):
         get_account.assert_not_called()
         get_positions.assert_not_called()
         refresh_quote.assert_not_called()
+
+    ## Count open puts and pending sell orders together against the position limit.
+    @patch("backend.api.services.get_paper_positions")
+    @patch("backend.api.services.get_paper_account_summary")
+    @patch("backend.api.services.get_paper_orders")
+    def test_pending_orders_count_toward_the_position_limit(self, get_orders, get_account, get_positions):
+        pending = {"symbol": "MSFT260821P00400000", "side": "sell", "status": "accepted"}
+        get_orders.return_value = [pending]
+        get_account.return_value = {"available_csp_cash": 500_000, "portfolio_value": 500_000}
+        get_positions.return_value = [
+            {"strategy": "cash-secured put", "contract_symbol": f"AAPL260821P0019{index}000", "cash_required": 20_000}
+            for index in range(4)
+        ]
+
+        with self.assertRaisesRegex(ValueError, "includes pending orders"):
+            place_cash_secured_put(get_orders, get_account, get_positions)
+
+    ## Refuse a put the account can no longer secure, whatever the scan showed.
+    @patch("backend.api.services.get_paper_positions")
+    @patch("backend.api.services.get_paper_account_summary")
+    @patch("backend.api.services.get_paper_orders")
+    def test_placement_refuses_a_put_beyond_current_buying_power(self, get_orders, get_account, get_positions):
+        get_orders.return_value = []
+        get_account.return_value = {"available_csp_cash": 5_000, "portfolio_value": 500_000}
+        get_positions.return_value = []
+
+        with self.assertRaisesRegex(ValueError, r"requires \$20,000.00, but current strategy and broker limits allow \$5,000.00"):
+            place_cash_secured_put(get_orders, get_account, get_positions)
 
     ## Recalculate premium, breakeven, and ROC from the exact quote checked before submission.
     def test_latest_quote_replaces_scan_price(self):
@@ -107,15 +160,19 @@ class OrderSafetyTests(unittest.TestCase):
         candidate = {
             "contractSymbol": "AAPL260821P00200000",
             "strike": 200,
+            "currentStockPrice": 205,
+            "DTE": 35,
             "cashRequired": 20_000,
             "premiumIfSoldAtBid": 100,
+            "breakevenPrice": 199,
+            "returnOnCashPercent": 0.5,
         }
 
         refreshed = refresh_candidate_option_quote(
             candidate,
             option_client,
-            max_spread=0.50,
-            min_quote_size=1,
+            CASH_SECURED_PUT,
+            economics,
         )
 
         self.assertEqual(refreshed["premiumIfSoldAtBid"], 125)

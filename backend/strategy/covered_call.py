@@ -11,12 +11,13 @@ from functools import partial
 from alpaca.trading.enums import ContractType
 
 from backend.config import APPROVED_TICKERS, MIN_PATTERN_SAMPLE_SIZE
-from backend.memory.holdings import SHARES_PER_CONTRACT
+from backend.memory.holdings import SHARES_PER_CONTRACT, build_holdings
 from backend.strategy.engine.option_chain import summarize_option_market
 from backend.strategy.spec import OptionRules, OptionStrategy, ReviewConfig
 
 
 KEY = "covered_call"
+STORED_NAME = "covered call"
 
 # A call this close to the money is more likely than not to be exercised.
 LIKELY_CALLED_AWAY_OTM_PERCENT = 2.0
@@ -56,7 +57,7 @@ DISPLAY_COLUMNS = (
 )
 
 STRATEGY_RULES = {
-    "strategy": "covered call",
+    "strategy": STORED_NAME,
     "approved_tickers": APPROVED_TICKERS,
     "target_delta": RULES.target_delta,
     "delta_tolerance": RULES.delta_tolerance,
@@ -126,6 +127,49 @@ def bind_economics(ticker_symbol, portfolio_context):
     holding = portfolio_context["holdings"][ticker_symbol]
 
     return partial(economics, cost_basis=holding["cost_basis"])
+
+
+## Confirm the shares that would cover this call are really held and still free, then price it against them.
+##
+## The scan's view of the account is already minutes old by the time a user
+## clicks, and shares can be sold, called away, or committed to another call in
+## between. Every number is therefore recounted from live broker state: shares
+## held now, shares already committed to an open short call, and shares an
+## unfilled sell order would commit if it fills. Without this check an order
+## would be a naked call, which carries unlimited loss.
+def secure_candidate(candidate, context):
+    ticker_symbol = candidate["tickerSymbol"]
+    holding = build_holdings(context.user_id, context.positions).get(ticker_symbol)
+    if holding is None:
+        raise ValueError(
+            f"The connected account holds no {ticker_symbol} shares, "
+            "and a covered call must be covered by shares that are actually owned."
+        )
+
+    pending_shares = SHARES_PER_CONTRACT * sum(
+        abs(int(order.get("qty") or 1))
+        for order in context.active_sell_orders
+        if order["contract"]["option_type"] == "call"
+        and order["contract"]["ticker_symbol"] == ticker_symbol
+    )
+    free_shares = holding["uncovered_shares"] - pending_shares
+    if free_shares < SHARES_PER_CONTRACT:
+        raise ValueError(
+            f"Covering this call needs {SHARES_PER_CONTRACT} {ticker_symbol} shares that are not already "
+            f"committed, but only {max(free_shares, 0):,.0f} of the {holding['shares']:,.0f} shares held are free."
+        )
+
+    # Re-checked here because the strike is only safe relative to a cost basis that can move:
+    # buying more shares raises it, and a newly assigned put lowers it.
+    cost_basis = holding["cost_basis"]
+    strike = float(candidate["strike"])
+    if strike < cost_basis:
+        raise ValueError(
+            f"The ${strike:,.2f} strike is below the ${cost_basis:,.2f} these {ticker_symbol} shares really cost, "
+            "so being called away would lock in a loss."
+        )
+
+    return partial(economics, cost_basis=cost_basis)
 
 
 ## Reject any strike below what the shares really cost.
@@ -213,15 +257,17 @@ def local_review(ticker_symbol, candidates):
 COVERED_CALL = OptionStrategy(
     key=KEY,
     short_label="covered call",
-    stored_name="covered call",
+    stored_name=STORED_NAME,
     contract_type=ContractType.CALL,
     rules=RULES,
     capital_column=None,
+    collateral_basis_column="costBasis",
     display_columns=DISPLAY_COLUMNS,
     economics=economics,
     eligible_tickers=eligible_tickers,
     strategy_rules=STRATEGY_RULES,
     eligibility_requirement="at least 100 uncovered shares of an approved ticker",
+    secure_candidate=secure_candidate,
     review=ReviewConfig(
         guidance=REVIEW_GUIDANCE,
         summarize_candidate=summarize_candidate,

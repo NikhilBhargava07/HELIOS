@@ -15,7 +15,7 @@ from backend.api.services import (
 )
 from backend.broker.trading import (
     build_helios_client_order_id,
-    submit_cash_secured_put_order,
+    submit_sell_to_open_option_order,
 )
 from backend.memory.trades import record_user_decision
 from backend.strategy.registry import DEFAULT_STRATEGY_KEY, get_strategy
@@ -79,6 +79,7 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
     alpaca_order = None
     alpaca_account = None
     order_error = None
+    strategy = None
     store_action = request.action.value
     duplicate_prevented = False
 
@@ -95,6 +96,7 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
                 request.contract_symbol,
             )
             placement = prepare_candidate_for_paper_order(
+                user_id,
                 run,
                 candidate,
                 client_order_id,
@@ -102,11 +104,12 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
                 option_data_client,
             )
             candidate = placement["candidate"]
+            strategy = placement["strategy"]
             alpaca_account = placement["account"]
             alpaca_order = placement["existing_order"]
             duplicate_prevented = alpaca_order is not None
             if alpaca_order is None:
-                alpaca_order = submit_cash_secured_put_order(
+                alpaca_order = submit_sell_to_open_option_order(
                     candidate,
                     trading_client=trading_client,
                     client_order_id=client_order_id,
@@ -139,6 +142,7 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
         alpaca_order=alpaca_order,
         order_error=order_error,
         candidate_override=(candidate if request.action == UserDecisionAction.PLACE_PAPER_ORDER else None),
+        strategy=(strategy if request.action == UserDecisionAction.PLACE_PAPER_ORDER else None),
     )
     return {
         "decision": decision,

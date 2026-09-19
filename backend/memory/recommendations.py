@@ -1,4 +1,4 @@
-## Persist and retrieve user-scoped CSP recommendation runs.
+## Persist and retrieve user-scoped recommendation runs.
 
 from uuid import uuid4
 
@@ -10,7 +10,6 @@ from backend.memory.dynamodb_store import (
     user_pk,
     utc_now_text,
 )
-from backend.memory.serializers import normalize_candidate
 
 
 ## Build the private partition key that owns one recommendation run.
@@ -36,6 +35,8 @@ def find_candidate(run, contract_symbol):
 
 ## Persist a complete recommendation run for one authenticated user.
 ## The run metadata, latest pointer, chronological index, and candidates are saved together with batched candidate writes.
+## Candidates are stored with whatever columns their strategy produced, because a covered call
+## prices itself on cost basis where a put prices itself on cash required.
 def save_recommendation_run(
     user_id,
     candidates,
@@ -49,10 +50,7 @@ def save_recommendation_run(
     created_at = utc_now_text()
     run_partition = _run_pk(run_id)
     owner_partition = user_pk(user_id)
-    candidate_records = [
-        normalize_candidate(candidate)
-        for candidate in candidates
-    ]
+    candidate_records = [dict(candidate) for candidate in candidates]
     run_item = {
         "pk": run_partition,
         "sk": "META",
@@ -86,7 +84,7 @@ def save_recommendation_run(
             {
                 "pk": run_partition,
                 "sk": f"CANDIDATE#{candidate['contractSymbol']}",
-                "item_type": "csp_candidate",
+                "item_type": "recommendation_candidate",
                 "id": str(uuid4()),
                 "user_id": user_id,
                 "recommendation_run_id": run_id,

@@ -1,8 +1,10 @@
-## Verify covered calls: their economics, the cost-basis rule, eligibility, and the placement refusal.
+## Verify covered calls: their economics, the cost-basis rule, eligibility, placement, and saved records.
 ##
-## Covered calls reuse the shared option engine, so these tests also confirm that
-## the engine scans calls correctly when a strategy supplies call-side economics
-## and a strategy-specific rule, and that put-only safeguards still apply to puts.
+## Covered calls reuse the shared option engine and the shared placement gate, so
+## these tests also confirm that the engine scans calls correctly when a strategy
+## supplies call-side economics and a strategy-specific rule, that an order is only
+## sent when live broker state proves the shares are there, and that put-only
+## safeguards still apply to puts.
 
 import unittest
 from datetime import date, datetime, timedelta, timezone
@@ -13,6 +15,8 @@ import pandas as pd
 
 from backend.api.services import candidates_to_records, prepare_candidate_for_paper_order
 from backend.memory.holdings import build_holdings
+from backend.memory.recommendations import save_recommendation_run
+from backend.memory.trades import record_user_decision
 from backend.strategy.cash_secured_put import CASH_SECURED_PUT
 from backend.strategy.covered_call import (
     COVERED_CALL,
@@ -163,28 +167,191 @@ class CoveredCallScanTests(unittest.TestCase):
         self.assertEqual(result["review"]["summary"], "Max open positions reached (5).")
 
 
+## Build a live option quote shaped like Alpaca's latest-quote response.
+def latest_quote(bid, ask, size=5):
+    return SimpleNamespace(model_dump=lambda mode="json": {
+        "bid_price": str(bid),
+        "ask_price": str(ask),
+        "bid_size": str(size),
+        "ask_size": str(size),
+        "timestamp": "2026-09-18T15:30:00Z",
+    })
+
+
+## Run the placement gate for one covered call against a mocked broker account.
+def place_covered_call(positions, candidate=None, broker_orders=(), outcomes=()):
+    contract_symbol = call_symbol("AAPL", 200)
+    candidate = candidate or {
+        "contractSymbol": contract_symbol,
+        "tickerSymbol": "AAPL",
+        "strike": 200.0,
+        "currentStockPrice": 190.0,
+        "DTE": 35,
+        "costBasis": 177.0,
+        "breakevenPrice": 175.0,
+        "premiumIfSoldAtBid": 200.0,
+        "maxProfitIfCalledAway": 2500.0,
+        "returnOnCashPercent": 1.05,
+    }
+    option_data_client = Mock()
+    option_data_client.get_option_latest_quote.return_value = {contract_symbol: latest_quote(2.50, 2.60)}
+
+    with patch("backend.api.services.get_paper_orders", return_value=list(broker_orders)), \
+         patch("backend.api.services.get_paper_account_summary", return_value={"available_csp_cash": 0.0}), \
+         patch("backend.api.services.get_paper_positions", return_value=positions), \
+         patch("backend.memory.holdings.get_completed_trade_outcomes", return_value=list(outcomes)):
+        return prepare_candidate_for_paper_order(
+            "user-1",
+            {
+                "strategy_rules": {"strategy": "covered call"},
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            candidate,
+            "helios-client-order-id",
+            Mock(),
+            option_data_client,
+        )
+
+
 class CoveredCallPlacementTests(unittest.TestCase):
-    ## Placement is refused explicitly, before any broker call, rather than by an accidental error later on.
-    def test_covered_call_placement_is_refused_before_touching_the_broker(self):
-        trading_client = Mock()
-        run = {
+    ## Shares held now, not shares seen during the scan, decide whether a call is covered.
+    def test_placement_requires_shares_in_the_account(self):
+        with self.assertRaisesRegex(ValueError, "holds no AAPL shares"):
+            place_covered_call(positions=[])
+
+    ## Shares already committed to an open short call cannot cover a second one.
+    def test_placement_rejects_shares_committed_to_an_open_call(self):
+        positions = [
+            {"strategy": "stock", "ticker_symbol": "AAPL", "quantity": 100, "average_entry_price": 177.0},
+            {"strategy": "call option", "ticker_symbol": "AAPL", "option_type": "call", "signed_quantity": -1},
+        ]
+
+        with self.assertRaisesRegex(ValueError, "only 0 of the 100 shares held are free"):
+            place_covered_call(positions=positions)
+
+    ## An unfilled sell order commits its shares too, so the same lot cannot back two orders.
+    def test_placement_rejects_shares_committed_to_a_pending_order(self):
+        positions = [
+            {"strategy": "stock", "ticker_symbol": "AAPL", "quantity": 100, "average_entry_price": 177.0},
+        ]
+        pending = [{"symbol": call_symbol("AAPL", 210), "side": "sell", "status": "accepted", "qty": "1"}]
+
+        with self.assertRaisesRegex(ValueError, "shares that are not already committed"):
+            place_covered_call(positions=positions, broker_orders=pending)
+
+    ## Buying more shares raises the real cost basis, so a strike that passed the scan can stop being safe.
+    def test_placement_rechecks_the_strike_against_live_cost_basis(self):
+        positions = [
+            {"strategy": "stock", "ticker_symbol": "AAPL", "quantity": 100, "average_entry_price": 205.0},
+        ]
+
+        with self.assertRaisesRegex(ValueError, r"\$200.00 strike is below the \$205.00"):
+            place_covered_call(positions=positions)
+
+    ## A covered call with free shares is repriced from the live quote against the real cost basis, with no cash check.
+    def test_covered_shares_allow_placement_and_reprice_from_cost_basis(self):
+        positions = [
+            {"strategy": "stock", "ticker_symbol": "AAPL", "quantity": 100, "average_entry_price": 180.0},
+        ]
+        # A put assigned at 180 collected 300 in premium, so the shares really cost 177.
+        outcomes = [{
+            "ticker_symbol": "AAPL",
+            "assigned": True,
+            "underlying_outcome_pending": True,
+            "opening_credit": 300.0,
+        }]
+
+        placement = place_covered_call(positions=positions, outcomes=outcomes)
+        candidate = placement["candidate"]
+
+        self.assertEqual(placement["strategy"].key, "covered_call")
+        self.assertEqual(candidate["premiumIfSoldAtBid"], 250.0)
+        self.assertEqual(candidate["costBasis"], 177.0)
+        self.assertEqual(candidate["breakevenPrice"], 177.0 - 2.50)
+        self.assertEqual(candidate["maxProfitIfCalledAway"], (200.0 - 177.0) * 100 + 250.0)
+        self.assertNotIn("cashRequired", candidate)
+
+
+class CoveredCallOrderRecordTests(unittest.TestCase):
+    ## A placed covered call is stored as one: secured by shares, so it commits no cash and keeps its cost basis.
+    @patch("backend.memory.trades.put_item")
+    @patch("backend.memory.trades.get_item", return_value=None)
+    @patch("backend.memory.trades.get_recommendation_run")
+    def test_placed_covered_call_records_shares_not_cash(self, get_run, _get_item, put_item):
+        candidate = {
+            "contractSymbol": call_symbol("AAPL", 200),
+            "tickerSymbol": "AAPL",
+            "expiration": "2026-12-18",
+            "strike": 200.0,
+            "costBasis": 177.0,
+            "breakevenPrice": 174.5,
+            "premiumIfSoldAtBid": 250.0,
+            "returnOnCashPercent": 1.3,
+        }
+        get_run.return_value = {
+            "candidates": [candidate],
+            "agent_review": {"selected_contract": candidate["contractSymbol"], "decision": "approve"},
             "strategy_rules": {"strategy": "covered call"},
-            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        with self.assertRaisesRegex(ValueError, "can't be placed through HELIOS yet"):
-            prepare_candidate_for_paper_order(
-                run,
-                {"contractSymbol": call_symbol("AAPL", 200)},
-                "helios-client-order-id",
-                trading_client,
-                Mock(),
-            )
+        record_user_decision(
+            "user-1",
+            "run-1",
+            candidate["contractSymbol"],
+            "place_paper_order",
+            alpaca_order={"id": "alpaca-1", "status": "filled", "filled_qty": "1", "filled_avg_price": "2.40"},
+            strategy=COVERED_CALL,
+        )
 
-        trading_client.get_orders.assert_not_called()
+        order = next(item for item in put_item.call_args_list if item.args[0].get("item_type") == "paper_order").args[0]
+        self.assertEqual(order["strategy"], "covered call")
+        self.assertEqual(order["cash_required"], 0)
+        self.assertEqual(order["cost_basis"], 177.0)
+        # Filled at 2.40 against shares that cost 177: breakeven falls from the basis, not the strike.
+        self.assertEqual(order["premium_received"], 240.0)
+        self.assertEqual(order["breakeven_price"], 174.6)
+
+    ## An order can never be saved without the strategy that says how it is secured.
+    @patch("backend.memory.trades.put_item")
+    @patch("backend.memory.trades.get_item", return_value=None)
+    @patch("backend.memory.trades.get_recommendation_run")
+    def test_placed_order_without_a_strategy_is_refused(self, get_run, _get_item, _put_item):
+        candidate = {"contractSymbol": "AAPL260821P00200000", "tickerSymbol": "AAPL"}
+        get_run.return_value = {
+            "candidates": [candidate],
+            "agent_review": {"selected_contract": None, "decision": "approve"},
+        }
+
+        with self.assertRaisesRegex(ValueError, "must record the strategy"):
+            record_user_decision("user-1", "run-1", candidate["contractSymbol"], "place_paper_order")
 
 
 class CandidateRecordTests(unittest.TestCase):
+    ## A saved run keeps the columns its strategy produced, so a covered call is still priceable when placed.
+    @patch("backend.memory.recommendations.put_items")
+    @patch("backend.memory.recommendations.put_item")
+    def test_saved_run_keeps_strategy_specific_columns(self, _put_item, put_items):
+        candidate = {
+            "tickerSymbol": "AAPL",
+            "contractSymbol": call_symbol("AAPL", 200),
+            "expiration": "2026-12-18",
+            "DTE": 35,
+            "strike": 200.0,
+            "costBasis": 177.0,
+            "maxProfitIfCalledAway": 2500.0,
+        }
+
+        run = save_recommendation_run("user-1", [candidate], {"decision": "approve"})
+
+        stored = next(
+            item["candidate"] for item in put_items.call_args.args[0]
+            if item.get("item_type") == "recommendation_candidate"
+        )
+        self.assertEqual(stored["costBasis"], 177.0)
+        self.assertEqual(stored["maxProfitIfCalledAway"], 2500.0)
+        self.assertEqual(run["candidates"][0]["costBasis"], 177.0)
+
+
     ## Saved records follow each strategy's columns, so a put keeps its fields and a call never needs cashRequired.
     def test_records_follow_each_strategys_columns(self):
         put_row = {column: 1.0 for column in CASH_SECURED_PUT.display_columns}

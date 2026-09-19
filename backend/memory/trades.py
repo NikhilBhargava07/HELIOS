@@ -34,22 +34,34 @@ ORDER_LIFECYCLE_FIELDS = (
 
 ## Replace quoted economics with actual broker fill economics once Alpaca reports a fill.
 ## The original recommendation quote remains available for later slippage and execution-quality analysis.
+##
+## A record carries a cost basis only when shares secure it. Those orders lock up
+## no cash, and their breakeven is measured down from what the shares cost rather
+## than from the strike, so the stored basis decides which economics apply.
 def _apply_fill_economics(order):
     filled_price = number_or_none(order.get("alpaca_filled_avg_price"))
     filled_quantity = number_or_none(order.get("alpaca_filled_qty"))
     if filled_price is None or not filled_quantity or filled_quantity <= 0:
         return order
 
-    strike = float(order["strike"])
+    cost_basis = number_or_none(order.get("cost_basis"))
     order["premium_received"] = filled_price * 100 * filled_quantity
-    order["cash_required"] = strike * 100 * filled_quantity
-    order["breakeven_price"] = strike - filled_price
+    if cost_basis is None:
+        strike = float(order["strike"])
+        order["cash_required"] = strike * 100 * filled_quantity
+        order["breakeven_price"] = strike - filled_price
+    else:
+        order["breakeven_price"] = cost_basis - filled_price
     return order
 
 
 ## Convert a broker submission into the normalized HELIOS paper-order record.
 ## Only fields used by the dashboard and learning system are retained; the full Alpaca payload is deliberately omitted.
-def _create_paper_order(decision, candidate, alpaca_order=None):
+##
+## The strategy names the record and says which column holds the cash it commits,
+## so a covered call is stored as one and shows no cash requirement, since the
+## shares it is sold against are its collateral.
+def _create_paper_order(decision, candidate, strategy, alpaca_order=None):
     alpaca_order = alpaca_order or {}
     order = {
         "id": str(uuid4()),
@@ -58,14 +70,19 @@ def _create_paper_order(decision, candidate, alpaca_order=None):
         "recommendation_run_id": decision["recommendation_run_id"],
         "status": alpaca_order.get("status", "local_recorded"),
         "side": "sell",
-        "strategy": "cash-secured put",
+        "strategy": strategy.stored_name,
         "contract_symbol": candidate["contractSymbol"],
         "ticker_symbol": candidate["tickerSymbol"],
         "expiration": candidate["expiration"],
         "strike": candidate["strike"],
         "quoted_premium": candidate["premiumIfSoldAtBid"],
         "premium_received": candidate["premiumIfSoldAtBid"],
-        "cash_required": candidate["cashRequired"],
+        "cash_required": float(candidate[strategy.capital_column]) if strategy.capital_column else 0,
+        "cost_basis": (
+            float(candidate[strategy.collateral_basis_column])
+            if strategy.collateral_basis_column
+            else None
+        ),
         "breakeven_price": candidate["breakevenPrice"],
         "alpaca_order_id": alpaca_order.get("id"),
         "alpaca_client_order_id": alpaca_order.get("client_order_id"),
@@ -98,13 +115,16 @@ def _create_open_position(order):
     quantity = filled_quantity if filled_quantity and filled_quantity > 0 else 1
     filled_price = number_or_none(order.get("alpaca_filled_avg_price"))
     strike = float(order["strike"])
+    cost_basis = number_or_none(order.get("cost_basis"))
     premium_received = (
         filled_price * 100 * quantity
         if filled_price is not None
         else float(order["premium_received"])
     )
+    # Shares, not cash, secure a position that carries a cost basis: it locks up no capital,
+    # and its breakeven runs down from what those shares cost rather than from the strike.
     breakeven_price = (
-        strike - filled_price
+        (strike if cost_basis is None else cost_basis) - filled_price
         if filled_price is not None
         else float(order["breakeven_price"])
     )
@@ -120,7 +140,8 @@ def _create_open_position(order):
         "strike": strike,
         "quantity": quantity,
         "premium_received": premium_received,
-        "cash_required": strike * 100 * quantity,
+        "cash_required": 0 if cost_basis is not None else strike * 100 * quantity,
+        "cost_basis": cost_basis,
         "breakeven_price": breakeven_price,
         "average_fill_price": filled_price,
         "filled_at": order.get("alpaca_filled_at"),
@@ -140,7 +161,7 @@ def _save_filled_order_position(owner_partition, order):
     })
 
 
-## Decide whether a broker order represents an active filled CSP position.
+## Decide whether a broker order represents an active filled option position.
 ## Accepted but unfilled limit orders are orders rather than positions and therefore do not consume a saved position slot.
 def _should_track_open_position(order):
     return str(order.get("status", "")).lower() in FILLED_ORDER_STATUSES
@@ -148,6 +169,7 @@ def _should_track_open_position(order):
 
 ## Record how one authenticated user responded to a saved recommendation.
 ## The owner-scoped run lookup prevents users from submitting decisions against another user's candidates.
+## Placing an order also requires the strategy behind it, since that is what says how the contract is secured.
 def record_user_decision(
     user_id,
     run_id,
@@ -157,6 +179,7 @@ def record_user_decision(
     alpaca_order=None,
     order_error=None,
     candidate_override=None,
+    strategy=None,
 ):
     run = get_recommendation_run(user_id, run_id)
     if run is None:
@@ -210,7 +233,12 @@ def record_user_decision(
     if action != "place_paper_order":
         return decision
 
-    order = _create_paper_order(decision, candidate, alpaca_order)
+    # A placed order is stored under the rules that produced it, so its collateral is never
+    # guessed later from put-shaped defaults. A missing strategy is a bug, not a default.
+    if strategy is None:
+        raise ValueError("A placed order must record the strategy it was placed under.")
+
+    order = _create_paper_order(decision, candidate, strategy, alpaca_order)
     order_sort_key = f"ORDER#{order['created_at']}#{order['id']}"
     put_item({
         "pk": owner_partition,

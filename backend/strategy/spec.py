@@ -37,11 +37,27 @@ class ReviewConfig:
     local_review: Callable
 
 
+## Everything the placement gate knows about the account at the moment an order would be sent.
+##
+## Placement is judged against live broker state, never against the scan that
+## produced the candidate. Unfilled sell orders are included because they already
+## commit the collateral behind them even though they are not yet positions.
+@dataclass(frozen=True)
+class PlacementContext:
+    user_id: str
+    account: dict
+    total_capital: float
+    positions: tuple
+    active_sell_orders: tuple
+
+
 ## One option strategy: its identity, its hard rules, and the behavior unique to it.
 ##
 ## capital_column names the column holding the cash a contract locks up, or None
 ## for strategies secured by something other than cash. A covered call is secured
 ## by shares already owned, so it commits no buying power and sets this to None.
+## collateral_basis_column names the column holding what that other collateral
+## cost, which a covered call measures its breakeven from in place of the strike.
 ##
 ## The optional fields exist for strategies whose rules depend on the account.
 ## bind_economics returns economics tied to one ticker's holding, such as the real
@@ -49,6 +65,12 @@ class ReviewConfig:
 ## beyond the shared thresholds, applied in the same pipeline so the model never
 ## sees a contract that broke one. eligibility_requirement explains in plain words
 ## why no ticker qualified, since "no candidates found" would hide the real reason.
+##
+## secure_candidate is the last gate before a real order. It confirms against live
+## broker state that the collateral this strategy requires is actually there and
+## still free, raising ValueError with a plain explanation when it is not, and
+## returns the economics tied to that collateral so the final quote is repriced
+## against what truly secures the contract rather than against the scan.
 @dataclass(frozen=True)
 class OptionStrategy:
     key: str
@@ -57,11 +79,13 @@ class OptionStrategy:
     contract_type: object
     rules: OptionRules
     capital_column: Optional[str]
+    collateral_basis_column: Optional[str]
     display_columns: tuple
     economics: Callable
     eligible_tickers: Callable
     strategy_rules: dict
     review: ReviewConfig
     eligibility_requirement: str
+    secure_candidate: Callable
     bind_economics: Optional[Callable] = None
     extra_filters: tuple = ()

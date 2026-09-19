@@ -1,4 +1,4 @@
-## Read Alpaca paper-account state and submit CSP paper orders.
+## Read Alpaca paper-account state and submit option paper orders.
 
 import hashlib
 import re
@@ -51,8 +51,8 @@ def validate_alpaca_paper_credentials(api_key, secret_key):
     }
 
 
-## Choose a conservative limit credit for selling one put contract.
-## HELIOS starts from the candidate bid/premium data because CSP recommendations should assume the user receives a real quoted credit.
+## Choose a conservative limit credit for selling one option contract.
+## HELIOS starts from the candidate bid/premium data because a recommendation should assume the user receives a real quoted credit.
 def option_limit_price_from_candidate(candidate):
     premium_total = candidate.get("premiumIfSoldAtBid")
 
@@ -129,7 +129,7 @@ def get_paper_account_summary(trading_client=None):
 
 
 ## Decode an OCC-style option symbol into ticker, expiration, type, and strike.
-## Alpaca positions use compact symbols, so parsing them lets the UI display readable CSP details.
+## Alpaca positions and orders use compact symbols, so parsing them lets HELIOS read the contract behind either one.
 def parse_option_contract_symbol(contract_symbol):
     match = OPTION_SYMBOL_PATTERN.match(contract_symbol or "")
 
@@ -297,10 +297,12 @@ def build_helios_client_order_id(user_id, run_id, contract_symbol):
 def refresh_candidate_option_quote(
     candidate,
     option_data_client,
-    max_spread,
-    min_quote_size,
+    strategy,
+    economics,
 ):
     contract_symbol = candidate["contractSymbol"]
+    max_spread = strategy.rules.max_spread
+    min_quote_size = strategy.rules.min_quote_size
     request = OptionLatestQuoteRequest(
         symbol_or_symbols=contract_symbol,
         feed=OptionsFeed.INDICATIVE,
@@ -308,7 +310,9 @@ def refresh_candidate_option_quote(
     latest_quotes = option_data_client.get_option_latest_quote(request)
     quote_model = latest_quotes.get(contract_symbol)
     if quote_model is None:
-        raise ValueError("The latest option quote is unavailable. Run a new scan before placing this CSP.")
+        raise ValueError(
+            f"The latest option quote is unavailable. Run a new scan before placing this {strategy.short_label}."
+        )
 
     quote = serialize_alpaca_model(quote_model)
     bid = number_or_none(quote.get("bid_price"))
@@ -316,7 +320,9 @@ def refresh_candidate_option_quote(
     bid_size = number_or_none(quote.get("bid_size")) or 0
     ask_size = number_or_none(quote.get("ask_size")) or 0
     if bid is None or ask is None or bid <= 0 or ask <= 0 or ask < bid:
-        raise ValueError("The latest option bid/ask quote is not usable. Run a new scan before placing this CSP.")
+        raise ValueError(
+            f"The latest option bid/ask quote is not usable. Run a new scan before placing this {strategy.short_label}."
+        )
 
     spread = ask - bid
     if spread > max_spread:
@@ -327,26 +333,34 @@ def refresh_candidate_option_quote(
         raise ValueError("The latest option quote no longer meets the liquidity rule.")
 
     refreshed = dict(candidate)
-    cash_required = float(refreshed["cashRequired"])
-    strike = float(refreshed["strike"])
-    premium = bid * 100
     refreshed.update({
         "bid": bid,
         "ask": ask,
         "spread": spread,
         "bidSize": int(bid_size),
         "askSize": int(ask_size),
-        "premiumIfSoldAtBid": premium,
-        "breakevenPrice": strike - bid,
-        "returnOnCashPercent": (premium / cash_required) * 100,
         "quoteCheckedAt": str(quote.get("timestamp") or ""),
+    })
+
+    # The strategy reprices the contract from the quote it would actually be sold at, and against
+    # the collateral just verified, so every number shown agrees with the order being submitted.
+    # Only fields the candidate already carries are replaced, since each strategy displays its own.
+    repriced = economics(
+        strike=float(candidate["strike"]),
+        bid=bid,
+        current_stock_price=float(candidate["currentStockPrice"]),
+        dte=int(candidate["DTE"]),
+    )
+    refreshed.update({
+        column: value for column, value in repriced.items() if column in candidate
     })
     return refreshed
 
 
-## Submit a one-contract sell-to-open put limit order to Alpaca paper trading.
-## The function intentionally supports only the recommended CSP flow so the prototype cannot place arbitrary trade types.
-def submit_cash_secured_put_order(
+## Submit a one-contract sell-to-open option limit order to Alpaca paper trading.
+## Selling to open exactly one contract is the only shape HELIOS supports, so the collateral checked
+## before this call is the whole obligation and the prototype cannot place arbitrary trade types.
+def submit_sell_to_open_option_order(
     candidate,
     trading_client=None,
     client_order_id=None,
