@@ -114,10 +114,12 @@ def build_user_profile(user_id):
         if item.get("action") == "discard"
     ]
     completed_outcomes = outcomes
+    # Only a put's assignment buys shares the user did not choose to buy. A call being
+    # assigned sells shares they already held and agreed to sell, so it is not the same event.
     assigned_outcomes = [
         item
         for item in completed_outcomes
-        if item.get("assigned") is True
+        if item.get("assigned") is True and item.get("option_type") != "call"
     ]
     completed_order_ids = {
         item.get("opening_order_id")
@@ -150,6 +152,13 @@ def build_user_profile(user_id):
         item.get("option_realized_pnl")
         for item in completed_outcomes
         if item.get("option_realized_pnl") is not None
+    ]
+    # Shares only produce a realized result once they are sold or called away, which is what
+    # closes a wheel cycle. Until then a holding has no settled number to report here.
+    share_pnl_values = [
+        _settled_share_pnl(item)
+        for item in completed_outcomes
+        if _settled_share_pnl(item) is not None
     ]
     satisfaction_counts = {}
     reason_counts = {}
@@ -194,6 +203,9 @@ def build_user_profile(user_id):
                 "total_option_realized_pnl": (
                     sum(realized_pnl_values) if realized_pnl_values else None
                 ),
+                "total_share_realized_pnl": (
+                    sum(share_pnl_values) if share_pnl_values else None
+                ),
                 "assignment_tolerance": explicit_assignment_tolerance,
                 "assignment_preference_counts": assignment_preference_counts,
                 "would_repeat_rate": (
@@ -233,18 +245,48 @@ def _explicit_assignment_tolerance(counts):
     return "accepts_selectively"
 
 
+## Report the share result a completed leg has actually settled, if any.
+##
+## A called-away covered call records the sale of the shares it was sold against,
+## and the put assignment that delivered those shares records the same sale once
+## it is settled. Shares still held have no settled result to report.
+def _settled_share_pnl(outcome):
+    if outcome.get("underlying_outcome_pending"):
+        return None
+
+    share_pnl = outcome.get("share_realized_pnl")
+
+    return share_pnl if share_pnl is not None else outcome.get("underlying_realized_pnl")
+
+
+## Total what one completed leg realized: its premium plus any share result already settled.
+## Judging a closed wheel on premium alone would call a trade profitable while ignoring a loss on the shares.
+def _total_realized_pnl(outcome):
+    option_pnl = outcome.get("option_realized_pnl")
+    share_pnl = _settled_share_pnl(outcome)
+
+    if option_pnl is None:
+        return share_pnl
+
+    return option_pnl + (share_pnl or 0)
+
+
 ## Classify a completed option leg by its measurable economic result.
-## Assignment stays its own status because the acquired shares' gain or loss is not yet final.
+##
+## An assignment whose shares are still held keeps its own status, because their
+## gain or loss is not yet final. Once those shares are called away the wheel is
+## closed, so the share result counts alongside the premium instead of leaving
+## the trade permanently unjudged.
 def _completed_financial_status(outcome):
-    if outcome.get("assigned"):
+    if outcome.get("underlying_outcome_pending"):
         return "assigned_with_stock_outcome_pending"
 
-    option_pnl = outcome.get("option_realized_pnl")
-    if option_pnl is None:
+    realized_pnl = _total_realized_pnl(outcome)
+    if realized_pnl is None:
         return "unknown"
-    if option_pnl > 0:
+    if realized_pnl > 0:
         return "profitable"
-    if option_pnl < 0:
+    if realized_pnl < 0:
         return "loss"
     return "flat"
 
@@ -326,7 +368,7 @@ def get_outcome_patterns(
             "contract_symbol": item.get("contract_symbol"),
             "financial_status": (
                 "assigned_with_stock_outcome_pending"
-                if item.get("assigned")
+                if item.get("underlying_outcome_pending")
                 else "complete"
             ),
             "assignment_status": "assigned" if item.get("assigned") else "not_assigned",

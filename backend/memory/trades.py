@@ -2,6 +2,7 @@
 
 from uuid import uuid4
 
+from backend.config import SHARES_PER_CONTRACT
 from backend.memory.dynamodb_store import (
     get_item,
     put_item,
@@ -45,10 +46,10 @@ def _apply_fill_economics(order):
         return order
 
     cost_basis = number_or_none(order.get("cost_basis"))
-    order["premium_received"] = filled_price * 100 * filled_quantity
+    order["premium_received"] = filled_price * SHARES_PER_CONTRACT * filled_quantity
     if cost_basis is None:
         strike = float(order["strike"])
-        order["cash_required"] = strike * 100 * filled_quantity
+        order["cash_required"] = strike * SHARES_PER_CONTRACT * filled_quantity
         order["breakeven_price"] = strike - filled_price
     else:
         order["breakeven_price"] = cost_basis - filled_price
@@ -117,7 +118,7 @@ def _create_open_position(order):
     strike = float(order["strike"])
     cost_basis = number_or_none(order.get("cost_basis"))
     premium_received = (
-        filled_price * 100 * quantity
+        filled_price * SHARES_PER_CONTRACT * quantity
         if filled_price is not None
         else float(order["premium_received"])
     )
@@ -140,7 +141,7 @@ def _create_open_position(order):
         "strike": strike,
         "quantity": quantity,
         "premium_received": premium_received,
-        "cash_required": 0 if cost_basis is not None else strike * 100 * quantity,
+        "cash_required": 0 if cost_basis is not None else strike * SHARES_PER_CONTRACT * quantity,
         "cost_basis": cost_basis,
         "breakeven_price": breakeven_price,
         "average_fill_price": filled_price,
@@ -319,6 +320,7 @@ def get_paper_order_by_id(user_id, order_id, limit=500):
 
 ## Import filled Alpaca CSP openings that predate HELIOS recommendation memory.
 ## Imported orders retain broker fill economics and source attribution, but leave recommendation fields empty so later prompts do not claim the agent suggested them.
+## Only puts are imported: a call sold before HELIOS has no recorded cost basis for the shares behind it, and inventing one would misstate every number that follows from it.
 def import_filled_csp_order_history(user_id, alpaca_orders):
     owner_partition = user_pk(user_id)
     existing_alpaca_order_ids = {
@@ -382,11 +384,11 @@ def import_filled_csp_order_history(user_id, alpaca_orders):
             "strike": strike,
             "quoted_premium": (
                 (number_or_none(alpaca_order.get("limit_price")) or filled_price)
-                * 100
+                * SHARES_PER_CONTRACT
                 * filled_quantity
             ),
-            "premium_received": filled_price * 100 * filled_quantity,
-            "cash_required": strike * 100 * filled_quantity,
+            "premium_received": filled_price * SHARES_PER_CONTRACT * filled_quantity,
+            "cash_required": strike * SHARES_PER_CONTRACT * filled_quantity,
             "breakeven_price": strike - filled_price,
             "alpaca_order_id": alpaca_order_id,
             "alpaca_client_order_id": alpaca_order.get("client_order_id"),

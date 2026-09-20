@@ -1,4 +1,4 @@
-## Build nuanced CSP outcome snapshots from live broker positions.
+## Build nuanced short option outcome snapshots from live broker positions.
 ##
 ## This module avoids simple win/loss labels. A cash-secured put can be
 ## financially painful while still being strategically acceptable if the user
@@ -49,7 +49,7 @@ def days_to_expiration(expiration):
     return (expiration_date - datetime.now(timezone.utc).date()).days
 
 
-## Classify the money side of an open CSP without judging whether the trade was
+## Classify the money side of an open short option without judging whether the trade was
 ## good or bad. Large losses relative to received premium are treated as more
 ## severe because they show the option moved meaningfully against the seller.
 def classify_financial_status(position):
@@ -134,7 +134,7 @@ def classify_lesson_type(position):
     return "insufficient_data"
 
 
-## Build a durable outcome snapshot from one normalized CSP position.
+## Build a durable outcome snapshot from one normalized short option position.
 ## The returned record is designed for DynamoDB storage and future LLM prompt
 ## context, while still being readable enough for debugging from the memory API.
 def build_outcome_snapshot(position):
@@ -145,6 +145,7 @@ def build_outcome_snapshot(position):
     return {
         "ticker_symbol": position.get("ticker_symbol"),
         "contract_symbol": position.get("contract_symbol"),
+        "option_type": position.get("option_type"),
         "expiration": position.get("expiration"),
         "strike": number_or_none(position.get("strike")),
         "quantity": number_or_none(position.get("quantity")),
@@ -171,15 +172,16 @@ def build_outcome_snapshot(position):
 ## The LLM layer will eventually produce richer explanations, but this gives
 ## HELIOS useful memory immediately without waiting on OpenAI calls.
 def summarize_snapshot(snapshot):
-    ticker = snapshot.get("ticker_symbol") or "This CSP"
+    ticker = snapshot.get("ticker_symbol") or "This position"
     strike = snapshot.get("strike")
+    option_type = snapshot.get("option_type") or "option"
     pnl = snapshot.get("unrealized_pnl")
     financial_status = snapshot.get("financial_status", "unknown")
     assignment_status = snapshot.get("assignment_status", "unknown")
     lesson_type = snapshot.get("lesson_type", "insufficient_data")
 
     return (
-        f"{ticker} {strike} put is currently {financial_status}; "
+        f"{ticker} {strike} {option_type} is currently {financial_status}; "
         f"unrealized P/L is {pnl}, assignment pressure looks {assignment_status}, "
         f"and the early lesson category is {lesson_type}."
     )

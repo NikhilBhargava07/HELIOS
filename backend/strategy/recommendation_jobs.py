@@ -32,7 +32,7 @@ from backend.memory.jobs import (
     read_job_item,
     update_job,
 )
-from backend.memory.observations import capture_current_csp_outcome_snapshots
+from backend.memory.observations import capture_current_option_outcome_snapshots
 from backend.memory.outcome_jobs import run_outcome_observation
 from backend.memory.recommendations import save_recommendation_run
 from backend.strategy.recommender import get_recommendation_results
@@ -171,7 +171,7 @@ def run_recommendation_job(job_id, user_id):
                 trigger="recommendations_refresh",
             )
             snapshot_context["market_context"] = results.get("market_context") or {}
-            capture_current_csp_outcome_snapshots(
+            capture_current_option_outcome_snapshots(
                 user_id,
                 dashboard.get("open_positions", []),
                 context=snapshot_context,

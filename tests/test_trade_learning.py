@@ -125,6 +125,7 @@ class CompletedOutcomeReviewTests(unittest.TestCase):
             "assigned": True,
             "option_realized_pnl": 530,
             "assignment_cash_obligation": 17_500,
+            "underlying_outcome_pending": True,
             "entry_factors": {"iv_percent": 55},
         }
 
@@ -134,6 +135,27 @@ class CompletedOutcomeReviewTests(unittest.TestCase):
         self.assertEqual(reviews[0]["review_source"], "local_fallback")
         self.assertEqual(reviews[0]["ai_error_code"], "not_configured")
         self.assertTrue(reviews[0]["drivers"])
+
+    ## Once the shares are called away the result is final, so the trade stops being reported as pending.
+    @patch("backend.memory.outcome_review.get_openai_client", return_value=None)
+    @patch("backend.memory.outcome_review.get_trade_feedback", return_value=[])
+    def test_local_review_settles_a_called_away_assignment(self, feedback, get_client):
+        outcome = {
+            "opening_order_id": "order-1",
+            "ticker_symbol": "ORCL",
+            "contract_symbol": "ORCL260821P00175000",
+            "assigned": True,
+            "option_realized_pnl": 530,
+            "assignment_cash_obligation": 17_500,
+            "underlying_outcome_pending": False,
+            "underlying_resolution": "called_away",
+            "underlying_realized_pnl": 400,
+            "entry_factors": {"iv_percent": 55},
+        }
+
+        reviews = review_completed_csp_outcomes("user-1", [outcome])
+
+        self.assertEqual(reviews[0]["economic_result"], "profit")
 
 
 if __name__ == "__main__":

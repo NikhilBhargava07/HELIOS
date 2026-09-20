@@ -63,6 +63,11 @@ COMPANY_NAMES = {
     "AAL": "American Airlines", "UAL": "United Airlines",
 }
 
+# One US equity option contract always controls this many shares. It is a market
+# fact rather than a setting, and it is defined once here because option economics,
+# share coverage, and assignment accounting all depend on the same number.
+SHARES_PER_CONTRACT = 100
+
 # Portfolio-wide limits. These hold no matter which strategy is trading, so they
 # live here rather than inside any one strategy. A strategy's own thresholds, such
 # as a cash-secured put's target delta, live with that strategy in backend/strategy/.

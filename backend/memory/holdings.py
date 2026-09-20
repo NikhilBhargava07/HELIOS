@@ -7,9 +7,8 @@
 ## deliver the shares. The broker's average entry price ignores that premium, so
 ## it overstates the cost and would block calls that are profitable overall.
 
+from backend.config import SHARES_PER_CONTRACT
 from backend.memory.outcomes import get_completed_trade_outcomes
-
-SHARES_PER_CONTRACT = 100
 
 
 ## Total the put premium already collected on assignments whose shares are still held, by ticker.

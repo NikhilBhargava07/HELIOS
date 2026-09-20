@@ -25,9 +25,12 @@ from backend.memory.jobs import (
     read_job_item,
     update_job,
 )
-from backend.memory.observations import capture_current_csp_outcome_snapshots
+from backend.memory.observations import (
+    capture_current_option_outcome_snapshots,
+    is_short_option_position,
+)
 from backend.memory.outcome_review import analyze_unreviewed_outcomes
-from backend.memory.outcomes import finalize_csp_trade_outcomes
+from backend.memory.outcomes import finalize_trade_outcomes
 from backend.memory.trades import (
     import_filled_csp_order_history,
     reconcile_paper_orders,
@@ -164,14 +167,15 @@ def _run_outcome_observation(
     historical_import = import_filled_csp_order_history(user_id, broker_orders)
     reconcile_paper_orders(user_id, broker_orders)
 
-    csp_positions = [
+    # Every sold contract is watched, because a covered call carries an obligation to observe too.
+    short_option_positions = [
         position
         for position in positions
-        if position.get("strategy") == "cash-secured put"
+        if is_short_option_position(position)
     ]
     tickers = list(dict.fromkeys(
         position.get("ticker_symbol")
-        for position in csp_positions
+        for position in short_option_positions
         if position.get("ticker_symbol")
     ))
     if tickers and include_market_context and stock_data_client is None:
@@ -191,13 +195,13 @@ def _run_outcome_observation(
         "capital": {
             "total_capital": account.get("portfolio_value"),
             "effective_available_csp_capital": account.get("available_csp_cash"),
-            "open_position_count": len(csp_positions),
+            "open_position_count": len(short_option_positions),
         },
         "market_context": market_context,
     }
-    snapshots = capture_current_csp_outcome_snapshots(
+    snapshots = capture_current_option_outcome_snapshots(
         user_id,
-        csp_positions,
+        short_option_positions,
         context=observation_context,
     )
 
@@ -219,7 +223,7 @@ def _run_outcome_observation(
         activities = []
         activity_error = "option_lifecycle_activities_unavailable"
 
-    finalization = finalize_csp_trade_outcomes(
+    finalization = finalize_trade_outcomes(
         user_id,
         positions,
         broker_orders,
@@ -237,6 +241,7 @@ def _run_outcome_observation(
         "outcomes_completed": finalization["completed"],
         "outcomes_reviewed": len(reviewed_outcomes),
         "unresolved_count": len(finalization["unresolved"]),
+        "assignments_settled": finalization["assignments_settled"],
         "activity_error": activity_error,
     }
 

@@ -50,9 +50,9 @@ class OutcomeJobTests(unittest.TestCase):
     )
     @patch("backend.memory.outcome_jobs.import_filled_csp_order_history")
     @patch("backend.memory.outcome_jobs.reconcile_paper_orders")
-    @patch("backend.memory.outcome_jobs.capture_current_csp_outcome_snapshots")
+    @patch("backend.memory.outcome_jobs.capture_current_option_outcome_snapshots")
     @patch("backend.memory.outcome_jobs.get_option_lifecycle_activities", return_value=[])
-    @patch("backend.memory.outcome_jobs.finalize_csp_trade_outcomes")
+    @patch("backend.memory.outcome_jobs.finalize_trade_outcomes")
     @patch("backend.memory.outcome_jobs.analyze_unreviewed_outcomes")
     def test_on_demand_refresh_uses_existing_broker_context(
         self,
@@ -69,13 +69,19 @@ class OutcomeJobTests(unittest.TestCase):
             "skipped_ambiguous_put_sales": 1,
         }
         capture.return_value = {"captured": 1}
-        finalize.return_value = {"completed": 1, "unresolved": []}
+        finalize.return_value = {"completed": 1, "unresolved": [], "assignments_settled": 1}
         analyze.return_value = [{"opening_order_id": "order-1"}]
         trading_client = object()
-        positions = [{
-            "strategy": "cash-secured put",
-            "ticker_symbol": "AAPL",
-        }]
+        positions = [
+            {
+                "strategy": "cash-secured put",
+                "ticker_symbol": "AAPL",
+                "contract_symbol": "AAPL260821P00200000",
+                "signed_quantity": -1,
+            },
+            # Shares are held, not sold, so they carry no obligation to observe.
+            {"strategy": "stock", "ticker_symbol": "AAPL", "quantity": 100},
+        ]
         broker_orders = [{"id": "alpaca-order-1"}]
 
         result = run_outcome_observation(
@@ -92,8 +98,12 @@ class OutcomeJobTests(unittest.TestCase):
         self.assertEqual(result["historical_orders_imported"], 2)
         self.assertEqual(result["outcomes_completed"], 1)
         self.assertEqual(result["outcomes_reviewed"], 1)
+        self.assertEqual(result["assignments_settled"], 1)
         import_history.assert_called_once_with("user-1", broker_orders)
-        capture.assert_called_once()
+        self.assertEqual(
+            [position["contract_symbol"] for position in capture.call_args.args[1]],
+            ["AAPL260821P00200000"],
+        )
         finalize.assert_called_once()
 
     ## Continue dispatching later users when one asynchronous Lambda invoke fails.

@@ -1,4 +1,4 @@
-## Store user-scoped CSP observations and trade outcomes.
+## Store user-scoped option observations and trade outcomes.
 
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -45,7 +45,7 @@ def save_outcome_snapshot(user_id, position, context=None):
 
 
 ## Return recent outcome snapshots for one authenticated user.
-## Newest observations appear first so prompts focus on the current state of active CSP risk.
+## Newest observations appear first so prompts focus on the current state of open option risk.
 def get_recent_outcome_snapshots(user_id, limit=20):
     return query_items(
         user_pk(user_id),
@@ -55,9 +55,24 @@ def get_recent_outcome_snapshots(user_id, limit=20):
     )
 
 
-## Capture daily observations for all current short-put positions.
-## Non-CSP positions are reported as skipped rather than silently entering CSP learning memory.
-def capture_current_csp_outcome_snapshots(
+## Recognize a sold option contract in either shape HELIOS stores positions in.
+##
+## A live Alpaca position states its signed quantity, where a negative number means
+## the contract was sold. HELIOS' own fallback records omit that field, but they are
+## only ever written for a sell-to-open order, so carrying a contract symbol is
+## enough to identify one.
+def is_short_option_position(position):
+    signed_quantity = position.get("signed_quantity")
+    if signed_quantity is not None:
+        return signed_quantity < 0
+
+    return bool(position.get("contract_symbol"))
+
+
+## Capture daily observations for every current short option position.
+## Shares and long contracts are reported as skipped rather than silently entering option learning memory,
+## because only a sold contract carries the obligation these observations are watching.
+def capture_current_option_outcome_snapshots(
     user_id,
     open_positions,
     context=None,
@@ -65,13 +80,13 @@ def capture_current_csp_outcome_snapshots(
     captured = []
     skipped = []
     for position in open_positions or []:
-        if position.get("strategy") != "cash-secured put":
+        if not is_short_option_position(position):
             skipped.append({
                 "symbol": (
                     position.get("symbol")
                     or position.get("contract_symbol")
                 ),
-                "reason": "not_cash_secured_put",
+                "reason": "not_a_short_option",
             })
             continue
         captured.append(

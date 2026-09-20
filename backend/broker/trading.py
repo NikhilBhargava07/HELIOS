@@ -14,6 +14,9 @@ from alpaca.trading.enums import (
     TimeInForce,
 )
 from alpaca.trading.requests import GetOrdersRequest, LimitOrderRequest
+
+from backend.config import SHARES_PER_CONTRACT
+
 OPTION_SYMBOL_PATTERN = re.compile(
     r"^(?P<ticker>[A-Z.]+)(?P<expiration>\d{6})(?P<type>[CP])(?P<strike>\d{8})$"
 )
@@ -60,7 +63,7 @@ def option_limit_price_from_candidate(candidate):
         raise ValueError("Candidate is missing premiumIfSoldAtBid.")
 
     # Alpaca option limit orders use per-share option premium, not total contract premium.
-    return round(float(premium_total) / 100, 2)
+    return round(float(premium_total) / SHARES_PER_CONTRACT, 2)
 
 
 ## Convert Alpaca SDK models into plain dictionaries.
@@ -147,7 +150,8 @@ def parse_option_contract_symbol(contract_symbol):
 
 
 ## Convert one Alpaca position into the shape HELIOS displays and reasons over.
-## Short puts become CSP records with cash required, breakeven, premium estimate, and unrealized P&L; other holdings stay as general positions.
+## Any sold contract records the premium it collected, while cash required and breakeven stay put-specific:
+## a covered call locks up no cash, and its breakeven depends on what the shares cost, which one position cannot say.
 def normalize_paper_position(raw_position):
     symbol = raw_position.get("symbol")
     quantity = number_or_none(raw_position.get("qty"))
@@ -159,7 +163,8 @@ def normalize_paper_position(raw_position):
         contract_count = abs(quantity or 0)
         average_premium = average_entry_price or 0
         strike = contract["strike"]
-        is_short_put = contract["option_type"] == "put" and quantity is not None and quantity < 0
+        is_short = quantity is not None and quantity < 0
+        is_short_put = contract["option_type"] == "put" and is_short
         return {
             "id": str(raw_position.get("asset_id") or symbol),
             "status": "open",
@@ -173,8 +178,8 @@ def normalize_paper_position(raw_position):
             "strike": strike,
             "quantity": contract_count,
             "signed_quantity": quantity,
-            "premium_received": average_premium * 100 * contract_count if is_short_put else None,
-            "cash_required": strike * 100 * contract_count if is_short_put else 0,
+            "premium_received": average_premium * SHARES_PER_CONTRACT * contract_count if is_short else None,
+            "cash_required": strike * SHARES_PER_CONTRACT * contract_count if is_short_put else 0,
             "breakeven_price": strike - average_premium if is_short_put else None,
             "market_value": number_or_none(raw_position.get("market_value")),
             "unrealized_pnl": number_or_none(raw_position.get("unrealized_pl")),

@@ -10,8 +10,8 @@ from functools import partial
 
 from alpaca.trading.enums import ContractType
 
-from backend.config import APPROVED_TICKERS, MIN_PATTERN_SAMPLE_SIZE
-from backend.memory.holdings import SHARES_PER_CONTRACT, build_holdings
+from backend.config import APPROVED_TICKERS, MIN_PATTERN_SAMPLE_SIZE, SHARES_PER_CONTRACT
+from backend.memory.holdings import build_holdings
 from backend.strategy.engine.option_chain import summarize_option_market
 from backend.strategy.spec import OptionRules, OptionStrategy, ReviewConfig
 

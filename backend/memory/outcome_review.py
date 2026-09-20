@@ -28,6 +28,7 @@ OUTCOME_FACT_FIELDS = (
     "opening_source",
     "ticker_symbol",
     "contract_symbol",
+    "option_type",
     "resolution_type",
     "assigned",
     "quantity",
@@ -40,6 +41,12 @@ OUTCOME_FACT_FIELDS = (
     "assignment_cash_obligation",
     "effective_share_cost",
     "underlying_outcome_pending",
+    # What the shares themselves did, once a covered call or a later sale settled them.
+    "shares_called_away",
+    "share_sale_proceeds",
+    "share_realized_pnl",
+    "underlying_resolution",
+    "underlying_realized_pnl",
     "entry_factors",
     "latest_open_snapshot",
 )
@@ -153,9 +160,10 @@ def _review_evidence(user_id, outcome, feedback_by_order):
 
 
 ## Derive a factual economic label without deciding whether the user liked the trade.
-## Assignment remains pending because retained premium alone does not settle the later gain or loss on acquired shares.
+## An assignment stays pending only while its shares are still held, because retained premium alone
+## does not settle their gain or loss; once they are called away that result is final.
 def _economic_result(outcome):
-    if outcome.get("assigned"):
+    if outcome.get("underlying_outcome_pending"):
         return "assigned_pending"
     pnl = outcome.get("option_realized_pnl")
     if pnl is None:

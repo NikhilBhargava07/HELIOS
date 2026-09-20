@@ -13,6 +13,7 @@ from backend.config import (
     CAPITAL_BUDGETS,
     MAX_OPEN_POSITIONS,
     MIN_PATTERN_SAMPLE_SIZE,
+    SHARES_PER_CONTRACT,
 )
 from backend.strategy.engine.option_chain import summarize_option_market
 from backend.strategy.spec import OptionRules, OptionStrategy, ReviewConfig
@@ -112,8 +113,8 @@ expires worthless; do not confuse maximum premium with the best risk-adjusted tr
 ## Turn one put quote into the economics of selling it cash-secured.
 ## The cash required is the full cost of buying the shares at the strike, which is what makes the put "secured".
 def economics(strike, bid, current_stock_price, dte):
-    cash_required = strike * 100
-    premium_if_sold_at_bid = bid * 100
+    cash_required = strike * SHARES_PER_CONTRACT
+    premium_if_sold_at_bid = bid * SHARES_PER_CONTRACT
     return_on_cash = premium_if_sold_at_bid / cash_required
 
     return {
