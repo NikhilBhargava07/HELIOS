@@ -145,6 +145,7 @@ def run_recommendation_job(job_id, user_id):
             strategy_rules=strategy.strategy_rules,
             portfolio_context=results.get("portfolio_context"),
             memory_context=results.get("memory_context"),
+            candidate_id_column=strategy.candidate_id_column,
         )
         result = {
             "recommendation_run_id": run["id"], "strategy_key": strategy.key,

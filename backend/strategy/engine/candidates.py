@@ -4,14 +4,21 @@
 ## strategy's economics, enforce the hard rules, score what is left, and return
 ## the columns that strategy displays.
 
+import logging
+
 import pandas as pd
 
+from backend.config import CANDIDATES_PER_TICKER
 from backend.strategy.engine.filters import apply_option_filters
 from backend.strategy.engine.option_chain import (
     build_candidate_rows,
     fetch_option_snapshots,
     get_latest_stock_price,
 )
+from backend.strategy.spec import ScanResult
+
+
+logger = logging.getLogger(__name__)
 
 
 ## Add a ranking score once every hard metric is present.
@@ -37,7 +44,7 @@ def add_recommendation_score(contracts, target_delta):
 ## Strategies whose economics depend on account state, such as a covered call
 ## needing the cost basis of shares already held, pass a pre-bound economics
 ## function instead of the strategy default.
-def find_option_candidates(
+def scan_ticker_option_chain(
     strategy,
     ticker_symbol,
     available_capital,
@@ -81,3 +88,45 @@ def find_option_candidates(
     ranked = add_recommendation_score(filtered, strategy.rules.target_delta)
 
     return ranked.sort_values(by="score", ascending=False)[list(strategy.display_columns)]
+
+
+## Scan every eligible ticker's option chain and return the candidates they yield.
+##
+## Each ticker is a separate broker request, so one that fails is recorded and
+## skipped: a single unreadable chain should not end a scan of the whole universe.
+## Only each ticker's best few contracts continue, because otherwise one liquid
+## chain could crowd every other ticker out of the model's view.
+def find_option_candidates(strategy, ticker_symbols, context):
+    if context.option_data_client is None:
+        raise ValueError("Explicit Alpaca market-data clients are required for option scans.")
+
+    frames = []
+    errors = []
+
+    for ticker_symbol in ticker_symbols:
+        try:
+            candidates = scan_ticker_option_chain(
+                strategy,
+                ticker_symbol,
+                context.available_capital,
+                current_stock_price=(context.latest_prices.get(ticker_symbol) or {}).get("price"),
+                stock_data_client=context.stock_data_client,
+                option_data_client=context.option_data_client,
+                economics=(
+                    strategy.bind_economics(ticker_symbol, context.portfolio_context)
+                    if strategy.bind_economics
+                    else None
+                ),
+            )
+        except Exception as error:
+            logger.warning("Option scan failed for %s: %s", ticker_symbol, type(error).__name__)
+            errors.append(f"{ticker_symbol}:{type(error).__name__}")
+            continue
+
+        if not candidates.empty:
+            frames.append(candidates.head(CANDIDATES_PER_TICKER))
+
+    return ScanResult(
+        candidates=pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(),
+        errors=tuple(errors),
+    )

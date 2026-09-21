@@ -15,7 +15,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from backend.strategy.cash_secured_put import CASH_SECURED_PUT
-from backend.strategy.engine.candidates import find_option_candidates
+from backend.strategy.engine.candidates import scan_ticker_option_chain
 from backend.strategy.review_prompt import build_review_prompt
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
@@ -100,7 +100,7 @@ def run_scan(option_data_client=None):
         option_data_client = Mock()
         option_data_client.get_option_chain.return_value = option_chain()
 
-    return find_option_candidates(
+    return scan_ticker_option_chain(
         CASH_SECURED_PUT,
         TICKER,
         AVAILABLE_CAPITAL,

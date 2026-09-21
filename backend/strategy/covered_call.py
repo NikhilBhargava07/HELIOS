@@ -12,6 +12,7 @@ from alpaca.trading.enums import ContractType
 
 from backend.config import APPROVED_TICKERS, MIN_PATTERN_SAMPLE_SIZE, SHARES_PER_CONTRACT
 from backend.memory.holdings import build_holdings
+from backend.strategy.engine.candidates import find_option_candidates
 from backend.strategy.engine.option_chain import summarize_option_market
 from backend.strategy.spec import OptionRules, OptionStrategy, ReviewConfig
 
@@ -262,7 +263,10 @@ COVERED_CALL = OptionStrategy(
     rules=RULES,
     capital_column=None,
     collateral_basis_column="costBasis",
+    candidate_id_column="contractSymbol",
     display_columns=DISPLAY_COLUMNS,
+    find_candidates=find_option_candidates,
+    rank_column="score",
     economics=economics,
     eligible_tickers=eligible_tickers,
     strategy_rules=STRATEGY_RULES,

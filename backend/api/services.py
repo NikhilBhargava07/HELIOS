@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -288,7 +289,11 @@ def candidates_to_records(candidates):
     for record in records:
         for key, value in record.items():
             if hasattr(value, "item"):
-                record[key] = value.item()
+                value = value.item()
+            # A missing number arrives from pandas as NaN, which is neither valid JSON nor a
+            # value DynamoDB accepts. Absent evidence is stored as absent, such as the shares
+            # held in a stock the user does not own.
+            record[key] = None if isinstance(value, float) and math.isnan(value) else value
         record["companyName"] = COMPANY_NAMES.get(record["tickerSymbol"], record["tickerSymbol"])
     return records
 

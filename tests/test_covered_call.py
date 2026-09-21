@@ -24,7 +24,7 @@ from backend.strategy.covered_call import (
     eligible_tickers,
     strike_at_or_above_cost_basis,
 )
-from backend.strategy.engine.candidates import find_option_candidates
+from backend.strategy.engine.candidates import scan_ticker_option_chain
 from backend.strategy.recommender import get_recommendation_results
 
 
@@ -122,7 +122,7 @@ class CoveredCallScanTests(unittest.TestCase):
             call_symbol("AAPL", 192): call_snapshot(2.40, 2.50, 0.29),
         }
 
-        candidates = find_option_candidates(
+        candidates = scan_ticker_option_chain(
             COVERED_CALL,
             "AAPL",
             available_capital=None,

@@ -45,6 +45,7 @@ def save_recommendation_run(
     strategy_rules=None,
     portfolio_context=None,
     memory_context=None,
+    candidate_id_column="contractSymbol",
 ):
     run_id = str(uuid4())
     created_at = utc_now_text()
@@ -83,12 +84,15 @@ def save_recommendation_run(
         *[
             {
                 "pk": run_partition,
-                "sk": f"CANDIDATE#{candidate['contractSymbol']}",
+                # What identifies a candidate depends on what it is: a contract has a
+                # symbol, while a stock recommendation is identified by its ticker.
+                "sk": f"CANDIDATE#{candidate[candidate_id_column]}",
                 "item_type": "recommendation_candidate",
                 "id": str(uuid4()),
                 "user_id": user_id,
                 "recommendation_run_id": run_id,
-                "contract_symbol": candidate["contractSymbol"],
+                "candidate_id": candidate[candidate_id_column],
+                "contract_symbol": candidate.get("contractSymbol"),
                 "ticker_symbol": candidate["tickerSymbol"],
                 "created_at": created_at,
                 "candidate": candidate,

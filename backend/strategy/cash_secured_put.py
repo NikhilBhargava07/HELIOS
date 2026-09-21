@@ -15,6 +15,7 @@ from backend.config import (
     MIN_PATTERN_SAMPLE_SIZE,
     SHARES_PER_CONTRACT,
 )
+from backend.strategy.engine.candidates import find_option_candidates
 from backend.strategy.engine.option_chain import summarize_option_market
 from backend.strategy.spec import OptionRules, OptionStrategy, ReviewConfig
 
@@ -242,7 +243,10 @@ CASH_SECURED_PUT = OptionStrategy(
     rules=RULES,
     capital_column="cashRequired",
     collateral_basis_column=None,
+    candidate_id_column="contractSymbol",
     display_columns=DISPLAY_COLUMNS,
+    find_candidates=find_option_candidates,
+    rank_column="score",
     economics=economics,
     eligible_tickers=eligible_tickers,
     strategy_rules=STRATEGY_RULES,

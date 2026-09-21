@@ -6,10 +6,12 @@
 
 from backend.strategy.cash_secured_put import CASH_SECURED_PUT
 from backend.strategy.covered_call import COVERED_CALL
+from backend.strategy.equity import EQUITY
 
 STRATEGIES = {
     CASH_SECURED_PUT.key: CASH_SECURED_PUT,
     COVERED_CALL.key: COVERED_CALL,
+    EQUITY.key: EQUITY,
 }
 
 DEFAULT_STRATEGY_KEY = CASH_SECURED_PUT.key

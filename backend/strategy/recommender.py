@@ -1,25 +1,21 @@
 ## Orchestrate one strategy's scan, ranking, and AI review.
 ##
-## The module applies account-level limits before asking the shared engine to
-## scan each eligible ticker. The AI receives only contracts that already passed
-## that strategy's deterministic rules.
+## The module applies account-level limits, then asks the strategy for its
+## candidates and the model for its judgment. It never assumes what is being
+## traded: gathering candidates belongs to the strategy, so a chain scan and a
+## batch of price history run through the same path.
 
 import logging
 
 import pandas as pd
 
 from backend.capital import strategy_capacity
-from backend.config import (
-    CANDIDATES_PER_TICKER,
-    CAPITAL_BUDGETS,
-    MAX_OPEN_POSITIONS,
-    MAX_RECOMMENDATIONS,
-)
+from backend.config import CAPITAL_BUDGETS, MAX_OPEN_POSITIONS
 from backend.market.context import build_candidate_review_context
 from backend.market.trends import get_latest_stock_prices
 from backend.memory.learning_user import build_memory_context
 from backend.strategy.ai_review import review_candidates
-from backend.strategy.engine.candidates import find_option_candidates
+from backend.strategy.spec import ScanContext
 
 
 logger = logging.getLogger(__name__)
@@ -67,7 +63,9 @@ def get_recommendation_results(
     stock_data_client=None,
     option_data_client=None,
 ):
-    if stock_data_client is None or option_data_client is None:
+    # Every strategy needs current prices. Anything further, such as an option chain,
+    # is the strategy's own requirement and is checked where it is used.
+    if stock_data_client is None:
         return _rejection("Broker market-data connection is not available.", f"Connect Alpaca before running {strategy.short_label} scans.")
 
     available_capital = available_strategy_capital(
@@ -99,34 +97,21 @@ def get_recommendation_results(
         logger.warning("Latest stock-price lookup failed: %s", type(error).__name__)
         latest_prices = {}
 
-    candidate_frames = []
-    scan_errors = []
-    for ticker_symbol in eligible_tickers:
-        try:
-            candidates = find_option_candidates(
-                strategy,
-                ticker_symbol,
-                available_capital,
-                current_stock_price=(latest_prices.get(ticker_symbol) or {}).get("price"),
-                stock_data_client=stock_data_client,
-                option_data_client=option_data_client,
-                economics=(
-                    strategy.bind_economics(ticker_symbol, portfolio_context)
-                    if strategy.bind_economics
-                    else None
-                ),
-            )
-        except Exception as error:
-            scan_errors.append(f"{ticker_symbol}:{type(error).__name__}")
-            continue
-
-        if not candidates.empty:
-            candidate_frames.append(candidates.head(CANDIDATES_PER_TICKER))
-
-    if not candidate_frames:
+    scan = strategy.find_candidates(
+        strategy,
+        eligible_tickers,
+        ScanContext(
+            available_capital=available_capital,
+            latest_prices=latest_prices,
+            portfolio_context=portfolio_context or {},
+            stock_data_client=stock_data_client,
+            option_data_client=option_data_client,
+        ),
+    )
+    if scan.candidates.empty:
         error_note = (
-            f" Market-data errors occurred for {len(scan_errors)} tickers."
-            if scan_errors
+            f" Market-data errors occurred for {len(scan.errors)} tickers."
+            if scan.errors
             else ""
         )
         return _rejection(
@@ -134,8 +119,12 @@ def get_recommendation_results(
             f"The current filters may be too strict for today's market data.{error_note}",
         )
 
-    combined = pd.concat(candidate_frames, ignore_index=True)
-    top_candidates = combined.sort_values(by="score", ascending=False).head(MAX_RECOMMENDATIONS)
+    ranked = (
+        scan.candidates.sort_values(by=strategy.rank_column, ascending=False)
+        if strategy.rank_column
+        else scan.candidates
+    )
+    top_candidates = ranked.head(strategy.max_candidates) if strategy.max_candidates else ranked
     candidate_tickers = top_candidates["tickerSymbol"].drop_duplicates().tolist()
     open_position_tickers = [
         position.get("ticker_symbol")
