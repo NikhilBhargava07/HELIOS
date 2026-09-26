@@ -73,7 +73,10 @@ SHARES_PER_CONTRACT = 100
 # as a cash-secured put's target delta, live with that strategy in backend/strategy/.
 TOTAL_CAPITAL = 100_000
 MAX_OPEN_POSITIONS = 5
-CANDIDATES_PER_TICKER = 3
+# How many contracts one ticker may contribute to a scan. Ten slots filled three at a
+# time left only three or four companies to choose between, so the cap is two: enough
+# to compare strikes on a name, while guaranteeing at least five distinct companies.
+CANDIDATES_PER_TICKER = 2
 
 # How many option chains a scan fetches at once. The work is almost entirely waiting on
 # the broker, so the requests overlap instead of queueing. The number stays below the

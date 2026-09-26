@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 
+from backend.config import CANDIDATES_PER_TICKER
 from backend.strategy.cash_secured_put import CASH_SECURED_PUT
 from backend.strategy.engine.candidates import find_option_candidates
 from backend.strategy.spec import ScanContext
@@ -124,8 +125,8 @@ class ParallelScanTests(unittest.TestCase):
             result = find_option_candidates(CASH_SECURED_PUT, ["AAPL", "MSFT"], scan_context())
 
         counts = result.candidates["tickerSymbol"].value_counts()
-        self.assertEqual(counts["AAPL"], 3)
-        self.assertEqual(counts["MSFT"], 3)
+        self.assertEqual(counts["AAPL"], CANDIDATES_PER_TICKER)
+        self.assertEqual(counts["MSFT"], CANDIDATES_PER_TICKER)
 
 
 if __name__ == "__main__":

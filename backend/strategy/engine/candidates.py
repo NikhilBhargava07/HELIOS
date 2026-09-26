@@ -28,7 +28,13 @@ logger = logging.getLogger(__name__)
 
 
 ## Add a ranking score once every hard metric is present.
-## The score favors cleaner setups near target delta, with tighter spreads, acceptable IV, and stronger return.
+##
+## The score favors cleaner setups near target delta, with tighter spreads,
+## more distance from the money, and stronger return.
+##
+## Implied volatility carries no term of its own. The return already is implied
+## volatility expressed as premium, so paying it a second bonus counted the same
+## fact twice and pushed the ranking toward the most volatile name available.
 def add_recommendation_score(contracts, target_delta):
     contracts = contracts.copy()
     contracts["deltaDistance"] = (contracts["delta"] - target_delta).abs()
@@ -36,7 +42,6 @@ def add_recommendation_score(contracts, target_delta):
 
     contracts["score"] = (
         contracts["annualizedReturnPercent"]
-        + contracts["ivPercent"] * 0.10
         + contracts["percentOTM"] * 0.50
         - contracts["deltaDistance"] * 100
         - contracts["spreadPercentOfBid"] * 0.25

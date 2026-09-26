@@ -128,10 +128,28 @@ def economics(strike, bid, current_stock_price, dte):
     }
 
 
-## Every approved ticker is a candidate, because selling a put requires only cash.
-## Strategies that need an existing holding narrow this list against the portfolio instead.
+## Offer an approved ticker only where the account is not already exposed to it.
+##
+## Selling a put on a name already held stacks the same bet twice: an open put on
+## the ticker is the identical obligation again, and shares already owned mean
+## assignment would add to a position rather than start one. Both cases concentrate
+## the account into whichever name currently pays the most, which is how a single
+## ticker ends up recommended over and over while its loss grows.
+##
+## This is a hard rule rather than advice to the model, because it is about the
+## account's shape rather than a judgment about the company.
 def eligible_tickers(portfolio_context=None):
-    return APPROVED_TICKERS
+    portfolio_context = portfolio_context or {}
+    committed = {
+        position.get("ticker_symbol")
+        for position in portfolio_context.get("open_csp_positions") or []
+    }
+    committed.update(
+        ticker for ticker, holding in (portfolio_context.get("holdings") or {}).items()
+        if (holding.get("shares") or 0) > 0
+    )
+
+    return [ticker for ticker in APPROVED_TICKERS if ticker not in committed]
 
 
 ## Create a compact numeric summary of one CSP candidate for the LLM.
@@ -250,7 +268,9 @@ CASH_SECURED_PUT = OptionStrategy(
     economics=economics,
     eligible_tickers=eligible_tickers,
     strategy_rules=STRATEGY_RULES,
-    eligibility_requirement="enough available cash to secure the put",
+    eligibility_requirement=(
+        "an approved ticker the account is not already exposed to, and enough cash to secure the put"
+    ),
     secure_candidate=secure_candidate,
     review=ReviewConfig(
         guidance=REVIEW_GUIDANCE,
