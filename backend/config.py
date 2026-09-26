@@ -74,6 +74,15 @@ SHARES_PER_CONTRACT = 100
 TOTAL_CAPITAL = 100_000
 MAX_OPEN_POSITIONS = 5
 CANDIDATES_PER_TICKER = 3
+
+# How many option chains a scan fetches at once. The work is almost entirely waiting on
+# the broker, so the requests overlap instead of queueing. The number stays below the
+# HTTP connection pool the Alpaca client keeps (10), so the workers do not fight over
+# connections, and well under the broker's per-minute request allowance.
+MAX_PARALLEL_TICKER_SCANS = 8
+# A throttled request is retried once rather than dropped, because dropping a ticker
+# would quietly shrink the universe the recommendation is chosen from.
+RATE_LIMIT_RETRY_SECONDS = 2
 MAX_RECOMMENDATIONS = 10
 MIN_PATTERN_SAMPLE_SIZE = 11
 AI_JOB_TTL_SECONDS = 86_400

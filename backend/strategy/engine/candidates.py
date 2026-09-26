@@ -5,10 +5,16 @@
 ## the columns that strategy displays.
 
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 
-from backend.config import CANDIDATES_PER_TICKER
+from backend.config import (
+    CANDIDATES_PER_TICKER,
+    MAX_PARALLEL_TICKER_SCANS,
+    RATE_LIMIT_RETRY_SECONDS,
+)
 from backend.strategy.engine.filters import apply_option_filters
 from backend.strategy.engine.option_chain import (
     build_candidate_rows,
@@ -90,20 +96,25 @@ def scan_ticker_option_chain(
     return ranked.sort_values(by="score", ascending=False)[list(strategy.display_columns)]
 
 
-## Scan every eligible ticker's option chain and return the candidates they yield.
+## Recognize the broker throttling a burst of requests.
+## Told apart from a real failure because a throttled ticker is worth asking for again, while a broken one is not.
+def _is_rate_limited(error):
+    if getattr(error, "status_code", None) == 429:
+        return True
+
+    message = str(error).lower()
+
+    return "429" in message or "rate limit" in message or "too many requests" in message
+
+
+## Scan one ticker without letting its failure end the scan of every other one.
 ##
-## Each ticker is a separate broker request, so one that fails is recorded and
-## skipped: a single unreadable chain should not end a scan of the whole universe.
-## Only each ticker's best few contracts continue, because otherwise one liquid
-## chain could crowd every other ticker out of the model's view.
-def find_option_candidates(strategy, ticker_symbols, context):
-    if context.option_data_client is None:
-        raise ValueError("Explicit Alpaca market-data clients are required for option scans.")
-
-    frames = []
-    errors = []
-
-    for ticker_symbol in ticker_symbols:
+## The candidates and the error come back together rather than as an exception,
+## because a worker raising would abandon the tickers queued behind it. A
+## throttled request is retried once, since scanning in parallel makes throttling
+## likely enough that dropping the ticker would quietly narrow the choice.
+def _scan_one_ticker(strategy, ticker_symbol, context):
+    for attempt in range(2):
         try:
             candidates = scan_ticker_option_chain(
                 strategy,
@@ -118,13 +129,60 @@ def find_option_candidates(strategy, ticker_symbols, context):
                     else None
                 ),
             )
+            return candidates, None
         except Exception as error:
-            logger.warning("Option scan failed for %s: %s", ticker_symbol, type(error).__name__)
-            errors.append(f"{ticker_symbol}:{type(error).__name__}")
-            continue
+            if attempt == 0 and _is_rate_limited(error):
+                logger.info("Option scan for %s was rate-limited; retrying once", ticker_symbol)
+                time.sleep(RATE_LIMIT_RETRY_SECONDS)
+                continue
 
-        if not candidates.empty:
+            logger.warning("Option scan failed for %s: %s", ticker_symbol, type(error).__name__)
+            return pd.DataFrame(), f"{ticker_symbol}:{type(error).__name__}"
+
+
+## Scan every eligible ticker's option chain and return the candidates they yield.
+##
+## Each ticker is a separate broker request whose time is spent waiting on the
+## network, so the requests overlap instead of queueing: fetching fifty-six chains
+## one after another was the bulk of a scan's minute. The Alpaca client is shared
+## across the workers, which its connection pool is built for, and the worker count
+## stays below that pool's size.
+##
+## Results are reassembled in the order the tickers were given, so the same account
+## and the same market produce the same ranking no matter which response arrives
+## first. Only each ticker's best few contracts continue, because otherwise one
+## liquid chain could crowd every other ticker out of the model's view.
+def find_option_candidates(strategy, ticker_symbols, context):
+    if context.option_data_client is None:
+        raise ValueError("Explicit Alpaca market-data clients are required for option scans.")
+
+    ticker_symbols = list(ticker_symbols)
+    if not ticker_symbols:
+        return ScanResult(candidates=pd.DataFrame())
+
+    started_at = time.monotonic()
+    with ThreadPoolExecutor(max_workers=min(MAX_PARALLEL_TICKER_SCANS, len(ticker_symbols))) as executor:
+        scans = list(executor.map(
+            lambda ticker_symbol: _scan_one_ticker(strategy, ticker_symbol, context),
+            ticker_symbols,
+        ))
+
+    frames = []
+    errors = []
+    for candidates, error in scans:
+        if error:
+            errors.append(error)
+        elif not candidates.empty:
             frames.append(candidates.head(CANDIDATES_PER_TICKER))
+
+    logger.info(
+        "Scanned %s %s chains in %.2fs: %s with candidates, %s unreadable",
+        len(ticker_symbols),
+        strategy.key,
+        time.monotonic() - started_at,
+        len(frames),
+        len(errors),
+    )
 
     return ScanResult(
         candidates=pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(),
