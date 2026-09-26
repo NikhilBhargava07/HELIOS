@@ -8,6 +8,7 @@ from backend.config import (
     OPENAI_MARKET_TAKE_MAX_OUTPUT_TOKENS,
     OPENAI_MODEL,
     OPENAI_REASONING_EFFORT,
+    SHARES_PER_CONTRACT,
 )
 from backend.market.prompt_context import compact_market_take_context
 from backend.openai_client import (
@@ -35,6 +36,8 @@ MARKET_TAKE_SCHEMA = {
         },
         "reasoned_take": {"type": "string"},
         "csp_take": {"type": "string"},
+        "covered_call_take": {"type": "string"},
+        "stock_take": {"type": "string"},
         "portfolio_take": {"type": "string"},
         "recommendation_take": {"type": "string"},
         "action": {"type": "string"},
@@ -62,6 +65,8 @@ MARKET_TAKE_SCHEMA = {
         "csp_stance",
         "reasoned_take",
         "csp_take",
+        "covered_call_take",
+        "stock_take",
         "portfolio_take",
         "recommendation_take",
         "action",
@@ -73,7 +78,7 @@ MARKET_TAKE_SCHEMA = {
 
 
 ## Produce a deterministic fallback market take when OpenAI is unavailable.
-## The UI still receives a useful CSP-focused explanation instead of failing completely during API outages.
+## The UI still receives a useful explanation of the whole account instead of failing completely during API outages.
 def local_market_take(context):
     trends = context.get("trends") or []
     news = context.get("news") or context.get("news_and_earnings") or []
@@ -83,6 +88,8 @@ def local_market_take(context):
             "csp_stance": "Wait",
             "reasoned_take": "Load trends and news before leaning on the market take.",
             "csp_take": "Use only the hard CSP filters for now.",
+            "covered_call_take": "Covered calls cannot be judged without market context.",
+            "stock_take": "Shares held cannot be judged without market context.",
             "portfolio_take": "Current positions cannot be evaluated without market context.",
             "recommendation_take": "Recent recommendations cannot be compared without market context.",
             "action": "Review filtered CSP candidates normally.",
@@ -94,7 +101,10 @@ def local_market_take(context):
 
     strongest = _rank_trends(trends, reverse=True)
     weakest = _rank_trends(trends, reverse=False)
-    positions = context.get("portfolio", {}).get("open_csp_positions", [])
+    portfolio = context.get("portfolio") or {}
+    positions = portfolio.get("open_csp_positions") or []
+    covered_calls = portfolio.get("covered_call_positions") or []
+    holdings = portfolio.get("holdings") or {}
     candidates = (context.get("latest_recommendation") or {}).get("candidates", [])
     position_tickers = [
         position.get("ticker_symbol")
@@ -128,12 +138,28 @@ def local_market_take(context):
             "Scenario context, not a price prediction.",
         ]
 
+    covered_call_tickers = [
+        position.get("ticker_symbol")
+        for position in covered_calls
+        if position.get("ticker_symbol")
+    ]
+    uncovered_tickers = [
+        ticker for ticker, holding in sorted(holdings.items())
+        if (holding.get("uncovered_shares") or 0) >= SHARES_PER_CONTRACT
+    ]
+    share_tickers = sorted(holdings)
+
     return {
         "headline": "Use trend data as a risk check.",
         "market_mood": "Mixed",
         "csp_stance": "Selective",
         "reasoned_take": reasoned_take,
         "csp_take": "Favor CSPs only when hard filters pass.",
+        "covered_call_take": _describe_covered_calls(covered_call_tickers, uncovered_tickers),
+        "stock_take": (
+            f"Shares held: {', '.join(share_tickers)}. Check concentration before adding to any of them."
+            if share_tickers else "No shares are currently held."
+        ),
         "portfolio_take": (
             f"Current open CSPs: {', '.join(position_tickers)}. Review their assignment risk before adding exposure."
             if position_tickers else "There are no current Alpaca CSP positions to assess."
@@ -151,6 +177,20 @@ def local_market_take(context):
         "scenarios": scenarios,
         "review_source": "local_fallback",
     }
+
+
+## State plainly what the call side of the account looks like when the model is unavailable.
+## Shares with no call sold against them are named because that is the next step of a wheel, not a judgment about it.
+def _describe_covered_calls(covered_call_tickers, uncovered_tickers):
+    if covered_call_tickers:
+        sentence = f"Calls are sold against {', '.join(covered_call_tickers)}."
+    else:
+        sentence = "No covered calls are currently open."
+
+    if uncovered_tickers:
+        return f"{sentence} Shares free to cover a call: {', '.join(uncovered_tickers)}."
+
+    return sentence
 
 
 ## Sort trend records by their recent five-day return.
@@ -228,19 +268,34 @@ def ai_market_take(context):
 def _build_market_take_prompt(context):
     compacted_context = compact_market_take_context(context)
     return f"""
-You are helping with an educational cash-secured put paper-trading dashboard.
+You are helping with an educational paper-trading dashboard that sells cash-secured puts and
+covered calls, and gives an opinion on stocks worth owning without ever trading them.
 Do not pretend to know the future. Return only valid JSON with these keys:
 - headline: max 8 words
 - market_mood: one of Calm, Mixed, Choppy, Risky
 - csp_stance: one of Favorable, Selective, Cautious, Wait
-- reasoned_take: 5 to 7 plain-language sentences using specific trends and news, along with their sources
-- csp_take: 1 to 3 sentences about CSP paper trading
-- portfolio_take: 1 to 3 sentences about every current CSP position and assignment risk
+- reasoned_take: 5 to 7 plain-language sentences on the market overall, using specific trends and news with their sources
+- csp_take: 1 to 3 sentences about selling cash-secured puts in these conditions
+- covered_call_take: 1 to 3 sentences about any open covered calls and any shares with no call sold against them
+- stock_take: 1 to 3 sentences about the shares currently held, their concentration, and whether holding, adding, or trimming reads better
+- portfolio_take: 2 to 4 sentences on the account as a whole: total exposure, how the positions interact, and what is committed versus free
 - recommendation_take: 2 to 4 sentences comparing the latest recommended tickers
 - action: 1-3 sentences, max 50 words, stating whether to monitor, consider a candidate, or pass
 - avoid: max 50 words
 - company_notes: 2 to 4 objects with ticker and note, prioritizing positions and recommendations
 - scenarios: exactly 3 strings, each max 25 words
+
+Read the whole account, not only the puts. The portfolio context names each kind of position
+separately: open_csp_positions are short puts backed by cash, covered_call_positions are calls
+sold against shares already owned, and share_positions are the stock itself. The holdings map
+gives what those shares really cost after any put premium collected when they were assigned,
+which is the number that decides whether being called away locks in a gain or a loss.
+
+Treat these as one account rather than separate hobbies. Shares assigned from a put become the
+stock position and then the basis for a covered call, so say where each holding sits in that
+cycle. A short call caps the upside of the shares beneath it. Cash committed to puts is not
+available for anything else. Where a section has nothing in it, say so plainly in one short
+sentence instead of inventing activity.
 
 The portfolio and latest recommendations are the center of the response. Explain difficult terms,
 use could/may rather than certainty, connect relevant news to named companies, and do not invent
@@ -290,6 +345,8 @@ def _normalize_market_take(take):
         "csp_stance": take.get("csp_stance", "Selective"),
         "reasoned_take": take.get("reasoned_take", take.get("summary", "")),
         "csp_take": take.get("csp_take", ""),
+        "covered_call_take": take.get("covered_call_take", ""),
+        "stock_take": take.get("stock_take", ""),
         "portfolio_take": take.get("portfolio_take", ""),
         "recommendation_take": take.get("recommendation_take", ""),
         "action": take.get("action", ""), "avoid": take.get("avoid", ""),

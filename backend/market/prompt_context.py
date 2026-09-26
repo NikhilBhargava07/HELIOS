@@ -43,6 +43,8 @@ CANDIDATE_FIELDS = (
 POSITION_FIELDS = (
     "ticker_symbol",
     "contract_symbol",
+    # Named so a short call is never read as a put, now that both reach the model.
+    "option_type",
     "expiration",
     "strike",
     "quantity",
@@ -148,6 +150,18 @@ def compact_portfolio_context(context):
             select_fields(position, POSITION_FIELDS)
             for position in positions
         ],
+        # Each kind of position carries a different risk, so they stay in named groups
+        # rather than one list the model would have to sort out for itself.
+        "covered_call_positions": [
+            select_fields(position, POSITION_FIELDS)
+            for position in context.get("covered_call_positions") or []
+        ],
+        "share_positions": [
+            select_fields(position, POSITION_FIELDS)
+            for position in context.get("share_positions") or []
+        ],
+        # Already compact, and the only place the real cost of the shares appears.
+        "holdings": context.get("holdings") or {},
         "position_source": context.get("position_source"),
     }
 

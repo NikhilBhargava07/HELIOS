@@ -63,7 +63,7 @@ Select the strongest supplied contract, mark the result needs_review, or reject 
 the selected contract is better suited to the current market than the other candidates.
 
 Current portfolio and capital context:
-{"capital":{"total_capital":100000.0,"committed_capital":18000.0},"open_csp_positions":[{"ticker_symbol":"MSFT","contract_symbol":"MSFT261218P00400000","strike":400.0,"quantity":1,"premium_received":250.0,"cash_required":40000.0}],"position_source":"alpaca"}
+{"capital":{"total_capital":100000.0,"committed_capital":18000.0},"open_csp_positions":[{"ticker_symbol":"MSFT","contract_symbol":"MSFT261218P00400000","strike":400.0,"quantity":1,"premium_received":250.0,"cash_required":40000.0}],"covered_call_positions":[],"share_positions":[],"holdings":{},"position_source":"alpaca"}
 
 Retrieved long-term memory:
 {"relevant_episodes":[],"outcome_patterns":{"patterns":[],"driver_patterns":[],"recent_lessons":[],"minimum_sample_size":11,"note":null},"portfolio_outcome_patterns":{"patterns":[],"driver_patterns":[],"recent_lessons":[],"minimum_sample_size":null,"note":null},"recent_outcome_snapshots":[],"latest_open_position_market_context":{"trends":[],"news":[]},"user_profile":null,"explicit_trade_feedback":[],"memory_policy":{},"memory_error":null}

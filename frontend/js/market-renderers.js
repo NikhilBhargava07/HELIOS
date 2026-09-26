@@ -272,13 +272,23 @@ function renderMarketTake(take) {
             </article>
         </div>
         <article class="mt-card mt-wide">
-            <span class="mt-label muted">CSP angle</span>
-            <p class="mt-body">${escapeHtml(take.csp_take || "Keep using the hard filters.")}</p>
+            <span class="mt-label muted">Your portfolio overall</span>
+            <p class="mt-body">${annotateTickers(take.portfolio_take || "No current positions were available to review.")}</p>
         </article>
         <div class="mt-two">
             <article class="mt-card">
-                <span class="mt-label muted">Your open CSPs</span>
-                <p class="mt-body">${annotateTickers(take.portfolio_take || "No current positions were available to review.")}</p>
+                <span class="mt-label muted">Selling puts</span>
+                <p class="mt-body">${annotateTickers(take.csp_take || "Keep using the hard filters.")}</p>
+            </article>
+            <article class="mt-card">
+                <span class="mt-label muted">Your covered calls</span>
+                <p class="mt-body">${annotateTickers(take.covered_call_take || "No covered call view was available.")}</p>
+            </article>
+        </div>
+        <div class="mt-two">
+            <article class="mt-card">
+                <span class="mt-label muted">Your shares</span>
+                <p class="mt-body">${annotateTickers(take.stock_take || "No share view was available.")}</p>
             </article>
             <article class="mt-card">
                 <span class="mt-label muted">Latest recommendations</span>

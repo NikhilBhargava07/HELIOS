@@ -21,6 +21,7 @@ from backend.memory.jobs import (
     read_job_item,
     update_job,
 )
+from backend.memory.holdings import build_holdings
 from backend.memory.recommendations import get_latest_recommendation_run
 from backend.users.profiles import get_user_broker_credentials
 
@@ -75,8 +76,22 @@ def run_market_take_job(job_id, user_id):
             user_id,
             trading_client=trading_client,
         )
+        # The take covers the whole account, not only the puts. Shares carry their own risk,
+        # a short call caps the stock it is sold against, and shares with no call on them are
+        # the next move in a wheel, so all three reach the model rather than cash alone.
+        all_positions = dashboard.get("all_positions") or []
         context["portfolio"] = {
             "open_csp_positions": dashboard["open_positions"],
+            "covered_call_positions": [
+                position for position in all_positions
+                if position.get("option_type") == "call"
+                and (position.get("signed_quantity") or 0) < 0
+            ],
+            "share_positions": [
+                position for position in all_positions
+                if position.get("strategy") == "stock" and (position.get("quantity") or 0) > 0
+            ],
+            "holdings": build_holdings(user_id, all_positions),
             "capital": dashboard["capital"],
             "position_source": dashboard["position_source"],
         }
