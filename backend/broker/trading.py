@@ -16,6 +16,7 @@ from alpaca.trading.enums import (
 from alpaca.trading.requests import GetOrdersRequest, LimitOrderRequest
 
 from backend.config import SHARES_PER_CONTRACT
+from backend.numbers import number_or_none
 
 OPTION_SYMBOL_PATTERN = re.compile(
     r"^(?P<ticker>[A-Z.]+)(?P<expiration>\d{6})(?P<type>[CP])(?P<strike>\d{8})$"
@@ -76,18 +77,6 @@ def serialize_alpaca_model(model):
         return model.dict()
 
     return dict(model)
-
-
-## Safely parse broker numeric fields that may arrive as strings or missing values.
-## Alpaca often returns decimals as strings, so this helper keeps calculations from crashing on blanks.
-def number_or_none(value):
-    if value is None:
-        return None
-
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 ## Return the first parseable number from several possible broker fields.

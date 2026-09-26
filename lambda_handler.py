@@ -16,6 +16,10 @@ from backend.memory.outcome_jobs import (
 from backend.strategy.recommendation_jobs import run_recommendation_job
 
 api_handler = Mangum(app, lifespan="off")
+
+# Lambda's text log format leaves the root logger at WARNING, which silently dropped every
+# informational line HELIOS writes, including scan timings and OpenAI cache measurements.
+logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 

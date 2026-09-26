@@ -136,7 +136,7 @@ class EquityReviewTests(unittest.TestCase):
         prompt = build_review_prompt(EQUITY, candidates, EQUITY.strategy_rules)
 
         self.assertIn('"percent_change_ytd": 4.0', prompt)
-        self.assertIn('"action_taken": "none"', prompt)
+        self.assertIn('"advisory_only_no_order_is_placed": true', prompt)
         self.assertIn("HELIOS will not place any stock order", prompt)
 
 

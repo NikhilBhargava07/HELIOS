@@ -156,9 +156,9 @@ def build_user_profile(user_id):
     # Shares only produce a realized result once they are sold or called away, which is what
     # closes a wheel cycle. Until then a holding has no settled number to report here.
     share_pnl_values = [
-        _settled_share_pnl(item)
-        for item in completed_outcomes
-        if _settled_share_pnl(item) is not None
+        share_pnl
+        for share_pnl in (_settled_share_pnl(item) for item in completed_outcomes)
+        if share_pnl is not None
     ]
     satisfaction_counts = {}
     reason_counts = {}

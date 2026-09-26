@@ -10,6 +10,13 @@
  * backend would refuse.
  */
 
+/** Describe a contract the way both option strategies do: company, expiry, and days left. */
+const optionSubline = candidate =>
+    `${escapeHtml(companyNameForTicker(candidate.tickerSymbol))} · ${escapeHtml(candidate.expiration)} · ${candidate.DTE} DTE`;
+
+/** Label a contract compactly by the days it has left to run. */
+const optionShortMeta = candidate => `${candidate.DTE}d`;
+
 const STRATEGY_VIEWS = {
     cash_secured_put: {
         label: "Cash-secured puts",
@@ -21,9 +28,9 @@ const STRATEGY_VIEWS = {
         idOf: candidate => candidate.contractSymbol,
         underlyingLabel: "Underlying",
         headline: candidate => `Sell 1 ${tickerTooltip(candidate.tickerSymbol)} $${Number(candidate.strike)} put`,
-        subline: candidate => `${escapeHtml(companyNameForTicker(candidate.tickerSymbol))} · ${escapeHtml(candidate.expiration)} · ${candidate.DTE} DTE`,
+        subline: optionSubline,
         shortName: candidate => `${tickerTooltip(candidate.tickerSymbol)} $${Number(candidate.strike)}P`,
-        shortMeta: candidate => `${candidate.DTE}d`,
+        shortMeta: optionShortMeta,
         heroStats: candidate => [
             { label: "Premium", value: money(candidate.premiumIfSoldAtBid), tone: "rec-pos" },
             { label: "Return on cash", value: percent(candidate.returnOnCashPercent) },
@@ -54,9 +61,9 @@ const STRATEGY_VIEWS = {
         idOf: candidate => candidate.contractSymbol,
         underlyingLabel: "Underlying",
         headline: candidate => `Sell 1 ${tickerTooltip(candidate.tickerSymbol)} $${Number(candidate.strike)} call`,
-        subline: candidate => `${escapeHtml(companyNameForTicker(candidate.tickerSymbol))} · ${escapeHtml(candidate.expiration)} · ${candidate.DTE} DTE`,
+        subline: optionSubline,
         shortName: candidate => `${tickerTooltip(candidate.tickerSymbol)} $${Number(candidate.strike)}C`,
-        shortMeta: candidate => `${candidate.DTE}d`,
+        shortMeta: optionShortMeta,
         heroStats: candidate => [
             { label: "Premium", value: money(candidate.premiumIfSoldAtBid), tone: "rec-pos" },
             { label: "If called away", value: money(candidate.maxProfitIfCalledAway), tone: "rec-pos" },

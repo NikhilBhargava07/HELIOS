@@ -16,7 +16,7 @@ def get_open_positions(user_id):
 
 ## Return recent paper-order history newest first.
 ## Newest-first ordering matches the dashboard's "Recent Paper Orders" label and avoids reversing DynamoDB results.
-def get_paper_orders(user_id, limit=20):
+def get_saved_paper_orders(user_id, limit=20):
     return query_items(
         user_pk(user_id),
         "ORDER#",
@@ -77,5 +77,5 @@ def get_dashboard_data(
             open_positions,
         ),
         "open_positions": open_positions,
-        "paper_orders": get_paper_orders(user_id),
+        "paper_orders": get_saved_paper_orders(user_id),
     }

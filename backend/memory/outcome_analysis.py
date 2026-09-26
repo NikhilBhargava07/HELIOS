@@ -6,22 +6,11 @@
 ## timing quality, and future lesson categories so HELIOS can learn with more
 ## human-like nuance.
 
+from backend.numbers import number_or_none
 from datetime import datetime, timezone
 
 
 ## Safely coerce incoming broker or memory values into floats.
-## Alpaca values may already be numbers or may arrive as strings, so every
-## outcome calculation goes through this helper before doing math.
-def number_or_none(value):
-    if value is None:
-        return None
-
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 ## Calculate a percentage while protecting against missing or zero denominators.
 ## Outcome snapshots use this for P/L versus premium and P/L versus reserved cash.
 def percent_of(value, denominator):

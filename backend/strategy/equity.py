@@ -15,6 +15,7 @@ import pandas as pd
 
 from backend.config import APPROVED_TICKERS, MIN_PATTERN_SAMPLE_SIZE
 from backend.market.trends import get_market_trends
+from backend.numbers import number_or_none
 from backend.strategy.spec import ReviewConfig, ScanResult, Strategy
 
 
@@ -40,8 +41,7 @@ STRATEGY_RULES = {
     "strategy": STORED_NAME,
     "approved_tickers": APPROVED_TICKERS,
     # Stated to the model so it never phrases a recommendation as an order HELIOS will place.
-    "action_taken": "none",
-    "advisory_only": True,
+    "advisory_only_no_order_is_placed": True,
     "trend_windows": list(TREND_WINDOWS),
     "minimum_pattern_sample_size": MIN_PATTERN_SAMPLE_SIZE,
 }
@@ -137,20 +137,14 @@ def summarize_candidate(candidate):
     return {
         "ticker_symbol": candidate.tickerSymbol,
         "current_stock_price": float(candidate.currentStockPrice),
-        "percent_change_1d": _number_or_none(candidate.percentChange1Day),
-        "percent_change_5d": _number_or_none(candidate.percentChange5Day),
-        "percent_change_1m": _number_or_none(candidate.percentChange1Month),
-        "percent_change_ytd": _number_or_none(candidate.percentChangeYTD),
-        "shares_held": _number_or_none(candidate.sharesHeld),
-        "cost_basis": _number_or_none(candidate.costBasis),
-        "unrealized_return_percent": _number_or_none(candidate.unrealizedReturnPercent),
+        "percent_change_1d": number_or_none(candidate.percentChange1Day),
+        "percent_change_5d": number_or_none(candidate.percentChange5Day),
+        "percent_change_1m": number_or_none(candidate.percentChange1Month),
+        "percent_change_ytd": number_or_none(candidate.percentChangeYTD),
+        "shares_held": number_or_none(candidate.sharesHeld),
+        "cost_basis": number_or_none(candidate.costBasis),
+        "unrealized_return_percent": number_or_none(candidate.unrealizedReturnPercent),
     }
-
-
-## Convert a possibly missing trend value into a plain number.
-## Missing history stays null in the prompt so the model can see what it does not know.
-def _number_or_none(value):
-    return None if value is None or pd.isna(value) else float(value)
 
 
 ## Decline to recommend a stock when the model is unavailable.
