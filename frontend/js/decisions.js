@@ -1,6 +1,15 @@
 /** Coordinate candidate discard and Alpaca paper-order actions. */
 
-async function submitDecision(action, contractSymbol) {
+/**
+ * Name one candidate in plain text for a toast.
+ * The active strategy supplies the wording, so a call is never announced as a put.
+ */
+function orderLabelFor(candidate) {
+    const view = strategyView(currentStrategyKey);
+    return candidate && view.orderLabel ? view.orderLabel(candidate) : null;
+}
+
+async function submitDecision(action, candidateIdentifier) {
     if (!currentRecommendationRunId) {
         recommendationStatus.textContent = "Run recommendations before recording a decision.";
         return false;
@@ -17,7 +26,7 @@ async function submitDecision(action, contractSymbol) {
             },
             body: JSON.stringify({
                 recommendation_run_id: currentRecommendationRunId,
-                contract_symbol: contractSymbol,
+                contract_symbol: candidateIdentifier,
                 action,
             }),
         });
@@ -52,15 +61,15 @@ async function submitDecision(action, contractSymbol) {
  * Remove a handled candidate from the pool and re-render the featured/alternate layout.
  * When the featured candidate leaves, the next-best candidate is promoted into its place automatically.
  */
-function removeCandidateFromPool(contractSymbol) {
-    candidatePool = candidatePool.filter(candidate => candidate.contractSymbol !== contractSymbol);
+function removeCandidateFromPool(identifier) {
+    candidatePool = candidatePool.filter(candidate => candidateId(candidate) !== identifier);
     renderRecsCandidates();
 }
 
 async function discardCandidate(clickedButton) {
-    const contractSymbol = clickedButton.dataset.contract;
+    const identifier = clickedButton.dataset.contract;
     const card = clickedButton.closest(".rec-featured, .rec-alt");
-    const recorded = await submitDecision("discard", contractSymbol);
+    const recorded = await submitDecision("discard", identifier);
 
     if (!recorded) {
         return;
@@ -68,22 +77,22 @@ async function discardCandidate(clickedButton) {
 
     if (card) {
         card.classList.add("discarding");
-        setTimeout(() => removeCandidateFromPool(contractSymbol), 180);
+        setTimeout(() => removeCandidateFromPool(identifier), 180);
     } else {
-        removeCandidateFromPool(contractSymbol);
+        removeCandidateFromPool(identifier);
     }
 }
 
 async function placeCandidate(clickedButton) {
-    const contractSymbol = clickedButton.dataset.contract;
+    const identifier = clickedButton.dataset.contract;
     const card = clickedButton.closest(".rec-featured, .rec-alt");
-    const candidate = candidateByContract(contractSymbol);
+    const candidate = candidateById(identifier);
     const originalButtonText = clickedButton.textContent;
 
     clickedButton.disabled = true;
     clickedButton.textContent = "Placing...";
 
-    const result = await submitDecision("place_paper_order", contractSymbol);
+    const result = await submitDecision("place_paper_order", identifier);
 
     if (!result) {
         clickedButton.disabled = false;
@@ -102,7 +111,7 @@ async function placeCandidate(clickedButton) {
 
         // A rejected order can mean buying power moved, so re-check what is on screen rather than rescanning it.
         if (result.refresh_recommendations) {
-            candidatePool = filterAffordableCandidates(
+            candidatePool = candidatesWithinLimits(
                 candidatePool,
                 result.dashboard?.capital?.effective_available_csp_capital,
             );
@@ -115,8 +124,8 @@ async function placeCandidate(clickedButton) {
 
     // Placing an order spends buying power, so keep the recommendations the user is weighing and drop only
     // the ones the account can no longer cash-secure. Rescanning here would replace them mid-decision.
-    const remaining = candidatePool.filter(pooled => pooled.contractSymbol !== contractSymbol);
-    const stillAffordable = filterAffordableCandidates(
+    const remaining = candidatePool.filter(pooled => candidateId(pooled) !== identifier);
+    const stillAffordable = candidatesWithinLimits(
         remaining,
         result.dashboard?.capital?.effective_available_csp_capital,
     );
@@ -128,8 +137,8 @@ async function placeCandidate(clickedButton) {
     showToast(
         result.duplicate_prevented ? "Paper order already placed" : "Paper order placed",
         (result.duplicate_prevented
-            ? `The earlier ${candidate?.tickerSymbol || contractSymbol} order was found, so HELIOS did not submit a duplicate.`
-            : `${candidate?.tickerSymbol || contractSymbol} ${money(candidate?.strike || 0)} put submitted to Alpaca (${result.alpaca_order?.status || "submitted"}).`)
+            ? `The earlier ${candidate?.tickerSymbol || identifier} order was found, so HELIOS did not submit a duplicate.`
+            : `${orderLabelFor(candidate) || identifier} submitted to Alpaca (${result.alpaca_order?.status || "submitted"}).`)
             + droppedNote,
     );
 

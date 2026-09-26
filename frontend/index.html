@@ -136,11 +136,17 @@
             <div class="page-header compact">
                 <p class="eyebrow">Paper-trading prototype</p>
                 <div class="rec-header-row">
-                    <h1>CSP Recommendations</h1>
+                    <h1>Recommendations</h1>
                     <button id="load-recommendations" type="button">Run scan</button>
                 </div>
-                <p class="subhead">
-                    Scans approved tickers, applies hard safety filters, then asks the agent to review the top CSP candidates.
+                <!-- One strategy is scanned at a time, so the review and candidates on screen always share a single set of rules. -->
+                <div class="strategy-tabs" role="tablist" aria-label="Strategy">
+                    <button class="strategy-tab active" type="button" role="tab" aria-selected="true" data-strategy="cash_secured_put">Cash-secured puts</button>
+                    <button class="strategy-tab" type="button" role="tab" aria-selected="false" data-strategy="covered_call">Covered calls</button>
+                    <button class="strategy-tab" type="button" role="tab" aria-selected="false" data-strategy="equity">Stocks</button>
+                </div>
+                <p class="subhead" id="strategy-subhead">
+                    Scans approved tickers, applies hard safety filters, then asks the agent to review the top candidates.
                 </p>
             </div>
             <!-- Capital snapshot for the current run so exposure is visible before acting on a candidate. -->
@@ -309,14 +315,15 @@
 
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
     <script src="js/api.js?v=4"></script>
-    <script src="js/state.js?v=6"></script>
+    <script src="js/state.js?v=7"></script>
     <script src="js/auth.js?v=9"></script>
-    <script src="js/formatters.js?v=3"></script>
-    <script src="js/recommendation-renderers.js?v=8"></script>
+    <script src="js/formatters.js?v=4"></script>
+    <script src="js/strategy-views.js?v=2"></script>
+    <script src="js/recommendation-renderers.js?v=10"></script>
     <script src="js/market-renderers.js?v=6"></script>
-    <script src="js/loaders.js?v=10"></script>
-    <script src="js/decisions.js?v=6"></script>
+    <script src="js/loaders.js?v=11"></script>
+    <script src="js/decisions.js?v=7"></script>
     <script src="js/profile.js?v=6"></script>
-    <script src="js/app.js?v=15"></script>
+    <script src="js/app.js?v=16"></script>
 </body>
 </html>

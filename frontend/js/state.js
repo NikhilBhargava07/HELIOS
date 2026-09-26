@@ -5,6 +5,8 @@
 
 // DOM elements used by controllers and renderers. Keeping references here avoids repeated querySelector calls across files.
 const button = document.querySelector("#load-recommendations");
+const strategyTabs = document.querySelectorAll(".strategy-tab");
+const strategySubhead = document.querySelector("#strategy-subhead");
 const trendsButton = document.querySelector("#load-trends");
 const newsButton = document.querySelector("#load-news");
 const summarizeMarketButton = document.querySelector("#summarize-market");
@@ -32,6 +34,10 @@ const toastEl = document.querySelector("#toast");
 
 // Mutable UI state shared across the simple script modules. These values track the active recommendation run, visible cards, loaded market data, and refresh timers.
 let currentRecommendationRunId = null;
+// The strategy the user has selected, and the one the candidates on screen actually came from.
+// They differ while a scan is running, so renderers read the second rather than the first.
+let activeStrategyKey = "cash_secured_put";
+let currentStrategyKey = "cash_secured_put";
 let companyNames = {};
 let candidatePool = [];
 let recommendedContract = null;

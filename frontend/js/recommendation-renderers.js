@@ -45,7 +45,7 @@ function renderReview(review) {
             <span class="rec-lbl">Agent review</span>
             <span class="rec-badge ${hasSelection ? "approve" : "reject"}">${formatDecision(review.decision)}</span>
             ${hasSelection ? `<span class="rec-review-sel num">${annotateTickers(review.selected_contract)}</span>` : ""}
-            ${hasSelection ? `
+            ${hasSelection && strategyView(currentStrategyKey).canPlace ? `
                 <button class="rec-review-place" data-action="place_paper_order" data-contract="${escapeHtml(review.selected_contract)}">Paper place</button>
             ` : ""}
         </div>
@@ -74,7 +74,7 @@ function orderByRecommended(candidates, selectedContract) {
         return ordered;
     }
 
-    const index = ordered.findIndex(candidate => candidate.contractSymbol === selectedContract);
+    const index = ordered.findIndex(candidate => candidateId(candidate) === selectedContract);
 
     if (index > 0) {
         const [picked] = ordered.splice(index, 1);
@@ -104,40 +104,51 @@ function renderRecsCandidates() {
 }
 
 /**
- * Render the featured CSP card with the practical numbers needed before paper placing.
- * Premium, return on cash, and delta are promoted as hero stats; the remaining details stay in a quiet aligned row.
+ * Render the featured card with the practical numbers needed before acting on it.
+ * The active strategy's view decides the headline, which numbers lead, and whether placing is offered at all.
  */
 function renderFeaturedCandidate(candidate) {
+    const view = strategyView(currentStrategyKey);
+    const id = view.idOf(candidate);
+
     return `
-        <article class="rec-featured" data-contract="${candidate.contractSymbol}">
+        <article class="rec-featured" data-contract="${escapeHtml(id)}">
             <div class="rec-featured-top">
                 <div>
                     <p class="rec-eyebrow">Recommended</p>
-                    <h3>Sell 1 ${tickerTooltip(candidate.tickerSymbol)} $${Number(candidate.strike)} put</h3>
-                    <p class="rec-sub">${escapeHtml(companyNameForTicker(candidate.tickerSymbol))} · ${escapeHtml(candidate.expiration)} · ${candidate.DTE} DTE</p>
+                    <h3>${view.headline(candidate)}</h3>
+                    <p class="rec-sub">${view.subline(candidate)}</p>
                 </div>
-                <div class="rec-featured-price">
-                    <span class="rec-lbl">Underlying</span>
-                    <span class="num">${money(candidate.currentStockPrice)}</span>
-                </div>
+                ${view.underlyingLabel ? `
+                    <div class="rec-featured-price">
+                        <span class="rec-lbl">${view.underlyingLabel}</span>
+                        <span class="num">${money(candidate.currentStockPrice)}</span>
+                    </div>
+                ` : ""}
             </div>
             <div class="rec-hero-stats">
-                <div class="rec-hero-stat"><span class="rec-lbl">Premium</span><span class="num rec-pos">${money(candidate.premiumIfSoldAtBid)}</span></div>
-                <div class="rec-hero-stat"><span class="rec-lbl">Return on cash</span><span class="num">${percent(candidate.returnOnCashPercent)}</span></div>
-                <div class="rec-hero-stat"><span class="rec-lbl">Delta</span><span class="num">${Number(candidate.delta).toFixed(2)}</span></div>
+                ${view.heroStats(candidate).map(renderHeroStat).join("")}
             </div>
             <div class="rec-detail-row">
-                <span class="rec-lbl">IV<span class="num">${percent(candidate.ivPercent)}</span></span>
-                <span class="rec-lbl">Spread<span class="num">${money(candidate.spread)}</span></span>
-                <span class="rec-lbl">Cash required<span class="num">${money(candidate.cashRequired)}</span></span>
-                <span class="rec-lbl">Breakeven<span class="num">${money(candidate.breakevenPrice)}</span></span>
+                ${view.details(candidate).map(renderDetailStat).join("")}
             </div>
+            ${view.advisoryNote ? `<p class="rec-advisory">${escapeHtml(view.advisoryNote)}</p>` : ""}
             <div class="rec-actions">
-                <button data-action="place_paper_order" data-contract="${candidate.contractSymbol}">Paper place</button>
-                <button class="rec-ghost" data-action="discard" data-contract="${candidate.contractSymbol}">Discard</button>
+                ${view.canPlace ? `<button data-action="place_paper_order" data-contract="${escapeHtml(id)}">Paper place</button>` : ""}
+                <button class="rec-ghost" data-action="discard" data-contract="${escapeHtml(id)}">Discard</button>
             </div>
         </article>
     `;
+}
+
+/** Render one leading stat for a candidate card. */
+function renderHeroStat(stat) {
+    return `<div class="rec-hero-stat"><span class="rec-lbl">${stat.label}</span><span class="num ${stat.tone || ""}">${stat.value}</span></div>`;
+}
+
+/** Render one secondary stat in a card's quiet aligned row. */
+function renderDetailStat(stat) {
+    return `<span class="rec-lbl">${stat.label}<span class="num ${stat.tone || ""}">${stat.value}</span></span>`;
 }
 
 /**
@@ -163,27 +174,25 @@ function renderAlternates(alternates) {
  * The headline numbers stay visible; the expanding panel adds IV, spread, cash, and breakeven plus place/discard actions, so a candidate can be reviewed and placed without leaving the row.
  */
 function renderAlternateCard(candidate) {
+    const view = strategyView(currentStrategyKey);
+    const id = view.idOf(candidate);
+
     return `
-        <article class="rec-alt" data-contract="${candidate.contractSymbol}" tabindex="0">
+        <article class="rec-alt" data-contract="${escapeHtml(id)}" tabindex="0">
             <div class="rec-alt-top">
-                <span class="rec-alt-name">${tickerTooltip(candidate.tickerSymbol)} $${Number(candidate.strike)}P</span>
-                <span class="rec-lbl num">${candidate.DTE}d</span>
+                <span class="rec-alt-name">${view.shortName(candidate)}</span>
+                <span class="rec-lbl num">${view.shortMeta(candidate)}</span>
             </div>
             <div class="rec-alt-stats">
-                <span class="rec-lbl">Prem<span class="num rec-pos">${money(candidate.premiumIfSoldAtBid)}</span></span>
-                <span class="rec-lbl">ROC<span class="num">${percent(candidate.returnOnCashPercent)}</span></span>
-                <span class="rec-lbl">&Delta;<span class="num">${Number(candidate.delta).toFixed(2)}</span></span>
+                ${view.compactStats(candidate).map(renderDetailStat).join("")}
             </div>
             <div class="rec-alt-detail">
                 <div class="rec-alt-detail-grid">
-                    <span class="rec-lbl">IV<span class="num">${percent(candidate.ivPercent)}</span></span>
-                    <span class="rec-lbl">Spread<span class="num">${money(candidate.spread)}</span></span>
-                    <span class="rec-lbl">Cash<span class="num">${money(candidate.cashRequired)}</span></span>
-                    <span class="rec-lbl">Breakeven<span class="num">${money(candidate.breakevenPrice)}</span></span>
+                    ${view.details(candidate).map(renderDetailStat).join("")}
                 </div>
                 <div class="rec-alt-actions">
-                    <button data-action="place_paper_order" data-contract="${candidate.contractSymbol}">Paper place</button>
-                    <button class="rec-ghost" data-action="discard" data-contract="${candidate.contractSymbol}">Discard</button>
+                    ${view.canPlace ? `<button data-action="place_paper_order" data-contract="${escapeHtml(id)}">Paper place</button>` : ""}
+                    <button class="rec-ghost" data-action="discard" data-contract="${escapeHtml(id)}">Discard</button>
                 </div>
             </div>
         </article>

@@ -18,16 +18,20 @@ def _run_pk(run_id):
     return f"RUN#{run_id}"
 
 
-## Locate one candidate contract inside a reconstructed recommendation run.
-## Decision routes use this to reject arbitrary contracts that were not part of the saved run.
-def find_candidate(run, contract_symbol):
+## Locate one candidate inside a reconstructed recommendation run.
+##
+## Decision routes use this to reject anything that was not part of the saved run.
+## A contract is matched by its symbol; a stock recommendation carries no contract
+## symbol and is matched by ticker, which stays unambiguous because only one kind
+## of candidate ever appears in a single run.
+def find_candidate(run, identifier):
     if not run:
         return None
     return next(
         (
             candidate
             for candidate in run["candidates"]
-            if candidate["contractSymbol"] == contract_symbol
+            if candidate.get("contractSymbol", candidate.get("tickerSymbol")) == identifier
         ),
         None,
     )

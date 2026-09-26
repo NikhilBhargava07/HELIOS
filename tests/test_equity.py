@@ -13,6 +13,7 @@ import pandas as pd
 
 from backend.api.services import candidates_to_records
 from backend.memory.recommendations import save_recommendation_run
+from backend.memory.trades import record_user_decision
 from backend.strategy.equity import EQUITY, find_candidates, local_review, secure_candidate
 from backend.strategy.recommender import get_recommendation_results
 from backend.strategy.review_prompt import build_review_prompt
@@ -158,6 +159,24 @@ class EquityPlacementTests(unittest.TestCase):
     def test_placement_is_refused(self):
         with self.assertRaisesRegex(ValueError, "does not place stock orders"):
             secure_candidate({"tickerSymbol": "AAPL"}, context=None)
+
+    ## Discarding a stock idea still teaches HELIOS something, so the ticker has to resolve to its candidate.
+    @patch("backend.memory.trades.put_item")
+    @patch("backend.memory.trades.get_item", return_value=None)
+    @patch("backend.memory.trades.get_recommendation_run")
+    def test_a_stock_idea_can_be_discarded_by_ticker(self, get_run, _get_item, put_item):
+        get_run.return_value = {
+            "candidates": [{"tickerSymbol": "AAPL", "currentStockPrice": 232.15}],
+            "agent_review": {"selected_contract": "AAPL", "decision": "approve"},
+            "strategy_rules": EQUITY.strategy_rules,
+        }
+
+        decision = record_user_decision("user-1", "run-1", "AAPL", "discard", note="too concentrated")
+
+        self.assertEqual(decision["ticker_symbol"], "AAPL")
+        self.assertEqual(decision["action"], "discard")
+        saved = put_item.call_args.args[0]
+        self.assertEqual(saved["item_type"], "user_decision")
 
 
 class EquityRecordTests(unittest.TestCase):

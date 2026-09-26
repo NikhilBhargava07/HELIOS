@@ -15,8 +15,8 @@ function money(value) {
  * Find a loaded candidate by its OCC contract symbol.
  * User actions reference contract symbols, so this helper ties button clicks back to the exact candidate object that was rendered.
  */
-function candidateByContract(contractSymbol) {
-    return candidatePool.find(candidate => candidate.contractSymbol === contractSymbol);
+function candidateById(identifier) {
+    return candidatePool.find(candidate => candidateId(candidate) === identifier);
 }
 
 /**
@@ -48,7 +48,7 @@ function selectedContractIsAffordable(review, candidates) {
         return false;
     }
 
-    return candidates.some(candidate => candidate.contractSymbol === review.selected_contract);
+    return candidates.some(candidate => candidateId(candidate) === review.selected_contract);
 }
 
 /**
@@ -75,7 +75,7 @@ function reviewWithAffordableSelection(review, candidates, availableCash) {
 
     return {
         ...review,
-        selected_contract: candidates[0].contractSymbol,
+        selected_contract: candidateId(candidates[0]),
         summary: `${review.summary} The original agent selection is not currently affordable, so the app is showing the best affordable displayed candidate instead.`,
         risk_note: `${review.risk_note} Cash availability can change after orders, open positions, or Alpaca buying-power updates.`,
     };

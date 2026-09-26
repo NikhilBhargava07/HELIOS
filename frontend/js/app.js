@@ -49,6 +49,42 @@ if (button) {
         loadRecommendations();
     });
 }
+
+/**
+ * Switch which strategy the next scan will run.
+ * Candidates already on screen were scanned under the previous strategy's rules, so they are
+ * cleared rather than relabeled: showing a put's numbers under a covered call heading would lie.
+ */
+function selectStrategy(strategyKey) {
+    if (strategyKey === activeStrategyKey) {
+        return;
+    }
+
+    activeStrategyKey = strategyKey;
+    const view = strategyView(strategyKey);
+
+    strategyTabs.forEach(tab => {
+        const selected = tab.dataset.strategy === strategyKey;
+        tab.classList.toggle("active", selected);
+        tab.setAttribute("aria-selected", String(selected));
+    });
+
+    if (strategySubhead) {
+        strategySubhead.textContent = view.subhead;
+    }
+
+    currentRecommendationRunId = null;
+    candidatePool = [];
+    recommendedContract = null;
+    candidateList.innerHTML = "";
+    reviewEl.classList.add("empty");
+    reviewEl.textContent = `Run the scan to see the agent's ${view.label.toLowerCase()} review.`;
+    recommendationStatus.textContent = `Ready to run a ${view.scanLabel}.`;
+}
+
+strategyTabs.forEach(tab => {
+    tab.addEventListener("click", () => selectStrategy(tab.dataset.strategy));
+});
 trendsButton.addEventListener("click", loadTrends);
 newsButton.addEventListener("click", loadNews);
 summarizeMarketButton.addEventListener("click", loadMarketTake);

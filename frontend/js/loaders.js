@@ -4,10 +4,12 @@ async function loadRecommendations() {
     if (button) {
         button.disabled = true;
     }
-    setScanStatus("Starting CSP scan...");
+
+    const view = strategyView(activeStrategyKey);
+    setScanStatus(`Starting ${view.scanLabel}...`);
 
     try {
-        const response = await apiFetch("/api/recommendations/jobs", {
+        const response = await apiFetch(`/api/recommendations/jobs?strategy=${encodeURIComponent(activeStrategyKey)}`, {
             auth: true,
             method: "POST",
         });
@@ -47,11 +49,11 @@ async function pollRecommendationJob(jobId, attempt = 1) {
         }
 
         if (job.status === "failed") {
-            throw new Error(job.error?.message || "CSP scan failed.");
+            throw new Error(job.error?.message || "The scan failed.");
         }
 
         if (attempt >= maxAttempts) {
-            throw new Error("CSP scan is still running. Try again in a moment.");
+            throw new Error("The scan is still running. Try again in a moment.");
         }
 
         setTimeout(() => pollRecommendationJob(jobId, attempt + 1), pollDelayMs);
@@ -62,21 +64,26 @@ async function pollRecommendationJob(jobId, attempt = 1) {
 
 // Render a completed scan payload into the review, candidate, and dashboard panels.
 function renderRecommendations(data) {
+    // The run itself says which strategy produced it, so a scan started before the user
+    // switched tabs still renders with the columns and actions it was scanned under.
+    currentStrategyKey = data.strategy_key || activeStrategyKey;
+    const view = strategyView(currentStrategyKey);
     const effectiveAvailableCash = data.capital?.effective_available_csp_capital;
-    const affordableCandidates = filterAffordableCandidates(data.candidates || [], effectiveAvailableCash);
-    const affordableReview = reviewWithAffordableSelection(
-        data.review,
-        affordableCandidates,
-        effectiveAvailableCash,
-    );
+    const shownCandidates = candidatesWithinLimits(data.candidates || [], effectiveAvailableCash);
+    const shownReview = view.limitedByCash
+        ? reviewWithAffordableSelection(data.review, shownCandidates, effectiveAvailableCash)
+        : data.review;
 
     currentRecommendationRunId = data.recommendation_run_id;
     companyNames = data.company_names || companyNames;
-    renderReview(affordableReview);
-    renderCandidates(affordableCandidates, affordableReview?.selected_contract);
+    renderReview(shownReview);
+    renderCandidates(shownCandidates, shownReview?.selected_contract);
     renderRecsMetrics(data.dashboard);
     renderDashboard(data.dashboard);
-    recommendationStatus.textContent = `Scanned ${(data.approved_tickers || []).length} approved tickers. Showing ${affordableCandidates.length} cash-backed candidates.`;
+    const shownNote = view.limitedByCash
+        ? `Showing ${shownCandidates.length} cash-backed candidates.`
+        : `Showing ${shownCandidates.length} candidates.`;
+    recommendationStatus.textContent = `Scanned ${(data.approved_tickers || []).length} approved tickers. ${shownNote}`;
 }
 
 // Show scan progress on the recommendations page itself; the home-page status line is hidden here.
