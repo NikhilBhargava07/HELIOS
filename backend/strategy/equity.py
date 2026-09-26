@@ -63,6 +63,10 @@ Unlike an option, a share has no expiration and no premium, so there is no struc
 trade. Say so when your view rests on judgment rather than measurable evidence, and prefer recommending
 nothing over recommending something weakly supported. Concentration matters: consider what the user already
 owns, including shares held against covered calls and cash committed to puts on the same ticker or sector.
+
+This strategy is the exception to reviewing every candidate. Every approved stock is listed above so you can
+compare them, but write candidate_reviews only for the ones worth acting on or warning about, at most eight,
+and say in the summary how many you considered. A written opinion on every ticker would bury the few that matter.
 """
 
 

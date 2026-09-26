@@ -4,25 +4,23 @@
  * Render the capital snapshot strip at the top of the recommendations page.
  * Showing available cash, committed capital, open slots, and buying power up front means exposure is visible before the user acts on any candidate.
  */
-function renderRecsMetrics(dashboard) {
+function renderRecsMetrics(data) {
     const metricsEl = document.querySelector("#recs-metrics");
 
-    if (!metricsEl || !dashboard) {
+    if (!metricsEl || !data?.dashboard) {
         return;
     }
 
-    const capital = dashboard.capital || {};
-    const account = dashboard.account || {};
-    const available = capital.effective_available_csp_capital ?? capital.available_csp_capital ?? 0;
-    const buyingPower = account.options_buying_power ?? account.buying_power ?? capital.total_capital ?? 0;
-
+    // Each strategy is limited by a different thing, so each states its own: cash secures a
+    // put, shares make a covered call possible, and buying stock just spends money.
     metricsEl.classList.remove("empty");
-    metricsEl.innerHTML = `
-        <div class="rec-metric"><span class="rec-lbl">Available CSP cash</span><span class="num">${money(available)}</span></div>
-        <div class="rec-metric"><span class="rec-lbl">Committed</span><span class="num">${money(capital.committed_capital ?? 0)}</span></div>
-        <div class="rec-metric"><span class="rec-lbl">Open CSPs</span><span class="num">${capital.open_position_count ?? 0}<span class="rec-metric-sub"> / ${capital.max_open_positions ?? 5}</span></span></div>
-        <div class="rec-metric"><span class="rec-lbl">Buying power</span><span class="num">${money(buyingPower)}</span></div>
-    `;
+    metricsEl.innerHTML = strategyView(currentStrategyKey).metrics(data).map(metric => `
+        <div class="rec-metric">
+            <span class="rec-lbl">${escapeHtml(metric.label)}</span>
+            <span class="num">${escapeHtml(String(metric.value))}${metric.suffix ? `<span class="rec-metric-sub">${escapeHtml(metric.suffix)}</span>` : ""}</span>
+            ${metric.hint ? `<span class="rec-metric-hint">${escapeHtml(metric.hint)}</span>` : ""}
+        </div>
+    `).join("");
 }
 
 /**

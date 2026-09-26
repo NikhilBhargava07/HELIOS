@@ -77,6 +77,11 @@ function selectStrategy(strategyKey) {
     candidatePool = [];
     recommendedContract = null;
     candidateList.innerHTML = "";
+    const metricsEl = document.querySelector("#recs-metrics");
+    if (metricsEl) {
+        metricsEl.classList.add("empty");
+        metricsEl.innerHTML = "";
+    }
     reviewEl.classList.add("empty");
     reviewEl.textContent = `Run the scan to see the agent's ${view.label.toLowerCase()} review.`;
     recommendationStatus.textContent = `Ready to run a ${view.scanLabel}.`;

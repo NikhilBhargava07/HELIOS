@@ -78,7 +78,7 @@ function renderRecommendations(data) {
     companyNames = data.company_names || companyNames;
     renderReview(shownReview);
     renderCandidates(shownCandidates, shownReview?.selected_contract);
-    renderRecsMetrics(data.dashboard);
+    renderRecsMetrics(data);
     renderDashboard(data.dashboard);
     const shownNote = view.limitedByCash
         ? `Showing ${shownCandidates.length} cash-backed candidates.`

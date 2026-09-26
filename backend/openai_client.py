@@ -19,6 +19,7 @@ OPENAI_ERROR_MESSAGES = {
     "connection_error": "HELIOS could not reach OpenAI",
     "service_error": "OpenAI returned a temporary service error",
     "invalid_response": "OpenAI returned an unusable structured response",
+    "incomplete_response": "OpenAI's reply was cut off before it finished",
     "request_error": "OpenAI could not complete the request",
 }
 

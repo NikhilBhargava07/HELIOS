@@ -281,6 +281,13 @@
     color: var(--neg);
 }
 
+#recommendations .rec-metric-hint {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 0.72rem;
+}
+
 /* One strategy is scanned at a time, so the tabs read as a single choice rather than filters. */
 #recommendations .strategy-tabs {
     display: flex;

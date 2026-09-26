@@ -24,6 +24,17 @@ const STRATEGY_VIEWS = {
         subhead: "Scans approved tickers, applies hard safety filters, then asks the agent to review the top candidates.",
         // Selling a put ties up cash, so a candidate the account can no longer back is hidden.
         limitedByCash: true,
+        // Cash is what secures a put, so the capital strip is the limit that matters.
+        metrics: data => {
+            const capital = data.dashboard?.capital || {};
+            const account = data.dashboard?.account || {};
+            return [
+                { label: "Available CSP cash", value: money(capital.effective_available_csp_capital ?? capital.available_csp_capital ?? 0) },
+                { label: "Committed", value: money(capital.committed_capital ?? 0) },
+                { label: "Open CSPs", value: `${capital.open_position_count ?? 0}`, suffix: ` / ${capital.max_open_positions ?? 5}` },
+                { label: "Buying power", value: money(account.options_buying_power ?? account.buying_power ?? capital.total_capital ?? 0) },
+            ];
+        },
         canPlace: true,
         idOf: candidate => candidate.contractSymbol,
         underlyingLabel: "Underlying",
@@ -58,6 +69,27 @@ const STRATEGY_VIEWS = {
         // Shares secure a covered call, so buying power never limits which ones are shown.
         limitedByCash: false,
         canPlace: true,
+        // Shares are the constraint here, so the strip names the stocks that can actually cover a call.
+        metrics: data => {
+            const holdings = data.holdings || {};
+            const eligible = Object.entries(holdings)
+                .filter(([, holding]) => (holding.uncovered_shares || 0) >= SHARES_PER_CONTRACT)
+                .sort(([a], [b]) => a.localeCompare(b));
+            const lots = eligible.reduce(
+                (total, [, holding]) => total + Math.floor(holding.uncovered_shares / SHARES_PER_CONTRACT),
+                0,
+            );
+            const covered = Object.values(holdings).reduce((total, holding) => total + (holding.covered_shares || 0), 0);
+            return [
+                {
+                    label: "Eligible tickers",
+                    value: eligible.length ? eligible.map(([ticker]) => ticker).join(", ") : "None",
+                    hint: eligible.length ? "" : `needs ${SHARES_PER_CONTRACT}+ uncovered shares`,
+                },
+                { label: "Calls you could sell", value: `${lots}` },
+                { label: "Shares already covered", value: `${covered}` },
+            ];
+        },
         idOf: candidate => candidate.contractSymbol,
         underlyingLabel: "Underlying",
         headline: candidate => `Sell 1 ${tickerTooltip(candidate.tickerSymbol)} $${Number(candidate.strike)} call`,
@@ -89,6 +121,17 @@ const STRATEGY_VIEWS = {
         subhead: "Reviews approved stocks against recent price history and what you already own. HELIOS does not place stock orders.",
         limitedByCash: false,
         canPlace: false,
+        // Buying stock spends ordinary cash, so that is the only number worth stating.
+        metrics: data => {
+            const account = data.dashboard?.account || {};
+            const heldValue = (data.dashboard?.stock_positions || [])
+                .reduce((total, position) => total + Number(position.market_value || 0), 0);
+            return [
+                { label: "Cash", value: money(account.cash ?? 0) },
+                { label: "Buying power", value: money(account.buying_power ?? account.cash ?? 0) },
+                { label: "Stock you hold", value: money(heldValue) },
+            ];
+        },
         advisoryNote: "HELIOS does not trade stocks. This is a recommendation to act on yourself.",
         idOf: candidate => candidate.tickerSymbol,
         underlyingLabel: null,
@@ -124,6 +167,8 @@ const STRATEGY_VIEWS = {
 };
 
 const DEFAULT_STRATEGY_KEY = "cash_secured_put";
+// One option contract covers this many shares, matching the backend's single definition.
+const SHARES_PER_CONTRACT = 100;
 
 /**
  * Return the view for one strategy key, falling back to the default.

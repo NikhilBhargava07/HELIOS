@@ -143,6 +143,27 @@ def review_candidates(
             prompt_cache_key=REVIEW_CACHE_KEY,
             store=False,
         )
+        # A review that ran past its output budget arrives as truncated JSON. Parsing it would
+        # fail as an unreadable response, which hides the real cause: the model was asked for
+        # more writing than the budget allows.
+        if getattr(response, "status", None) == "incomplete":
+            reason = getattr(getattr(response, "incomplete_details", None), "reason", "unknown")
+            logger.warning(
+                "OpenAI %s review was cut off after %.2fs (reason=%s, max_output_tokens=%s, candidates=%s)",
+                strategy.key,
+                time.monotonic() - started_at,
+                reason,
+                OPENAI_REVIEW_MAX_OUTPUT_TOKENS,
+                len(candidates),
+            )
+            return _fallback_review(
+                strategy,
+                ticker_symbol,
+                candidates,
+                "incomplete_response",
+                "The model's review ran past its output budget, so local rule-based review was used.",
+            )
+
         review = json.loads(response.output_text)
         review["review_source"] = "openai"
         review["ai_error_code"] = None

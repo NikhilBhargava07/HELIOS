@@ -17,6 +17,7 @@ from backend.broker.trading import (
     build_helios_client_order_id,
     submit_sell_to_open_option_order,
 )
+from backend.memory.holdings import build_holdings
 from backend.memory.trades import record_user_decision
 from backend.strategy.registry import DEFAULT_STRATEGY_KEY, get_strategy
 from backend.strategy.recommendation_jobs import (
@@ -123,14 +124,16 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
                 request.contract_symbol,
                 store_action, request.note, order_error=order_error,
             )
+            dashboard = get_dashboard_with_cash_context(
+                user_id,
+                alpaca_account,
+                trading_client=trading_client,
+            )
             return {
                 "decision": decision, "order_submitted": False,
                 "order_error": order_error, "refresh_recommendations": True,
-                "dashboard": get_dashboard_with_cash_context(
-                    user_id,
-                    alpaca_account,
-                    trading_client=trading_client,
-                ),
+                "dashboard": dashboard,
+                "holdings": build_holdings(user_id, dashboard.get("all_positions")),
             }
 
     decision = record_user_decision(
@@ -144,14 +147,18 @@ def post_user_decision(request: UserDecisionRequest, http_request: Request):
         candidate_override=(candidate if request.action == UserDecisionAction.PLACE_PAPER_ORDER else None),
         strategy=(strategy if request.action == UserDecisionAction.PLACE_PAPER_ORDER else None),
     )
+    dashboard = get_dashboard_with_cash_context(
+        user_id,
+        trading_client=trading_client,
+    )
     return {
         "decision": decision,
         "order_submitted": alpaca_order is not None,
         "duplicate_prevented": duplicate_prevented,
         "alpaca_order": alpaca_order,
         "refresh_recommendations": request.action == UserDecisionAction.PLACE_PAPER_ORDER,
-        "dashboard": get_dashboard_with_cash_context(
-            user_id,
-            trading_client=trading_client,
-        ),
+        "dashboard": dashboard,
+        # Selling a covered call consumes the shares that made it possible, so the page is told
+        # what is still free rather than keeping the count the scan started with.
+        "holdings": build_holdings(user_id, dashboard.get("all_positions")),
     }

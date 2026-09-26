@@ -115,7 +115,7 @@ async function placeCandidate(clickedButton) {
                 candidatePool,
                 result.dashboard?.capital?.effective_available_csp_capital,
             );
-            renderRecsMetrics(result.dashboard);
+            renderRecsMetrics(result);
             renderRecsCandidates();
         }
 
@@ -142,7 +142,7 @@ async function placeCandidate(clickedButton) {
             + droppedNote,
     );
 
-    renderRecsMetrics(result.dashboard);
+    renderRecsMetrics(result);
     const settlePool = () => {
         candidatePool = stillAffordable;
         renderRecsCandidates();

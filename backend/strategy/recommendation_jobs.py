@@ -112,6 +112,7 @@ def run_recommendation_job(job_id, user_id):
             )
         capital = dashboard["capital"]
         effective_cash = get_effective_available_csp_cash(capital, alpaca_account)
+        holdings = build_holdings(user_id, dashboard.get("all_positions"))
         results = get_recommendation_results(
             strategy,
             user_id=user_id,
@@ -122,7 +123,7 @@ def run_recommendation_job(job_id, user_id):
             portfolio_context={
                 "capital": capital,
                 "open_csp_positions": dashboard["open_positions"],
-                "holdings": build_holdings(user_id, dashboard.get("all_positions")),
+                "holdings": holdings,
             },
             stock_data_client=stock_data_client,
             option_data_client=option_data_client,
@@ -152,6 +153,9 @@ def run_recommendation_job(job_id, user_id):
             "approved_tickers": APPROVED_TICKERS,
             "company_names": COMPANY_NAMES, "strategy_rules": strategy.strategy_rules,
             "capital": attach_alpaca_cash_context(capital, alpaca_account),
+            # What the account holds per ticker, so the page can state each strategy's own
+            # limit: cash secures a put, but shares are what make a covered call possible.
+            "holdings": holdings,
             "dashboard": dashboard,
             "candidates": candidates, "review": results["review"],
             "learning_refresh": learning_refresh,
