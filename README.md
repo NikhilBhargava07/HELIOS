@@ -73,7 +73,12 @@ Before anything reaches the broker, the order passes a few more checks. It re-pu
 
 ### Users cannot see each other's data
 
-Everything lives in one DynamoDB table, and every row is stored under a key built from the signed-in user's Cognito ID:
+A broker secret key can place trades, so it is not kept with ordinary data. Each user's secret lives in
+AWS Secrets Manager under a name scoped to that user, and the profile stores only a reference to it. The
+API key is kept in the profile because the page displays it; on its own it cannot authenticate anything.
+No route returns the secret or its location to the browser.
+
+Everything else lives in one DynamoDB table, and every row is stored under a key built from the signed-in user's Cognito ID:
 
 ```
 pk = USER#{sub}
@@ -115,7 +120,8 @@ Old market data and past reasoning are trimmed before going into a new prompt: o
 | --- | --- |
 | API | Python, FastAPI, Mangum |
 | Compute | AWS Lambda |
-| Data | Amazon DynamoDB (single-table design) |
+| Data | Amazon DynamoDB (single-table design), point-in-time recovery enabled |
+| Secrets | AWS Secrets Manager, one secret per user and broker |
 | Auth | Amazon Cognito with Google sign-in, PKCE, API Gateway JWT authorizer |
 | Brokerage | Alpaca (paper trading) |
 | AI | OpenAI Responses API with structured output |
