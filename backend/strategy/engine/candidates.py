@@ -13,6 +13,7 @@ import pandas as pd
 from backend.config import (
     CANDIDATES_PER_TICKER,
     MAX_PARALLEL_TICKER_SCANS,
+    MINIMUM_EXPECTED_MOVE_PERCENT,
     RATE_LIMIT_RETRY_SECONDS,
 )
 from backend.strategy.engine.filters import apply_option_filters
@@ -29,20 +30,38 @@ logger = logging.getLogger(__name__)
 
 ## Add a ranking score once every hard metric is present.
 ##
-## The score favors cleaner setups near target delta, with tighter spreads,
-## more distance from the money, and stronger return.
+## Reward and cushion are both measured against the move the market expects, rather
+## than in raw percent. The delta filter already pins every surviving candidate to
+## roughly the same chance of assignment, so what separates them is not how likely
+## assignment is but how far the stock keeps going once it happens. Ranking on raw
+## premium therefore picked the widest tail available and called it the best trade,
+## which is how one volatile name came to fill a whole day's recommendations.
 ##
-## Implied volatility carries no term of its own. The return already is implied
-## volatility expressed as premium, so paying it a second bonus counted the same
-## fact twice and pushed the ranking toward the most volatile name available.
+## Distance from the money is normalized for the same reason. At a fixed delta a more
+## volatile stock's strike sits further out, so rewarding raw distance was a second
+## way of rewarding volatility. Expressed in expected moves, it measures real cushion.
 def add_recommendation_score(contracts, target_delta):
     contracts = contracts.copy()
     contracts["deltaDistance"] = (contracts["delta"] - target_delta).abs()
     contracts["spreadPercentOfBid"] = (contracts["spread"] / contracts["bid"]) * 100
 
+    # How far the market expects this stock to travel over the life of the contract.
+    # Implied volatility is annual, so it is scaled to the time actually at risk.
+    contracts["expectedMovePercent"] = (
+        contracts["ivPercent"] * ((contracts["DTE"] / 365) ** 0.5)
+    ).clip(lower=MINIMUM_EXPECTED_MOVE_PERCENT)
+
+    # Premium earned per unit of expected move, and strike distance in expected moves.
+    contracts["returnPerExpectedMove"] = (
+        contracts["returnOnCashPercent"] / contracts["expectedMovePercent"]
+    )
+    contracts["cushionInExpectedMoves"] = (
+        contracts["percentOTM"] / contracts["expectedMovePercent"]
+    )
+
     contracts["score"] = (
-        contracts["annualizedReturnPercent"]
-        + contracts["percentOTM"] * 0.50
+        contracts["returnPerExpectedMove"] * 100
+        + contracts["cushionInExpectedMoves"] * 5
         - contracts["deltaDistance"] * 100
         - contracts["spreadPercentOfBid"] * 0.25
     )

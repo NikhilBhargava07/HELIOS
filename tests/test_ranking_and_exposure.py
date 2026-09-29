@@ -15,41 +15,67 @@ from backend.strategy.engine.candidates import add_recommendation_score
 
 
 ## Build two contracts identical in every ranked term except implied volatility.
+## Both pay the same premium; only the size of the move the market expects differs.
 def matched_pair(quiet_iv=25.0, loud_iv=70.0):
     return pd.DataFrame([
         {"contractSymbol": "QUIET", "delta": -0.25, "ivPercent": quiet_iv, "spread": 0.10,
-         "bid": 2.00, "annualizedReturnPercent": 30.0, "percentOTM": 8.0},
+         "bid": 2.00, "DTE": 37, "returnOnCashPercent": 2.0, "percentOTM": 8.0},
         {"contractSymbol": "LOUD", "delta": -0.25, "ivPercent": loud_iv, "spread": 0.10,
-         "bid": 2.00, "annualizedReturnPercent": 30.0, "percentOTM": 8.0},
+         "bid": 2.00, "DTE": 37, "returnOnCashPercent": 2.0, "percentOTM": 8.0},
     ])
 
 
+## Score a frame and return each contract's score by symbol.
+def scores_for(contracts, target_delta=-0.25):
+    return add_recommendation_score(contracts, target_delta).set_index("contractSymbol")["score"]
+
+
 class RankingTests(unittest.TestCase):
-    ## Two contracts paying the same return rank the same, however differently the market prices their risk.
-    def test_volatility_alone_no_longer_buys_rank(self):
-        scored = add_recommendation_score(matched_pair(), target_delta=-0.25)
+    ## Same premium for a smaller expected move is the better trade, and now ranks that way.
+    ##
+    ## The delta filter pins both to about the same chance of assignment, so the volatile
+    ## one is not likelier to be assigned; it simply falls further when it is.
+    def test_the_same_premium_for_less_expected_movement_ranks_higher(self):
+        scores = scores_for(matched_pair())
 
-        quiet, loud = scored.set_index("contractSymbol")["score"]["QUIET"], scored.set_index("contractSymbol")["score"]["LOUD"]
-        self.assertEqual(quiet, loud)
+        self.assertGreater(scores["QUIET"], scores["LOUD"])
 
-    ## Return still decides, since that is the actual reward for selling the contract.
-    def test_stronger_return_still_wins(self):
-        contracts = matched_pair()
-        contracts.loc[contracts["contractSymbol"] == "QUIET", "annualizedReturnPercent"] = 40.0
+    ## Paying more for the same expected move still wins, since return is still the reward.
+    def test_stronger_return_still_wins_at_equal_volatility(self):
+        contracts = matched_pair(quiet_iv=40.0, loud_iv=40.0)
+        contracts.loc[contracts["contractSymbol"] == "QUIET", "returnOnCashPercent"] = 3.0
 
-        scored = add_recommendation_score(contracts, target_delta=-0.25).set_index("contractSymbol")
+        scores = scores_for(contracts)
 
-        self.assertGreater(scored["score"]["QUIET"], scored["score"]["LOUD"])
+        self.assertGreater(scores["QUIET"], scores["LOUD"])
+
+    ## More room before the strike wins when reward and volatility match.
+    def test_more_cushion_wins_when_everything_else_matches(self):
+        contracts = matched_pair(quiet_iv=40.0, loud_iv=40.0)
+        contracts.loc[contracts["contractSymbol"] == "QUIET", "percentOTM"] = 12.0
+
+        scores = scores_for(contracts)
+
+        self.assertGreater(scores["QUIET"], scores["LOUD"])
 
     ## Drifting away from the target delta is still penalised harder than anything else rewards.
     def test_missing_target_delta_still_outweighs_a_better_return(self):
-        contracts = matched_pair()
+        contracts = matched_pair(quiet_iv=40.0, loud_iv=40.0)
         contracts.loc[contracts["contractSymbol"] == "LOUD", "delta"] = -0.40
-        contracts.loc[contracts["contractSymbol"] == "LOUD", "annualizedReturnPercent"] = 40.0
+        contracts.loc[contracts["contractSymbol"] == "LOUD", "returnOnCashPercent"] = 3.0
 
-        scored = add_recommendation_score(contracts, target_delta=-0.25).set_index("contractSymbol")
+        scores = scores_for(contracts)
 
-        self.assertGreater(scored["score"]["QUIET"], scored["score"]["LOUD"])
+        self.assertGreater(scores["QUIET"], scores["LOUD"])
+
+    ## A broken volatility reading cannot divide a score to the top of the list.
+    def test_a_zero_volatility_reading_cannot_dominate(self):
+        contracts = matched_pair(quiet_iv=0.0, loud_iv=40.0)
+
+        scores = scores_for(contracts)
+
+        self.assertTrue(pd.notna(scores["QUIET"]))
+        self.assertLess(scores["QUIET"], 1000)
 
 
 class ExposureTests(unittest.TestCase):

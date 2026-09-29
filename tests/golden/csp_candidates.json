@@ -14,7 +14,7 @@
     "ivPercent": 30.0,
     "premiumIfSoldAtBid": 300.0,
     "returnOnCashPercent": 1.6666666667,
-    "score": 18.3458646617,
+    "score": 19.1068003526,
     "spread": 0.2,
     "strike": 180.0,
     "tickerSymbol": "AAPL"
@@ -34,7 +34,7 @@
     "ivPercent": 25.0,
     "premiumIfSoldAtBid": 200.0,
     "returnOnCashPercent": 1.1428571429,
-    "score": 11.615735768,
+    "score": 15.6115927527,
     "spread": 0.1,
     "strike": 175.0,
     "tickerSymbol": "AAPL"

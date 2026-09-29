@@ -83,6 +83,11 @@ CANDIDATES_PER_TICKER = 2
 # HTTP connection pool the Alpaca client keeps (10), so the workers do not fight over
 # connections, and well under the broker's per-minute request allowance.
 MAX_PARALLEL_TICKER_SCANS = 8
+
+# Floor for the expected-move divisor in ranking. The implied-volatility filter already
+# keeps candidates well above this, so it exists only so a bad data point cannot divide
+# a score by something near zero and send one contract to the top of the list.
+MINIMUM_EXPECTED_MOVE_PERCENT = 0.5
 # A throttled request is retried once rather than dropped, because dropping a ticker
 # would quietly shrink the universe the recommendation is chosen from.
 RATE_LIMIT_RETRY_SECONDS = 2
