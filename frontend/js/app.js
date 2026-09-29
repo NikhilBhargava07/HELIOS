@@ -227,6 +227,12 @@ if (highlightsEl) {
             return;
         }
 
+        if (clickedButton.dataset.action === "toggle_pick_detail") {
+            const card = clickedButton.closest(".dh-pick");
+            const opened = card.classList.toggle("expanded");
+            clickedButton.textContent = opened ? "Hide" : "Why this";
+        }
+
         if (clickedButton.dataset.action === "recheck_highlight") {
             recheckHighlight(clickedButton);
         }

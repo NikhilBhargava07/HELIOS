@@ -67,24 +67,44 @@ function renderDailyHighlights(highlights) {
     `;
 }
 
-/** Render one slot: when it ran, what it read in the market, and what it picked. */
+/**
+ * Render one scan as its own block: when it ran, what it read, and what it picked.
+ * Each scan is a separate moment in the day, so it gets a header band and its own
+ * outline rather than a hairline rule that let the day read as one long column.
+ */
 function renderHighlightSlot(highlight) {
+    const picks = highlight.picks || [];
+
     return `
         <article class="dh-slot">
-            <div class="dh-slot-head">
-                <span class="dh-slot-label">${escapeHtml(SLOT_LABELS[highlight.slot] || highlight.slot)}</span>
+            <header class="dh-slot-head">
+                <span class="dh-slot-badge">${escapeHtml(SLOT_LABELS[highlight.slot] || highlight.slot)}</span>
                 <span class="dh-time">${escapeHtml(localTimeOf(highlight.created_at))}</span>
-            </div>
+                <span class="dh-count">${picks.length} pick${picks.length === 1 ? "" : "s"}</span>
+            </header>
             <p class="dh-read">${annotateTickers(highlight.market_read || "")}</p>
             <div class="dh-picks">
-                ${(highlight.picks || []).map(renderHighlightPick).join("")}
+                ${picks.map(renderHighlightPick).join("")}
             </div>
-            ${highlight.passed_over ? `<p class="dh-passed"><span class="rec-lbl">Passed over</span> ${annotateTickers(highlight.passed_over)}</p>` : ""}
+            ${highlight.passed_over ? `
+                <details class="dh-passed">
+                    <summary>What it passed over</summary>
+                    <p>${annotateTickers(highlight.passed_over)}</p>
+                </details>
+            ` : ""}
         </article>
     `;
 }
 
-/** Render one pick, including what would make it a bad idea by now. */
+
+/**
+ * Render one pick so it can be judged at a glance, with the reasoning a click away.
+ *
+ * Collapsed, a pick is a headline, its trade type, and the one risk that matters,
+ * because that is enough to decide whether to look closer. The full reasoning stays
+ * available rather than being cut, since it is what makes an hours-old idea safe to
+ * act on, but showing all of it at once turned the day into a wall of grey text.
+ */
 function renderHighlightPick(pick) {
     const view = strategyView(pick.strategy_key);
 
@@ -92,21 +112,26 @@ function renderHighlightPick(pick) {
         <article class="dh-pick" data-identifier="${escapeHtml(pick.identifier)}" data-strategy="${escapeHtml(pick.strategy_key)}">
             <div class="dh-pick-top">
                 <span class="dh-tag">${escapeHtml(view.label)}</span>
-                <strong class="dh-headline">${annotateTickers(pick.headline || pick.identifier)}</strong>
+                <span class="dh-contract">${escapeHtml(pick.identifier)}</span>
             </div>
-            <p class="dh-why">${annotateTickers(pick.why_now || "")}</p>
-            <p class="dh-risk"><span class="dh-risk-lbl">Main risk</span> ${annotateTickers(pick.key_risk || "")}</p>
-            <p class="dh-watch"><span class="dh-watch-lbl">Check before acting</span> ${annotateTickers(pick.what_would_change_it || "")}</p>
+            <h4 class="dh-headline">${annotateTickers(pick.headline || pick.identifier)}</h4>
+            <p class="dh-risk"><span class="dh-risk-lbl">Risk</span> ${annotateTickers(pick.key_risk || "")}</p>
+            <div class="dh-detail">
+                <p class="dh-why"><span class="dh-detail-lbl">Why now</span> ${annotateTickers(pick.why_now || "")}</p>
+                <p class="dh-watch"><span class="dh-detail-lbl">Check before acting</span> ${annotateTickers(pick.what_would_change_it || "")}</p>
+            </div>
             <div class="dh-actions">
                 <button class="dh-recheck" data-action="recheck_highlight"
                         data-identifier="${escapeHtml(pick.identifier)}"
                         data-strategy="${escapeHtml(pick.strategy_key)}"
                         data-ticker="${escapeHtml(tickerOfPick(pick))}">Check this now</button>
+                <button class="dh-toggle" data-action="toggle_pick_detail">Why this</button>
             </div>
             <div class="dh-result"></div>
         </article>
     `;
 }
+
 
 /**
  * Work out which ticker a pick belongs to.

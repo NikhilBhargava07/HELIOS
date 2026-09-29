@@ -553,15 +553,15 @@
     }
 }
 
-/* What HELIOS found on its own today. Sits above the manual scan area because it is
-   the first thing worth reading when arriving mid-session, and reads as a briefing
-   rather than as candidates: nothing here is placeable until it is re-checked. */
+/* What HELIOS found on its own today.
+   The earlier version set everything in one small grey size, so a day of picks read
+   as an undifferentiated column. Three things carry the structure now: each scan is
+   an outlined block with a labelled header, each pick is a raised card with a real
+   border, and inside a pick only the headline and the risk are shown until asked. */
 #recommendations .daily-highlights {
     margin: 0 0 18px;
-    padding: 16px 18px;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.02);
+    display: grid;
+    gap: 18px;
 }
 
 #recommendations .daily-highlights.hidden {
@@ -574,137 +574,184 @@
     align-items: baseline;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 12px;
 }
 
 #recommendations .dh-title {
     color: var(--soft-white);
-    font-size: 0.95rem;
+    font-size: 1.02rem;
     font-weight: 600;
 }
 
-#recommendations .dh-sub,
-#recommendations .dh-time {
+#recommendations .dh-sub {
     color: var(--muted);
     font-size: 0.78rem;
 }
 
+/* One scan, clearly bounded, so the morning and the midday never blur together. */
 #recommendations .dh-slot {
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
-}
-
-#recommendations .dh-slot:first-of-type {
-    border-top: none;
-    padding-top: 0;
+    padding: 14px 16px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.022);
 }
 
 #recommendations .dh-slot-head {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 10px;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--line);
 }
 
-#recommendations .dh-slot-label {
+#recommendations .dh-slot-badge {
+    padding: 4px 11px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
     color: var(--soft-white);
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
-#recommendations .dh-read,
-#recommendations .dh-passed,
-#recommendations .dh-empty {
-    margin: 6px 0 10px;
+#recommendations .dh-time {
+    color: var(--soft-white);
+    font-size: 0.82rem;
+}
+
+#recommendations .dh-count {
+    margin-left: auto;
     color: var(--muted);
-    font-size: 0.85rem;
-    line-height: 1.5;
+    font-size: 0.76rem;
+}
+
+/* The market read is context, so it stays quiet and short of the picks it explains. */
+#recommendations .dh-read {
+    margin: 0 0 14px;
+    color: rgba(247, 251, 255, 0.62);
+    font-size: 0.84rem;
+    line-height: 1.55;
 }
 
 #recommendations .dh-picks {
     display: grid;
-    gap: 10px;
+    gap: 12px;
 }
 
+/* A pick is a card with a visible edge, so two of them never read as one block. */
 #recommendations .dh-pick {
-    padding: 12px 14px;
-    border: 1px solid var(--line);
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 12px;
-    background: rgba(0, 0, 0, 0.18);
+    background: rgba(12, 16, 22, 0.72);
+    transition: border-color 140ms ease;
+}
+
+#recommendations .dh-pick:hover {
+    border-color: rgba(255, 255, 255, 0.18);
 }
 
 #recommendations .dh-pick-top {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
+    gap: 10px;
+    margin-bottom: 8px;
 }
 
-/* The trade type is the first thing to register on a pick, so it carries the accent
-   colour the rest of the page uses for HELIOS's own actions. */
 #recommendations .dh-tag {
-    padding: 2px 9px;
-    border: 1px solid rgba(240, 182, 77, 0.38);
+    padding: 3px 10px;
+    border: 1px solid rgba(240, 182, 77, 0.4);
     border-radius: 999px;
-    background: rgba(240, 182, 77, 0.10);
+    background: rgba(240, 182, 77, 0.12);
     color: var(--gold);
-    font-size: 0.7rem;
-    font-weight: 600;
+    font-size: 0.71rem;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    white-space: nowrap;
 }
 
-/* The risk is the line a reader should not skip, so the label is red while the
-   sentence stays readable. Colouring the whole line would make the card shout. */
-#recommendations .dh-risk-lbl {
-    margin-right: 6px;
-    color: var(--neg);
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-#recommendations .dh-risk {
-    padding-left: 10px;
-    border-left: 2px solid rgba(240, 113, 111, 0.45);
-}
-
-#recommendations .dh-watch-lbl {
-    margin-right: 6px;
+#recommendations .dh-contract {
     color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
+/* The headline is the line to read first, so it is the only white text in the card. */
 #recommendations .dh-headline {
+    margin: 0 0 10px;
     color: var(--soft-white);
-    font-size: 0.95rem;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+/* The risk is always visible, because it is what decides whether to look closer. */
+#recommendations .dh-risk {
+    display: flex;
+    gap: 9px;
+    margin: 0;
+    padding: 9px 11px;
+    border-radius: 9px;
+    background: rgba(240, 113, 111, 0.09);
+    border-left: 2px solid rgba(240, 113, 111, 0.55);
+    color: rgba(247, 251, 255, 0.76);
+    font-size: 0.84rem;
+    line-height: 1.5;
+}
+
+#recommendations .dh-risk-lbl {
+    flex-shrink: 0;
+    color: var(--neg);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.8;
+    text-transform: uppercase;
+}
+
+/* The reasoning is kept, but folded away until asked for. */
+#recommendations .dh-detail {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+}
+
+#recommendations .dh-pick.expanded .dh-detail {
+    display: block;
 }
 
 #recommendations .dh-why,
-#recommendations .dh-risk,
 #recommendations .dh-watch {
-    margin: 6px 0;
-    font-size: 0.84rem;
-    line-height: 1.5;
-    color: var(--muted);
+    margin: 0 0 8px;
+    color: rgba(247, 251, 255, 0.72);
+    font-size: 0.85rem;
+    line-height: 1.55;
 }
 
-#recommendations .dh-watch {
-    padding-left: 10px;
-    border-left: 2px solid var(--line);
+#recommendations .dh-detail-lbl {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
 #recommendations .dh-actions {
-    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
 }
 
 /* Checking is not committing, so it reads as a quiet secondary action. The place
    button that may follow it is the loud one, and only appears once prices are current. */
-#recommendations .dh-recheck {
+#recommendations .dh-recheck,
+#recommendations .dh-toggle {
     padding: 7px 14px;
     border: 1px solid rgba(255, 255, 255, 0.24);
     border-radius: 999px;
@@ -715,14 +762,46 @@
     transition: border-color 120ms ease, background 120ms ease;
 }
 
-#recommendations .dh-recheck:hover:not(:disabled) {
+#recommendations .dh-toggle {
+    border-color: transparent;
+    color: var(--muted);
+}
+
+#recommendations .dh-recheck:hover:not(:disabled),
+#recommendations .dh-toggle:hover {
     border-color: rgba(255, 255, 255, 0.4);
     background: rgba(255, 255, 255, 0.06);
+    color: var(--soft-white);
 }
 
 #recommendations .dh-recheck:disabled {
     opacity: 0.6;
     cursor: default;
+}
+
+/* What the scan rejected is worth keeping but not worth reading every time. */
+#recommendations .dh-passed {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+#recommendations .dh-passed summary {
+    cursor: pointer;
+    color: var(--muted);
+}
+
+#recommendations .dh-passed p {
+    margin: 8px 0 0;
+    line-height: 1.55;
+    color: rgba(247, 251, 255, 0.62);
+}
+
+#recommendations .dh-empty {
+    margin: 0;
+    color: rgba(247, 251, 255, 0.62);
+    font-size: 0.85rem;
+    line-height: 1.55;
 }
 
 #recommendations .dh-checking,
@@ -740,10 +819,11 @@
 
 /* A re-checked pick shows current numbers, which is the only state that can be placed. */
 #recommendations .dh-fresh {
-    margin-top: 10px;
-    padding: 10px 12px;
+    margin-top: 12px;
+    padding: 11px 13px;
     border: 1px solid rgba(78, 201, 138, 0.35);
     border-radius: 10px;
+    background: rgba(78, 201, 138, 0.06);
 }
 
 #recommendations .dh-fresh-head {
@@ -758,7 +838,6 @@
     gap: 8px 20px;
     margin-bottom: 10px;
 }
-
 
 /* Only one tab's content is on screen at a time. */
 #recommendations .tab-hidden {
