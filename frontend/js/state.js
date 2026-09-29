@@ -37,6 +37,10 @@ const toastEl = document.querySelector("#toast");
 let currentRecommendationRunId = null;
 // The strategy the user has selected, and the one the candidates on screen actually came from.
 // They differ while a scan is running, so renderers read the second rather than the first.
+// The page opens on the day's saved picks; a strategy key only applies once a scan tab is chosen.
+const HIGHLIGHTS_TAB = "highlights";
+const HIGHLIGHTS_SUBHEAD = "What HELIOS found scanning on its own at the open, midday, and an hour before the close.";
+let activeTab = HIGHLIGHTS_TAB;
 let activeStrategyKey = "cash_secured_put";
 let currentStrategyKey = "cash_secured_put";
 // What the unattended scans found today, kept so a re-check can redraw one pick in place.

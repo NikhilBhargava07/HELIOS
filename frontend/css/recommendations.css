@@ -640,12 +640,41 @@
     margin-bottom: 6px;
 }
 
+/* The trade type is the first thing to register on a pick, so it carries the accent
+   colour the rest of the page uses for HELIOS's own actions. */
 #recommendations .dh-tag {
-    padding: 2px 8px;
-    border: 1px solid var(--line);
+    padding: 2px 9px;
+    border: 1px solid rgba(240, 182, 77, 0.38);
     border-radius: 999px;
-    color: var(--muted);
+    background: rgba(240, 182, 77, 0.10);
+    color: var(--gold);
     font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* The risk is the line a reader should not skip, so the label is red while the
+   sentence stays readable. Colouring the whole line would make the card shout. */
+#recommendations .dh-risk-lbl {
+    margin-right: 6px;
+    color: var(--neg);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+#recommendations .dh-risk {
+    padding-left: 10px;
+    border-left: 2px solid rgba(240, 113, 111, 0.45);
+}
+
+#recommendations .dh-watch-lbl {
+    margin-right: 6px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -728,4 +757,10 @@
     flex-wrap: wrap;
     gap: 8px 20px;
     margin-bottom: 10px;
+}
+
+
+/* Only one tab's content is on screen at a time. */
+#recommendations .tab-hidden {
+    display: none !important;
 }

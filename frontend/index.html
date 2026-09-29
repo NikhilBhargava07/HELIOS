@@ -137,28 +137,29 @@
                 <p class="eyebrow">Paper-trading prototype</p>
                 <div class="rec-header-row">
                     <h1>Recommendations</h1>
-                    <button id="load-recommendations" type="button">Run scan</button>
+                    <button id="load-recommendations" class="tab-hidden" type="button">Run scan</button>
                 </div>
                 <!-- One strategy is scanned at a time, so the review and candidates on screen always share a single set of rules. -->
-                <div class="strategy-tabs" role="tablist" aria-label="Strategy">
-                    <button class="strategy-tab active" type="button" role="tab" aria-selected="true" data-strategy="cash_secured_put">Cash-secured puts</button>
+                <div class="strategy-tabs" role="tablist" aria-label="Recommendations view">
+                    <button class="strategy-tab active" type="button" role="tab" aria-selected="true" data-strategy="highlights">Today's top trades</button>
+                    <button class="strategy-tab" type="button" role="tab" aria-selected="false" data-strategy="cash_secured_put">Cash-secured puts</button>
                     <button class="strategy-tab" type="button" role="tab" aria-selected="false" data-strategy="covered_call">Covered calls</button>
                     <button class="strategy-tab" type="button" role="tab" aria-selected="false" data-strategy="equity">Stocks</button>
                 </div>
                 <p class="subhead" id="strategy-subhead">
-                    Scans approved tickers, applies hard safety filters, then asks the agent to review the top candidates.
+                    What HELIOS found scanning on its own at the open, midday, and an hour before the close.
                 </p>
             </div>
             <!-- What the unattended scans found earlier today, so arriving late still shows HELIOS's work. -->
             <section id="daily-highlights" class="daily-highlights hidden" aria-live="polite"></section>
             <!-- Capital snapshot for the current run so exposure is visible before acting on a candidate. -->
-            <div id="recs-metrics" class="recs-metrics empty"></div>
+            <div id="recs-metrics" class="recs-metrics empty tab-hidden"></div>
             <!-- Agent review banner: decision, selected contract, summary, and the hard risk note. -->
-            <div id="agent-review" class="agent-review empty">
+            <div id="agent-review" class="agent-review empty tab-hidden">
                 Run the scan to see the agent's recommendation.
             </div>
             <!-- Featured recommendation plus swappable alternate candidates. -->
-            <div id="candidate-list" class="candidate-grid"></div>
+            <div id="candidate-list" class="candidate-grid tab-hidden"></div>
         </section>
 
         <!-- Market Trends page: shows approved ticker price movement and live price refresh context for CSP risk. -->
@@ -318,16 +319,16 @@
 
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
     <script src="js/api.js?v=4"></script>
-    <script src="js/state.js?v=7"></script>
+    <script src="js/state.js?v=8"></script>
     <script src="js/auth.js?v=9"></script>
     <script src="js/formatters.js?v=4"></script>
     <script src="js/strategy-views.js?v=3"></script>
-    <script src="js/highlights.js?v=1"></script>
+    <script src="js/highlights.js?v=2"></script>
     <script src="js/recommendation-renderers.js?v=11"></script>
     <script src="js/market-renderers.js?v=7"></script>
     <script src="js/loaders.js?v=12"></script>
     <script src="js/decisions.js?v=8"></script>
     <script src="js/profile.js?v=6"></script>
-    <script src="js/app.js?v=18"></script>
+    <script src="js/app.js?v=19"></script>
 </body>
 </html>

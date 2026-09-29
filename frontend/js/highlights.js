@@ -50,8 +50,8 @@ function renderDailyHighlights(highlights) {
         const latest = highlights[highlights.length - 1];
         highlightsEl.innerHTML = `
             <div class="dh-head">
-                <span class="dh-title">HELIOS scanned on its own today</span>
-                <span class="dh-sub">${highlights.length} scan${highlights.length === 1 ? "" : "s"} · nothing met the bar</span>
+                <span class="dh-title">Nothing met the bar today</span>
+                <span class="dh-sub">${highlights.length} automatic scan${highlights.length === 1 ? "" : "s"} so far</span>
             </div>
             <p class="dh-empty">${annotateTickers(latest.market_read || "No candidate stood out.")}</p>
         `;
@@ -60,8 +60,8 @@ function renderDailyHighlights(highlights) {
 
     highlightsEl.innerHTML = `
         <div class="dh-head">
-            <span class="dh-title">HELIOS found these while you were away</span>
-            <span class="dh-sub">re-checked against live prices before you can place</span>
+            <span class="dh-title">Found while you were away</span>
+            <span class="dh-sub">prices have moved since, so each is re-checked before it can be placed</span>
         </div>
         ${withPicks.slice().reverse().map(renderHighlightSlot).join("")}
     `;
@@ -95,8 +95,8 @@ function renderHighlightPick(pick) {
                 <strong class="dh-headline">${annotateTickers(pick.headline || pick.identifier)}</strong>
             </div>
             <p class="dh-why">${annotateTickers(pick.why_now || "")}</p>
-            <p class="dh-risk"><span class="rec-lbl">Main risk</span> ${annotateTickers(pick.key_risk || "")}</p>
-            <p class="dh-watch"><span class="rec-lbl">Check before acting</span> ${annotateTickers(pick.what_would_change_it || "")}</p>
+            <p class="dh-risk"><span class="dh-risk-lbl">Main risk</span> ${annotateTickers(pick.key_risk || "")}</p>
+            <p class="dh-watch"><span class="dh-watch-lbl">Check before acting</span> ${annotateTickers(pick.what_would_change_it || "")}</p>
             <div class="dh-actions">
                 <button class="dh-recheck" data-action="recheck_highlight"
                         data-identifier="${escapeHtml(pick.identifier)}"

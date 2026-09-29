@@ -55,19 +55,33 @@ if (button) {
  * Candidates already on screen were scanned under the previous strategy's rules, so they are
  * cleared rather than relabeled: showing a put's numbers under a covered call heading would lie.
  */
-function selectStrategy(strategyKey) {
-    if (strategyKey === activeStrategyKey) {
+function selectStrategy(tabKey) {
+    if (tabKey === activeTab) {
         return;
     }
 
-    activeStrategyKey = strategyKey;
-    const view = strategyView(strategyKey);
+    activeTab = tabKey;
 
     strategyTabs.forEach(tab => {
-        const selected = tab.dataset.strategy === strategyKey;
+        const selected = tab.dataset.strategy === tabKey;
         tab.classList.toggle("active", selected);
         tab.setAttribute("aria-selected", String(selected));
     });
+
+    showHighlightsTab(tabKey === HIGHLIGHTS_TAB);
+
+    if (tabKey === HIGHLIGHTS_TAB) {
+        if (strategySubhead) {
+            strategySubhead.textContent = HIGHLIGHTS_SUBHEAD;
+        }
+        loadDailyHighlights();
+        return;
+    }
+
+    // Candidates on screen were scanned under the previous strategy's rules, so they are
+    // cleared rather than relabelled: showing a put's numbers under a call heading would lie.
+    activeStrategyKey = tabKey;
+    const view = strategyView(tabKey);
 
     if (strategySubhead) {
         strategySubhead.textContent = view.subhead;
@@ -85,6 +99,29 @@ function selectStrategy(strategyKey) {
     reviewEl.classList.add("empty");
     reviewEl.textContent = `Run the scan to see the agent's ${view.label.toLowerCase()} review.`;
     recommendationStatus.textContent = `Ready to run a ${view.scanLabel}.`;
+}
+
+
+/**
+ * Swap the page between today's saved picks and a live strategy scan.
+ * Only one belongs on screen at a time: the picks are a briefing, and the scan area is a workspace.
+ */
+function showHighlightsTab(showHighlights) {
+    if (highlightsEl) {
+        highlightsEl.classList.toggle("tab-hidden", !showHighlights);
+    }
+
+    document.querySelectorAll("#recs-metrics, #agent-review, #candidate-list")
+        .forEach(element => element.classList.toggle("tab-hidden", showHighlights));
+
+    // Nothing to scan on the picks tab, so the button that starts one is put away.
+    if (button) {
+        button.classList.toggle("tab-hidden", showHighlights);
+    }
+
+    if (showHighlights) {
+        recommendationStatus.textContent = "";
+    }
 }
 
 strategyTabs.forEach(tab => {
@@ -145,9 +182,6 @@ exploreOverlay.addEventListener("click", (event) => {
         loadDailyHighlights();
     }
 
-    if (clickedLink.dataset.load === "recommendations" && !currentRecommendationRunId) {
-        loadRecommendations();
-    }
 });
 
 
