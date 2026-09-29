@@ -14,6 +14,7 @@ from backend.memory.outcome_jobs import (
     run_outcome_observation,
 )
 from backend.strategy.recommendation_jobs import run_recommendation_job
+from backend.strategy.triage_jobs import dispatch_scheduled_triage, run_triage_slot
 
 api_handler = Mangum(app, lifespan="off")
 
@@ -40,6 +41,16 @@ def request_log_context(event):
 def handler(event, context):
     if event.get("worker_action") == "scheduled_outcome_dispatch":
         return dispatch_scheduled_outcome_observations()
+
+    if event.get("worker_action") == "scheduled_triage_dispatch":
+        return dispatch_scheduled_triage(event["slot"])
+
+    if event.get("worker_action") == "triage_slot":
+        return run_triage_slot(
+            event["user_id"],
+            event["slot"],
+            force=event.get("force", False),
+        )
 
     if event.get("worker_action") == "outcome_observation":
         return run_outcome_observation(
