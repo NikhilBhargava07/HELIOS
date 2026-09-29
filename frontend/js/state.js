@@ -7,6 +7,7 @@
 const button = document.querySelector("#load-recommendations");
 const strategyTabs = document.querySelectorAll(".strategy-tab");
 const strategySubhead = document.querySelector("#strategy-subhead");
+const highlightsEl = document.querySelector("#daily-highlights");
 const trendsButton = document.querySelector("#load-trends");
 const newsButton = document.querySelector("#load-news");
 const summarizeMarketButton = document.querySelector("#summarize-market");
@@ -38,6 +39,8 @@ let currentRecommendationRunId = null;
 // They differ while a scan is running, so renderers read the second rather than the first.
 let activeStrategyKey = "cash_secured_put";
 let currentStrategyKey = "cash_secured_put";
+// What the unattended scans found today, kept so a re-check can redraw one pick in place.
+let latestHighlights = [];
 let companyNames = {};
 let candidatePool = [];
 let recommendedContract = null;

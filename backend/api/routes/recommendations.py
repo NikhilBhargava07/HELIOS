@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-from backend.api.schemas import UserDecisionAction, UserDecisionRequest
+from backend.api.schemas import HighlightRecheckRequest, UserDecisionAction, UserDecisionRequest
 from backend.api.services import (
     enqueue_worker,
     get_dashboard_with_cash_context,
@@ -20,6 +20,8 @@ from backend.broker.trading import (
 from backend.memory.holdings import build_holdings
 from backend.memory.trades import record_user_decision
 from backend.strategy.registry import DEFAULT_STRATEGY_KEY, get_strategy
+from backend.strategy.highlight_recheck import recheck_pick
+from backend.strategy.triage_jobs import build_scan_inputs, get_daily_highlights, trading_date
 from backend.strategy.recommendation_jobs import (
     create_recommendation_job,
     get_recommendation_job,
@@ -67,6 +69,43 @@ def read_recommendation_job(job_id, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Recommendation job not found.")
     return job
+
+
+@router.get("/recommendations/highlights")
+## Return what the unattended scans found for this user today.
+## The page reads this on load so someone arriving at noon sees the morning's work rather than a blank panel.
+def read_daily_highlights(request: Request):
+    user = require_authenticated_user(request)
+
+    return {"trading_date": trading_date(), "highlights": get_daily_highlights(user.user_id)}
+
+
+@router.post("/recommendations/highlights/recheck")
+## Re-scan the one ticker behind a saved pick and report what it offers at current prices.
+## A pick is hours old by the time it is read, so it is re-checked rather than placed from the earlier scan.
+def recheck_daily_pick(request: HighlightRecheckRequest, http_request: Request):
+    broker_context = get_required_broker_context(http_request)
+    user_id = broker_context.user.user_id
+
+    try:
+        scan_inputs = build_scan_inputs(
+            user_id,
+            broker_context.trading_client,
+            broker_context.stock_data_client,
+            broker_context.option_data_client,
+        )
+        return recheck_pick(
+            user_id,
+            request.strategy_key,
+            request.identifier,
+            request.ticker_symbol,
+            scan_inputs,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        logger.exception("Re-check failed for %s: %s", request.identifier, type(error).__name__)
+        raise HTTPException(status_code=503, detail="Could not re-check that recommendation right now.") from error
 
 
 @router.post("/decisions")

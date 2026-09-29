@@ -141,6 +141,10 @@ exploreOverlay.addEventListener("click", (event) => {
     showTab(clickedLink.dataset.tab);
 
     // Returning to recommendations keeps the results already on screen; only a first visit scans automatically.
+    if (clickedLink.dataset.load === "recommendations") {
+        loadDailyHighlights();
+    }
+
     if (clickedLink.dataset.load === "recommendations" && !currentRecommendationRunId) {
         loadRecommendations();
     }
@@ -179,6 +183,25 @@ toggleNewsButton.addEventListener("click", () => {
     showAllNews = !showAllNews;
     renderNews(latestNews);
 });
+
+// The highlights panel has its own two actions: re-check a saved pick, then place the re-checked one.
+if (highlightsEl) {
+    highlightsEl.addEventListener("click", (event) => {
+        const clickedButton = event.target.closest("button[data-action]");
+
+        if (!clickedButton) {
+            return;
+        }
+
+        if (clickedButton.dataset.action === "recheck_highlight") {
+            recheckHighlight(clickedButton);
+        }
+
+        if (clickedButton.dataset.action === "place_highlight") {
+            placeHighlight(clickedButton);
+        }
+    });
+}
 
 candidateList.addEventListener("click", (event) => {
     const clickedButton = event.target.closest("button[data-action]");

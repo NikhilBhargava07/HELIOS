@@ -346,6 +346,7 @@
     margin-top: 14px;
 }
 
+#recommendations .dh-fresh button,
 #recommendations .rec-actions button {
     padding: 9px 16px;
     border-radius: 999px;
@@ -356,6 +357,7 @@
     box-shadow: none;
 }
 
+#recommendations .dh-fresh button:hover:not(:disabled),
 #recommendations .rec-actions button:hover:not(:disabled) {
     opacity: 0.92;
     transform: translateY(-1px);
@@ -549,4 +551,181 @@
     #recommendations .rec-hero-stats {
         grid-template-columns: 1fr;
     }
+}
+
+/* What HELIOS found on its own today. Sits above the manual scan area because it is
+   the first thing worth reading when arriving mid-session, and reads as a briefing
+   rather than as candidates: nothing here is placeable until it is re-checked. */
+#recommendations .daily-highlights {
+    margin: 0 0 18px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+#recommendations .daily-highlights.hidden {
+    display: none;
+}
+
+#recommendations .dh-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+#recommendations .dh-title {
+    color: var(--soft-white);
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+#recommendations .dh-sub,
+#recommendations .dh-time {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+#recommendations .dh-slot {
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+#recommendations .dh-slot:first-of-type {
+    border-top: none;
+    padding-top: 0;
+}
+
+#recommendations .dh-slot-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+#recommendations .dh-slot-label {
+    color: var(--soft-white);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+#recommendations .dh-read,
+#recommendations .dh-passed,
+#recommendations .dh-empty {
+    margin: 6px 0 10px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+#recommendations .dh-picks {
+    display: grid;
+    gap: 10px;
+}
+
+#recommendations .dh-pick {
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+#recommendations .dh-pick-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+#recommendations .dh-tag {
+    padding: 2px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+#recommendations .dh-headline {
+    color: var(--soft-white);
+    font-size: 0.95rem;
+}
+
+#recommendations .dh-why,
+#recommendations .dh-risk,
+#recommendations .dh-watch {
+    margin: 6px 0;
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+#recommendations .dh-watch {
+    padding-left: 10px;
+    border-left: 2px solid var(--line);
+}
+
+#recommendations .dh-actions {
+    margin-top: 10px;
+}
+
+/* Checking is not committing, so it reads as a quiet secondary action. The place
+   button that may follow it is the loud one, and only appears once prices are current. */
+#recommendations .dh-recheck {
+    padding: 7px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--soft-white);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+}
+
+#recommendations .dh-recheck:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+#recommendations .dh-recheck:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+#recommendations .dh-checking,
+#recommendations .dh-stale,
+#recommendations .dh-alt-note,
+#recommendations .dh-advisory {
+    margin: 10px 0 0;
+    font-size: 0.82rem;
+    color: var(--muted);
+}
+
+#recommendations .dh-stale {
+    color: var(--neg);
+}
+
+/* A re-checked pick shows current numbers, which is the only state that can be placed. */
+#recommendations .dh-fresh {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(78, 201, 138, 0.35);
+    border-radius: 10px;
+}
+
+#recommendations .dh-fresh-head {
+    margin: 0 0 8px;
+    color: var(--pos);
+    font-size: 0.82rem;
+}
+
+#recommendations .dh-fresh-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin-bottom: 10px;
 }

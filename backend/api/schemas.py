@@ -23,6 +23,15 @@ class UserDecisionRequest(BaseModel):
     note: str = ""
 
 
+## Validate a request to re-check one of the day's saved picks against live prices.
+## The ticker travels with the pick so the re-check knows which chain to re-scan without trusting the identifier's shape.
+class HighlightRecheckRequest(BaseModel):
+
+    strategy_key: str
+    identifier: str
+    ticker_symbol: str
+
+
 ## Validate broker onboarding data after a user signs in with Google/Cognito.
 ## The frontend sends the broker API key and secret key once; the backend stores the secret key through the current secret-storage layer.
 class BrokerProfileRequest(BaseModel):

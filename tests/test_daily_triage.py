@@ -80,6 +80,28 @@ class TriagePromptTests(unittest.TestCase):
         self.assertIn("already reported these earlier today", prompt)
         self.assertIn("rather than repeating", prompt)
 
+    ## Memory is compacted before it is sent, because raw episodes carry whole past market contexts.
+    def test_memory_is_compacted_into_the_prompt(self):
+        # One episode shaped like the real thing: the lesson is small, the nested history is not.
+        memory = {
+            "relevant_episodes": [{
+                "recommendation_run_id": "run-1",
+                "ticker_symbol": "INTC",
+                "contract_symbol": "INTC261106P00095000",
+                "user_decision": {"action": "place_paper_order", "note": ""},
+                "market_context": {"news_and_earnings": [
+                    {"headline": f"filler headline {n}", "summary": "x" * 900} for n in range(40)
+                ]},
+            }],
+        }
+
+        prompt = build_triage_prompt(OFFERED, {}, {}, {}, memory)
+
+        # The episode still reaches the model, but not the 36,000 characters of old news inside it.
+        self.assertIn("INTC261106P00095000", prompt)
+        self.assertNotIn("filler headline 39", prompt)
+        self.assertLess(len(prompt), 20000)
+
     ## Each pick must carry what the user needs hours later, including what would invalidate it.
     def test_schema_requires_a_staleness_note_on_every_pick(self):
         fields = TRIAGE_SCHEMA["properties"]["picks"]["items"]["required"]

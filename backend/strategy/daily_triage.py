@@ -23,6 +23,7 @@ from backend.config import (
 from backend.market.context import build_candidate_review_context
 from backend.market.prompt_context import (
     compact_market_context,
+    compact_memory_context,
     compact_portfolio_context,
 )
 from backend.memory.learning_user import build_memory_context
@@ -166,7 +167,9 @@ def build_triage_prompt(offered, skipped, market_context, portfolio_context, mem
     sections = [
         TRIAGE_GUIDANCE,
         f"Current portfolio and capital context:\n{json.dumps(compact_portfolio_context(portfolio_context or {}), separators=(',', ':'))}",
-        f"Retrieved long-term memory:\n{json.dumps(memory_context or {}, separators=(',', ':'))}",
+        # Raw memory carries every past run's own market context inside each episode, which
+        # was most of this prompt. Compacting keeps the lesson and drops the nested history.
+        f"Retrieved long-term memory:\n{json.dumps(compact_memory_context(memory_context or {}), separators=(',', ':'))}",
         f"Candidates by strategy, each already ranked best first:\n{json.dumps(candidates, indent=2, default=str)}",
     ]
 
