@@ -51,6 +51,29 @@ function renderTrends(trends) {
  * Render one compact ticker tile: symbol, live price, 1-day move, and a reconstructed sparkline.
  * Clicking a tile expands it to reveal the full 1D/5D/2W/1M/YTD breakdown.
  */
+/**
+ * State how close a company's next report is, or say nothing at all.
+ *
+ * Funds never report, and a company whose date has not been fetched yet would be
+ * misrepresented by a blank row, so both are simply left out. A report inside the
+ * next week is marked, because that is when it starts changing a trade decision.
+ */
+function earningsLine(trend) {
+    const days = trend.days_until_next_report;
+
+    if (days === null || days === undefined) {
+        return "";
+    }
+
+    const soon = Number(days) <= 7;
+    const text = Number(days) === 0
+        ? "reports today"
+        : `reports in ${days} day${Number(days) === 1 ? "" : "s"}`;
+
+    return `<div class="trend-earnings ${soon ? "soon" : ""}">${escapeHtml(text)}</div>`;
+}
+
+
 function renderTrendTile(trend) {
     const dayPercent = trend["1d"];
     const directionClass = trendDirectionClass(dayPercent);
@@ -68,6 +91,7 @@ function renderTrendTile(trend) {
             <svg class="trend-spark" viewBox="0 0 130 30" preserveAspectRatio="none" aria-hidden="true">
                 <polyline points="${sparklinePoints(trend)}" fill="none" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
             </svg>
+            ${earningsLine(trend)}
             <div class="trend-detail">
                 ${trendDetailRow("1D", trend["1d"], trend["1d_dollar"])}
                 ${trendDetailRow("5D", trend["5d"], trend["5d_dollar"])}

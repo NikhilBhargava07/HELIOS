@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="css/base.css?v=10">
     <link rel="stylesheet" href="css/home.css?v=4">
     <link rel="stylesheet" href="css/recommendations.css?v=4">
+    <link rel="stylesheet" href="css/earnings.css?v=2">
     <link rel="stylesheet" href="css/trends.css?v=3">
     <link rel="stylesheet" href="css/news.css?v=3">
     <link rel="stylesheet" href="css/market-take.css?v=3">
@@ -32,8 +33,13 @@
                 <strong>Market Trends</strong>
                 <small>Check approved tickers before judging risk.</small>
             </a>
-            <a class="explore-card nav-link" data-tab="news" href="#news">
+            <a class="explore-card nav-link" data-tab="earnings" data-load="earnings" href="#earnings">
                 <span>03</span>
+                <strong>Earnings</strong>
+                <small>See when each company reports and what they last posted.</small>
+            </a>
+            <a class="explore-card nav-link" data-tab="news" href="#news">
+                <span>04</span>
                 <strong>News</strong>
                 <small>Read current headlines feeding market context.</small>
             </a>
@@ -179,6 +185,23 @@
             <button id="toggle-trends" class="secondary hidden">See more trends</button>
         </section>
 
+        <!-- Earnings page: when each approved company reports, and what it posted last time. -->
+        <section id="earnings" class="panel tab-panel" data-panel="earnings">
+            <div class="page-header compact">
+                <p class="eyebrow">Company context</p>
+                <h1>Earnings</h1>
+                <p class="subhead">
+                    A contract that runs thirty to forty-five days usually spans a quarterly report.
+                    This is when each approved company reports, and how the last one landed.
+                </p>
+                <p id="earnings-status" class="status">Earnings data has not been loaded yet.</p>
+            </div>
+            <div id="earnings-list" class="earnings-table empty">
+                Open this page to load the earnings calendar.
+            </div>
+            <button id="toggle-earnings" class="secondary hidden">See more companies</button>
+        </section>
+
         <!-- News page: surfaces reputable, recent headlines that can inform user judgment and AI market context. -->
         <section id="news" class="panel tab-panel" data-panel="news">
             <div class="page-header compact">
@@ -319,16 +342,17 @@
 
     <!-- Script order matters: shared API/state/format helpers load before renderers, loaders, decisions, and final event wiring. -->
     <script src="js/api.js?v=4"></script>
-    <script src="js/state.js?v=8"></script>
+    <script src="js/state.js?v=9"></script>
     <script src="js/auth.js?v=9"></script>
     <script src="js/formatters.js?v=4"></script>
     <script src="js/strategy-views.js?v=3"></script>
     <script src="js/highlights.js?v=3"></script>
     <script src="js/recommendation-renderers.js?v=11"></script>
-    <script src="js/market-renderers.js?v=7"></script>
-    <script src="js/loaders.js?v=12"></script>
+    <script src="js/market-renderers.js?v=8"></script>
+    <script src="js/earnings.js?v=1"></script>
+    <script src="js/loaders.js?v=13"></script>
     <script src="js/decisions.js?v=8"></script>
     <script src="js/profile.js?v=6"></script>
-    <script src="js/app.js?v=20"></script>
+    <script src="js/app.js?v=21"></script>
 </body>
 </html>

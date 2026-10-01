@@ -237,3 +237,15 @@
     transform: none;
     box-shadow: none;
 }
+
+/* How close a company's next report is, shown on its trend tile. A price move reads
+   differently days before a report, so the date rides along with the movement. */
+#trends .trend-earnings {
+    margin: 6px 0 2px;
+    color: var(--muted);
+    font-size: 0.72rem;
+}
+
+#trends .trend-earnings.soon {
+    color: var(--gold);
+}

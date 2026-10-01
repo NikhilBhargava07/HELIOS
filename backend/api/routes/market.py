@@ -9,7 +9,7 @@ from backend.users.auth import require_authenticated_user
 from backend.config import APPROVED_TICKERS, COMPANY_NAMES, ETF_TICKERS
 from backend.market.ai_take_jobs import create_market_take_job, get_market_take_job
 from backend.market.context import build_market_context
-from backend.market.earnings import get_earnings_calendar
+from backend.market.earnings import get_earnings_calendar, next_report_by_ticker
 from backend.market.news import NEWS_LOOKBACK_DAYS, get_recent_news, news_freshness_metadata
 from backend.market.trends import get_latest_stock_prices, get_market_trends
 
@@ -44,7 +44,11 @@ def get_trends(request: Request):
     stock_data_client, _ = get_required_user_market_data_clients(request)
     trends = get_market_trends(APPROVED_TICKERS, stock_data_client=stock_data_client)
     prices = get_latest_stock_prices(APPROVED_TICKERS, stock_data_client=stock_data_client)
+    # A price move reads differently when a report is days away, so the next date rides along.
+    # It comes from storage the earnings refresh already filled, costing no extra provider call.
+    next_reports = next_report_by_ticker()
     for trend in trends:
+        trend.update(next_reports.get(trend["ticker"]) or {})
         latest = prices.get(trend["ticker"], {})
         trend.update({
             "company_name": COMPANY_NAMES.get(trend["ticker"], trend["ticker"]),

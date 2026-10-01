@@ -128,6 +128,42 @@ strategyTabs.forEach(tab => {
     tab.addEventListener("click", () => selectStrategy(tab.dataset.strategy));
 });
 trendsButton.addEventListener("click", loadTrends);
+
+// The earnings table filters and searches in place; nothing here refetches.
+if (toggleEarningsButton) {
+    toggleEarningsButton.addEventListener("click", () => {
+        showAllEarnings = !showAllEarnings;
+        renderEarnings();
+    });
+}
+
+if (earningsList) {
+    earningsList.addEventListener("click", (event) => {
+        const pill = event.target.closest("[data-earnings-filter]");
+
+        if (pill) {
+            earningsFilter = pill.dataset.earningsFilter;
+            showAllEarnings = false;
+            renderEarnings();
+        }
+    });
+
+    earningsList.addEventListener("input", (event) => {
+        if (event.target.id !== "earnings-search") {
+            return;
+        }
+
+        earningsSearch = event.target.value;
+        showAllEarnings = false;
+        renderEarnings();
+        // Redrawing replaces the input, so the caret is put back where it was.
+        const box = document.querySelector("#earnings-search");
+        if (box) {
+            box.focus();
+            box.setSelectionRange(box.value.length, box.value.length);
+        }
+    });
+}
 newsButton.addEventListener("click", loadNews);
 summarizeMarketButton.addEventListener("click", loadMarketTake);
 /**
@@ -178,6 +214,10 @@ exploreOverlay.addEventListener("click", (event) => {
     showTab(clickedLink.dataset.tab);
 
     // Returning to recommendations keeps the results already on screen; only a first visit scans automatically.
+    if (clickedLink.dataset.load === "earnings" && !latestEarnings.length) {
+        loadEarnings();
+    }
+
     if (clickedLink.dataset.load === "recommendations") {
         loadDailyHighlights();
     }

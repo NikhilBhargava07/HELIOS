@@ -161,6 +161,19 @@ def get_earnings_calendar():
     return sorted(rows, key=lambda row: (row.get("next_report_on") is None, row.get("next_report_on") or ""))
 
 
+## Return just the next report date and countdown for every company, keyed by ticker.
+## Views that only need to say "reports in six days" should not carry the whole table to do it.
+def next_report_by_ticker():
+    return {
+        row["ticker_symbol"]: {
+            "next_report_on": row.get("next_report_on"),
+            "days_until_next_report": row.get("days_until_next_report"),
+        }
+        for row in get_earnings_calendar()
+        if row.get("ticker_symbol")
+    }
+
+
 ## Return one company's stored earnings record, or None when it has never been fetched.
 ## Candidate cards use this to say how close a report is without reloading the whole table.
 def get_ticker_earnings(ticker_symbol):

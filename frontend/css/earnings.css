@@ -1,0 +1,150 @@
+/* Earnings page: a table of every approved company's last and next report.
+   Built to be scanned rather than read, since it is consulted while judging a trade
+   that will span one of these dates. Ordered by how soon the next report is. */
+
+#earnings .earnings-table {
+    display: grid;
+    gap: 2px;
+}
+
+#earnings .earnings-table.empty {
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
+#earnings .earnings-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+#earnings .earnings-search {
+    flex: 1 1 220px;
+    min-width: 180px;
+    padding: 9px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--soft-white);
+    font-size: 0.85rem;
+}
+
+#earnings .earnings-search::placeholder {
+    color: var(--muted);
+}
+
+#earnings .earnings-search:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+#earnings .trend-pill {
+    padding: 5px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #aab2be;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+#earnings .trend-pill.active {
+    border-color: rgba(240, 182, 77, 0.32);
+    background: rgba(240, 182, 77, 0.16);
+    color: var(--gold);
+}
+
+#earnings .trend-pill:hover {
+    opacity: 0.9;
+    transform: none;
+    box-shadow: none;
+}
+
+#earnings .earnings-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* Column headings, carried by the same grid the rows use so they stay aligned. */
+#earnings .earnings-head,
+#earnings .earnings-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 2fr) 1fr 1.4fr 1.2fr 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+}
+
+#earnings .earnings-head {
+    color: var(--muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+#earnings .earnings-row {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    font-size: 0.85rem;
+    color: rgba(247, 251, 255, 0.78);
+}
+
+/* A report inside the next week is the row most likely to change a decision. */
+#earnings .earnings-row.soon {
+    border-color: rgba(240, 182, 77, 0.35);
+}
+
+#earnings .earnings-company {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+#earnings .earnings-sym {
+    color: var(--soft-white);
+    font-weight: 600;
+}
+
+#earnings .earnings-name {
+    color: var(--muted);
+    font-size: 0.74rem;
+}
+
+#earnings .earnings-vs {
+    font-size: 0.76rem;
+}
+
+#earnings .earnings-soon {
+    margin-left: 4px;
+    color: var(--gold);
+    font-size: 0.74rem;
+}
+
+#earnings .earnings-empty {
+    padding: 16px;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+#earnings .rec-pos { color: var(--pos); }
+#earnings .rec-neg { color: var(--neg); }
+
+@media (max-width: 760px) {
+    #earnings .earnings-head {
+        display: none;
+    }
+
+    #earnings .earnings-row {
+        grid-template-columns: 1fr 1fr;
+        row-gap: 6px;
+    }
+}
