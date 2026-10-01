@@ -118,3 +118,7 @@ FINNHUB_TIMEOUT_SECONDS = int(os.getenv("FINNHUB_TIMEOUT_SECONDS", "10"))
 # and the next one for a company on an ordinary quarterly cycle.
 EARNINGS_LOOKBACK_DAYS = 150
 EARNINGS_LOOKAHEAD_DAYS = 150
+# Finnhub's free tier allows 60 requests a minute, and each company costs two: one for
+# what it has filed and one for what it has scheduled. The refresh therefore paces itself
+# rather than racing, since it runs unattended once a day and has no reason to hurry.
+FINNHUB_MAX_CALLS_PER_MINUTE = 55

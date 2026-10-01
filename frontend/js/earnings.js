@@ -68,7 +68,7 @@ function renderEarnings() {
         ${visible.length ? `
             <div class="earnings-head">
                 <span>Company</span>
-                <span>Last reported</span>
+                <span>Last quarter</span>
                 <span>Result</span>
                 <span>Next report</span>
                 <span>Projected</span>
@@ -99,7 +99,7 @@ function filteredEarnings() {
     }
 
     if (earningsFilter === "Already reported") {
-        return rows.filter(row => row.last_reported_on);
+        return rows.filter(row => row.last_period_end);
     }
 
     // The remaining filters reuse the ticker groups the Trends page already defines.
@@ -122,7 +122,7 @@ function renderEarningsRow(row) {
                 <span class="earnings-sym">${tickerTooltip(row.ticker_symbol)}</span>
                 <span class="earnings-name">${escapeHtml(companyNameForTicker(row.ticker_symbol))}</span>
             </span>
-            <span class="num">${escapeHtml(dateText(row.last_reported_on))}</span>
+            <span class="num">${escapeHtml(quarterText(row.last_period_end))}</span>
             <span class="num">${resultText(row)}</span>
             <span class="num">${escapeHtml(dateText(row.next_report_on))}${soon ? ` <span class="earnings-soon">in ${days}d</span>` : ""}</span>
             <span class="num">${escapeHtml(epsText(row.next_eps_estimate))}</span>
@@ -159,6 +159,23 @@ function epsText(value) {
     const number = Number(value);
     return `${number < 0 ? "-" : ""}$${Math.abs(number).toFixed(2)}`;
 }
+
+/**
+ * Name the fiscal quarter a filed result covers.
+ * The provider gives the quarter's end date rather than the day it was announced, so the
+ * column says "Q3 2026" instead of a date that would read as an announcement it is not.
+ */
+function quarterText(value) {
+    if (!value) {
+        return "—";
+    }
+
+    const month = Number(String(value).slice(5, 7));
+    const year = String(value).slice(0, 4);
+
+    return `Q${Math.ceil(month / 3)} ${year}`;
+}
+
 
 /** Format a report date, or an em dash when none is known. */
 function dateText(value) {
