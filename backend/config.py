@@ -63,6 +63,11 @@ COMPANY_NAMES = {
     "AAL": "American Airlines", "UAL": "United Airlines",
 }
 
+# Exchange-traded funds hold baskets of companies rather than being companies, so they
+# never report earnings. They stay in the approved universe for trading and for reading
+# the market's direction, and are simply absent from anything earnings-related.
+ETF_TICKERS = ("SPY", "QQQ", "IWM", "DIA", "XLF", "XLK", "XLV", "XLE", "XLY")
+
 # One US equity option contract always controls this many shares. It is a market
 # fact rather than a setting, and it is defined once here because option economics,
 # share coverage, and assignment accounting all depend on the same number.
@@ -102,3 +107,14 @@ MAX_RECOMMENDATION_AGE_SECONDS = 900
 CAPITAL_BUDGETS = {
     "cash_secured_put": 0.70,
 }
+
+# Earnings data comes from Finnhub, whose free tier covers the few dozen symbols HELIOS
+# follows. Without a key the earnings view reports that it is unconfigured rather than
+# guessing, in the same way the review falls back when OpenAI is unavailable.
+FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "")
+FINNHUB_BASE_URL = os.getenv("FINNHUB_BASE_URL", "https://finnhub.io/api/v1")
+FINNHUB_TIMEOUT_SECONDS = int(os.getenv("FINNHUB_TIMEOUT_SECONDS", "10"))
+# How far back and forward one earnings lookup reaches: enough to hold the last report
+# and the next one for a company on an ordinary quarterly cycle.
+EARNINGS_LOOKBACK_DAYS = 150
+EARNINGS_LOOKAHEAD_DAYS = 150

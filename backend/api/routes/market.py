@@ -6,14 +6,35 @@ from fastapi import APIRouter, HTTPException, Request, Response
 
 from backend.api.services import enqueue_worker, get_required_user_market_data_clients
 from backend.users.auth import require_authenticated_user
-from backend.config import APPROVED_TICKERS, COMPANY_NAMES
+from backend.config import APPROVED_TICKERS, COMPANY_NAMES, ETF_TICKERS
 from backend.market.ai_take_jobs import create_market_take_job, get_market_take_job
 from backend.market.context import build_market_context
+from backend.market.earnings import get_earnings_calendar
 from backend.market.news import NEWS_LOOKBACK_DAYS, get_recent_news, news_freshness_metadata
 from backend.market.trends import get_latest_stock_prices, get_market_trends
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 logger = logging.getLogger(__name__)
+
+
+@router.get("/earnings")
+## Return the stored earnings calendar for every approved company, soonest report first.
+## Served from storage rather than the provider, because the calendar changes about once a
+## quarter per company and a page view should not spend a rate limit re-asking.
+def get_earnings(request: Request):
+    require_authenticated_user(request)
+    rows = get_earnings_calendar()
+
+    for row in rows:
+        row["company_name"] = COMPANY_NAMES.get(row.get("ticker_symbol"), row.get("ticker_symbol"))
+
+    return {
+        "earnings": rows,
+        "company_names": COMPANY_NAMES,
+        # Funds are absent by design, so the page can say so instead of looking incomplete.
+        "excluded_funds": list(ETF_TICKERS),
+        "refreshed_at": rows[0].get("refreshed_at") if rows else None,
+    }
 
 
 @router.get("/trends")
