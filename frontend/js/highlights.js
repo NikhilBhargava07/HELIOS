@@ -26,15 +26,32 @@ async function loadDailyHighlights() {
         }
 
         const data = await response.json();
-        renderDailyHighlights(data.highlights || []);
+        renderDailyHighlights(data.highlights || [], data.trading_date, data.is_today);
     } catch (error) {
         // A missing panel should never take the page down with it.
         highlightsEl.classList.add("hidden");
     }
 }
 
-/** Draw every slot that ran today, newest first, with its picks. */
-function renderDailyHighlights(highlights) {
+/**
+ * Say which day's scans are on screen.
+ * Before the opening scan, and at a weekend, the latest day is not today, and a reader
+ * must not take Friday's picks for this morning's.
+ */
+function scanDayLabel(scannedOn, isToday) {
+    if (isToday || !scannedOn) {
+        return "prices have moved since, so each is re-checked before it can be placed";
+    }
+
+    const when = new Date(`${scannedOn}T12:00:00Z`)
+        .toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+
+    return `from ${when}, the last day HELIOS scanned \u00b7 re-checked against live prices before placing`;
+}
+
+
+/** Draw every slot that ran, newest first, with its picks. */
+function renderDailyHighlights(highlights, scannedOn, isToday = true) {
     const withPicks = highlights.filter(highlight => (highlight.picks || []).length);
 
     if (!highlights.length) {
@@ -61,7 +78,7 @@ function renderDailyHighlights(highlights) {
     highlightsEl.innerHTML = `
         <div class="dh-head">
             <span class="dh-title">Found while you were away</span>
-            <span class="dh-sub">prices have moved since, so each is re-checked before it can be placed</span>
+            <span class="dh-sub">${scanDayLabel(scannedOn, isToday)}</span>
         </div>
         ${withPicks.slice().reverse().map(renderHighlightSlot).join("")}
     `;

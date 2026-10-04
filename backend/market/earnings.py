@@ -166,9 +166,11 @@ def _days_until(report_date, today):
         return None
 
     try:
-        return (datetime.fromisoformat(str(report_date)).date() - datetime.fromisoformat(today).date()).days
+        days = (datetime.fromisoformat(str(report_date)).date() - datetime.fromisoformat(today).date()).days
     except (TypeError, ValueError):
         return None
+
+    return days if days >= 0 else None
 
 
 ## Refresh every reporting company's record and store what came back.
@@ -220,6 +222,13 @@ def refresh_earnings_calendar():
 ## takes the top of a list the user reads as "what is coming up".
 def get_earnings_calendar():
     rows = query_items(EARNINGS_PK, f"{EARNINGS_SORT_KEY_PREFIX}#", limit=len(APPROVED_TICKERS))
+    today = date.today().isoformat()
+
+    for row in rows:
+        # Counted now rather than trusted from the last refresh, since a stored countdown is
+        # wrong by however many days have passed since. A date already gone leaves no count
+        # at all, because the stored schedule is behind rather than the report being due.
+        row["days_until_next_report"] = _days_until(row.get("next_report_on"), today)
 
     return sorted(rows, key=lambda row: (row.get("next_report_on") is None, row.get("next_report_on") or ""))
 

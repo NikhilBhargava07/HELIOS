@@ -21,7 +21,7 @@ from backend.memory.holdings import build_holdings
 from backend.memory.trades import record_user_decision
 from backend.strategy.registry import DEFAULT_STRATEGY_KEY, get_strategy
 from backend.strategy.highlight_recheck import recheck_pick
-from backend.strategy.triage_jobs import build_scan_inputs, get_daily_highlights, trading_date
+from backend.strategy.triage_jobs import build_scan_inputs, get_latest_highlights, trading_date
 from backend.strategy.recommendation_jobs import (
     create_recommendation_job,
     get_recommendation_job,
@@ -76,8 +76,13 @@ def read_recommendation_job(job_id, request: Request):
 ## The page reads this on load so someone arriving at noon sees the morning's work rather than a blank panel.
 def read_daily_highlights(request: Request):
     user = require_authenticated_user(request)
+    highlights, scanned_on = get_latest_highlights(user.user_id)
 
-    return {"trading_date": trading_date(), "highlights": get_daily_highlights(user.user_id)}
+    return {
+        "trading_date": scanned_on or trading_date(),
+        "is_today": scanned_on == trading_date(),
+        "highlights": highlights,
+    }
 
 
 @router.post("/recommendations/highlights/recheck")

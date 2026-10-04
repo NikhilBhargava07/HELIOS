@@ -55,6 +55,27 @@ def get_daily_highlights(user_id, date=None):
     )
 
 
+## Return the most recent day's highlights, which is usually but not always today.
+##
+## Nothing has run yet before the opening scan, and nothing runs at all at a weekend or
+## over a holiday. Showing an empty page then would suggest HELIOS had found nothing,
+## when in fact it had not looked, so the last day it did look is shown and dated.
+def get_latest_highlights(user_id):
+    recent = query_items(
+        user_pk(user_id),
+        f"{HIGHLIGHT_SORT_KEY_PREFIX}#",
+        limit=len(SLOTS) * 5,
+        scan_forward=False,
+    )
+    if not recent:
+        return [], None
+
+    latest_date = recent[0].get("trading_date")
+    same_day = [row for row in recent if row.get("trading_date") == latest_date]
+
+    return sorted(same_day, key=lambda row: row.get("created_at") or ""), latest_date
+
+
 ## Collect what earlier slots already reported today, so a later scan can say what changed.
 ## Only the picks travel, because repeating a whole review back to the model would cost more than it adds.
 def earlier_picks_today(user_id, date):
