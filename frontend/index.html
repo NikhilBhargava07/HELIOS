@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HELIOS</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-    <link rel="stylesheet" href="css/base.css?v=10">
-    <link rel="stylesheet" href="css/home.css?v=4">
+    <link rel="stylesheet" href="css/base.css?v=12">
+    <link rel="stylesheet" href="css/home.css?v=6">
     <link rel="stylesheet" href="css/recommendations.css?v=4">
-    <link rel="stylesheet" href="css/earnings.css?v=2">
+    <link rel="stylesheet" href="css/earnings.css?v=3">
     <link rel="stylesheet" href="css/trends.css?v=3">
     <link rel="stylesheet" href="css/news.css?v=3">
     <link rel="stylesheet" href="css/market-take.css?v=3">
@@ -64,9 +65,21 @@
     <header class="app-topbar" aria-label="App navigation">
         <a class="topbar-brand" data-tab="home" href="#home">
             <svg class="topbar-mark" viewBox="0 0 64 64" aria-hidden="true">
-                <circle cx="32" cy="32" r="21"></circle>
-                <path d="M32 11c7 8 7 34 0 42M32 11c-7 8-7 34 0 42"></path>
-                <path d="M13 24c12-5 26-5 38 0M13 40c12 5 26 5 38 0"></path>
+                <defs>
+                    <linearGradient id="helios-corona-bar" gradientUnits="userSpaceOnUse" x1="0" y1="3" x2="0" y2="61">
+                        <stop offset="0" stop-color="currentColor" stop-opacity="0"></stop>
+                        <stop offset="0.18" stop-color="currentColor" stop-opacity="1"></stop>
+                        <stop offset="0.82" stop-color="currentColor" stop-opacity="1"></stop>
+                        <stop offset="1" stop-color="currentColor" stop-opacity="0"></stop>
+                    </linearGradient>
+                    <mask id="helios-h-bar" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+                        <rect x="0" y="0" width="64" height="64" fill="#fff"></rect>
+                        <path d="M22 21h5v8.5h6V21h5v22h-5v-8.5h-6V43h-5z" fill="#000"></path>
+                    </mask>
+                </defs>
+                <circle cx="30" cy="32" r="22" fill="currentColor" mask="url(#helios-h-bar)"></circle>
+                <path d="M31.05 2.02A30 30 0 0 1 31.05 61.98" fill="none"
+                      stroke="url(#helios-corona-bar)" stroke-width="5.5" stroke-linecap="round"></path>
             </svg>
             <span class="topbar-wordmark">HELIOS</span>
         </a>
@@ -102,11 +115,25 @@
         <section id="home" class="panel tab-panel active home-panel" data-panel="home">
             <div class="home-hero">
                 <a class="home-logo" href="#home" aria-label="HELIOS home">
+                    <!-- The H is a hole in the sun rather than a shape on top of it, so the mark stays
+                         one object. The corona dissolves at both ends, but holds full strength across the
+                         middle two-thirds so it survives being shrunk to the topbar. -->
                     <svg viewBox="0 0 64 64" role="img" aria-label="HELIOS logo">
-                        <circle cx="32" cy="32" r="25"></circle>
-                        <path d="M32 12c8 9 8 31 0 40M32 12c-8 9-8 31 0 40"></path>
-                        <path d="M14 25c11-5 25-5 36 0M14 39c11 5 25 5 36 0"></path>
-                        <circle cx="32" cy="32" r="5"></circle>
+                        <defs>
+                            <linearGradient id="helios-corona-hero" gradientUnits="userSpaceOnUse" x1="0" y1="3" x2="0" y2="61">
+                                <stop offset="0" stop-color="currentColor" stop-opacity="0"></stop>
+                                <stop offset="0.18" stop-color="currentColor" stop-opacity="1"></stop>
+                                <stop offset="0.82" stop-color="currentColor" stop-opacity="1"></stop>
+                                <stop offset="1" stop-color="currentColor" stop-opacity="0"></stop>
+                            </linearGradient>
+                            <mask id="helios-h-hero" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+                                <rect x="0" y="0" width="64" height="64" fill="#fff"></rect>
+                                <path d="M22 21h5v8.5h6V21h5v22h-5v-8.5h-6V43h-5z" fill="#000"></path>
+                            </mask>
+                        </defs>
+                        <circle cx="30" cy="32" r="22" fill="currentColor" mask="url(#helios-h-hero)"></circle>
+                        <path d="M31.05 2.02A30 30 0 0 1 31.05 61.98" fill="none"
+                              stroke="url(#helios-corona-hero)" stroke-width="5" stroke-linecap="round"></path>
                     </svg>
                 </a>
                 <div class="hero-copy">

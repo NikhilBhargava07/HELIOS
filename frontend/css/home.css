@@ -65,14 +65,12 @@ body:has(#home.active) {
     box-shadow: 0 14px 38px rgba(0, 0, 0, 0.32);
 }
 
+/* The mark carries its own fill and stroke, so the colour is passed down as currentColor
+   and nothing here may override them — a blanket fill/stroke would flatten the cutout. */
 .home-logo svg {
-    width: 58%;
-    height: 58%;
-    fill: none;
-    stroke: #f7fbff;
-    stroke-width: 3.2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    width: 62%;
+    height: 62%;
+    color: var(--gold);
 }
 
 .hero-copy {
@@ -91,13 +89,20 @@ body:has(#home.active) {
     justify-content: center;
     gap: clamp(0.02em, 0.42vw, 0.07em);
     margin: 0 0 14px;
-    color: var(--soft-white);
     font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
     font-weight: 600;
     font-size: clamp(5rem, 12.4vw, 11.2rem);
     letter-spacing: 0;
     line-height: 0.82;
-    text-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+    /* Pale along the top edge, deep amber at the baseline, so the letters read as lit
+       from above. The flat gold stays as the colour for anything that cannot clip to text. */
+    color: var(--gold);
+    background: linear-gradient(176deg, #fde7b0 4%, #f2cc60 32%, #f0b64d 62%, #c98a2e 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 18px 46px rgba(240, 182, 77, 0.16));
 }
 
 .helios-title span {

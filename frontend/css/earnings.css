@@ -145,6 +145,29 @@
 
     #earnings .earnings-row {
         grid-template-columns: 1fr 1fr;
-        row-gap: 6px;
+        row-gap: 12px;
     }
+
+    /* The company gets the full width, so the four figures below it fall into a tidy
+       two-by-two rather than being pushed out of reading order by a long name. */
+    #earnings .earnings-company {
+        grid-column: 1 / -1;
+    }
+
+    /* The header row is what named these numbers. With it gone each figure has to say
+       what it is, or a row reads as four unlabelled amounts. */
+    #earnings .earnings-row .num::before {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--dim);
+        font-size: 0.63rem;
+        font-weight: 500;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+    }
+
+    #earnings .earnings-row .num:nth-child(2)::before { content: "Last quarter"; }
+    #earnings .earnings-row .num:nth-child(3)::before { content: "Result"; }
+    #earnings .earnings-row .num:nth-child(4)::before { content: "Next report"; }
+    #earnings .earnings-row .num:nth-child(5)::before { content: "Projected"; }
 }

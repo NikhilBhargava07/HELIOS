@@ -413,9 +413,13 @@ button.secondary {
     transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
+/* Seventy-two percent opacity let whatever was scrolling underneath read straight
+   through the bar. The blur is what the rest of this design assumed was already here. */
 .app-topbar.scrolled {
     border-color: rgba(255, 255, 255, 0.12);
-    background: rgba(7, 10, 14, 0.72);
+    background: rgba(7, 10, 14, 0.86);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
@@ -433,14 +437,10 @@ body:has(#home.active) .app-topbar {
 }
 
 .topbar-mark {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     flex: none;
-    fill: none;
-    stroke: var(--soft-white);
-    stroke-width: 4;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    color: var(--soft-white);
 }
 
 .topbar-wordmark {
@@ -600,6 +600,12 @@ body:has(#home.active) .app-topbar {
     .app-topbar {
         width: calc(100% - 24px);
         margin-top: 12px;
+    }
+
+    /* A phone puts body text directly behind the bar with no margin either side, and
+       backdrop blur is the first thing a browser drops under load. Nearly solid here. */
+    .app-topbar.scrolled {
+        background: rgba(7, 10, 14, 0.95);
     }
 
     .tab-panel:not(.home-panel) {

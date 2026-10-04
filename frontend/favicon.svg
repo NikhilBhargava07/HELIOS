@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="HELIOS">
+    <!-- Favicon variant of the HELIOS mark. The corona is solid here rather than fading:
+         at sixteen pixels the dissolve is invisible anyway, and a flat arc stays sharp. -->
+    <mask id="h" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+        <rect x="0" y="0" width="64" height="64" fill="#fff"/>
+        <path d="M22 21h5v8.5h6V21h5v22h-5v-8.5h-6V43h-5z" fill="#000"/>
+    </mask>
+    <circle cx="30" cy="32" r="22" fill="#f0b64d" mask="url(#h)"/>
+    <path d="M31.05 2.02A30 30 0 0 1 31.05 61.98" fill="none"
+          stroke="#f0b64d" stroke-width="6" stroke-linecap="round"/>
+</svg>
