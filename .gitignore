@@ -17,3 +17,7 @@ PROJECT_STRUCTURE.md
 
 # Local editor/agent workspace config (preview servers, launch settings).
 .claude/
+
+# Design exploration scratch: logo studies, rendered comparisons, QR codes. Kept on disk
+# as a record of what was tried, but it is working material rather than part of the site.
+demo/
