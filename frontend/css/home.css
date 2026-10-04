@@ -5,6 +5,27 @@ body:has(#home.active) {
     overflow: hidden;
 }
 
+/* The hero is meant to fit the viewport exactly, which it does on a desktop. A phone is
+   both shorter and partly covered by browser chrome, so the same lock simply hid the
+   bottom of the page with no way to reach it. Below this width the page scrolls. */
+@media (max-width: 920px) {
+    body:has(#home.active) {
+        height: auto;
+        overflow: visible;
+    }
+
+    .home-panel {
+        overflow: visible;
+    }
+
+    .home-hero {
+        width: 100%;
+        height: auto;
+        /* Small-viewport height measures what is actually visible with the URL bar shown. */
+        min-height: 100svh;
+    }
+}
+
 /* Full-viewport landing panel. It should feel like a product homepage and avoid scrolling. */
 .home-panel {
     min-height: 100vh;

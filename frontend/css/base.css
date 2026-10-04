@@ -118,6 +118,11 @@ body {
     background:
         radial-gradient(circle at 80% 84%, rgba(240, 182, 77, 0.13), transparent 24rem),
         linear-gradient(115deg, rgba(2, 4, 8, 0.9), rgba(10, 12, 17, 0.82));
+    /* The card list can be taller than the screen, and this is fixed to the viewport, so
+       the overlay has to be what scrolls. Without this the cards simply ran off the edge. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     opacity: 0;
     pointer-events: none;
     transform: scale(1.015);
@@ -144,7 +149,10 @@ body.signed-out .explore-overlay {
     grid-template-columns: 1.4fr 1fr 1fr;
     grid-auto-rows: minmax(170px, 1fr);
     gap: 12px;
-    align-self: center;
+    /* "safe" centres while the cards fit and falls back to the start edge when they do
+       not, instead of pushing the first card off the top where scrolling cannot reach it.
+       This covers a short desktop window; the phone case is pinned to start below. */
+    align-self: safe center;
 }
 
 /* Individual Explore destination card. The card text explains what each major HELIOS page is responsible for. */
@@ -383,10 +391,19 @@ button.secondary {
 }
 
 @media (max-width: 920px) {
+    /* Rows sized to content, not to the screen, so the overlay can scroll past them. */
+    .explore-overlay {
+        grid-template-rows: auto auto;
+        align-content: start;
+    }
+
     .explore-grid {
         grid-template-columns: 1fr;
         grid-auto-rows: minmax(126px, auto);
-        overflow: auto;
+        /* Centring made the first card overflow above the top edge, where no amount of
+           scrolling could reach it. Anchored to the start, every card is reachable. */
+        align-self: start;
+        overflow: visible;
     }
 
     .explore-card:first-child {
