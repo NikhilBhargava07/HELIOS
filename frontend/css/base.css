@@ -114,7 +114,7 @@ body {
     display: grid;
     grid-template-rows: 1fr auto;
     gap: 18px;
-    padding: clamp(24px, 4vw, 54px);
+    padding: clamp(20px, 2.6vw, 40px);
     background:
         radial-gradient(circle at 80% 84%, rgba(240, 182, 77, 0.13), transparent 24rem),
         linear-gradient(115deg, rgba(2, 4, 8, 0.9), rgba(10, 12, 17, 0.82));
@@ -147,22 +147,23 @@ body.signed-out .explore-overlay {
 .explore-grid {
     display: grid;
     grid-template-columns: 1.4fr 1fr 1fr;
-    grid-auto-rows: minmax(170px, 1fr);
+    /* Three rows that share whatever height is left once the footer has taken its own.
+       Auto rows sized to content were what pushed Close and the wordmark off the bottom. */
+    grid-template-rows: repeat(3, minmax(92px, 1fr));
     gap: 12px;
-    /* "safe" centres while the cards fit and falls back to the start edge when they do
-       not, instead of pushing the first card off the top where scrolling cannot reach it.
-       This covers a short desktop window; the phone case is pinned to start below. */
-    align-self: safe center;
+    align-self: stretch;
+    min-height: 0;
 }
 
 /* Individual Explore destination card. The card text explains what each major HELIOS page is responsible for. */
 .explore-card {
     display: grid;
     align-content: end;
-    min-height: 170px;
+    /* The row track sets the floor now, so a card may shrink with a short window. */
+    min-height: 0;
     border: 1px solid rgba(255, 255, 255, 0.11);
     border-radius: 14px;
-    padding: 24px;
+    padding: clamp(16px, 1.5vw, 24px);
     background:
         linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 48%),
         rgba(19, 22, 21, 0.86);
@@ -171,11 +172,19 @@ body.signed-out .explore-overlay {
     transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
+/* The entry point to the whole product holds the full left column. */
 .explore-card:first-child {
-    grid-row: span 2;
+    grid-column: 1;
+    grid-row: 1 / -1;
     background:
         linear-gradient(135deg, rgba(240, 182, 77, 0.18), transparent 44%),
         linear-gradient(180deg, rgba(12, 19, 16, 0.62), rgba(5, 7, 10, 0.92));
+}
+
+/* Capital sits beneath the four stacked cards and runs their full width. */
+.explore-card:last-child {
+    grid-column: 2 / -1;
+    grid-row: 3;
 }
 
 .explore-card:hover,
@@ -197,10 +206,11 @@ body.signed-out .explore-overlay {
 }
 
 .explore-card strong {
-    margin-top: 50px;
+    /* Was a flat 50px, which a short window could not give back. */
+    margin-top: clamp(12px, 2.2vh, 44px);
     font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
     font-weight: 600;
-    font-size: clamp(1.7rem, 3.8vw, 3.4rem);
+    font-size: clamp(1.5rem, 2.7vw, 3rem);
     line-height: 0.95;
     letter-spacing: -0.03em;
 }
@@ -399,6 +409,9 @@ button.secondary {
 
     .explore-grid {
         grid-template-columns: 1fr;
+        /* The desktop layout's three fixed rows are released here: a phone stacks all
+           six cards in one column, so rows are created as needed instead. */
+        grid-template-rows: none;
         grid-auto-rows: minmax(126px, auto);
         /* Centring made the first card overflow above the top edge, where no amount of
            scrolling could reach it. Anchored to the start, every card is reachable. */
@@ -406,8 +419,11 @@ button.secondary {
         overflow: visible;
     }
 
-    .explore-card:first-child {
-        grid-row: span 1;
+    /* Neither card keeps its desktop span once everything is one column wide. */
+    .explore-card:first-child,
+    .explore-card:last-child {
+        grid-column: auto;
+        grid-row: auto;
     }
 }
 
