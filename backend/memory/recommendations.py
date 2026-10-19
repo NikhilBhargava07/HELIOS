@@ -10,6 +10,7 @@ from backend.memory.dynamodb_store import (
     user_pk,
     utc_now_text,
 )
+from backend.market.prompt_context import compact_memory_context
 
 
 ## Build the private partition key that owns one recommendation run.
@@ -67,7 +68,12 @@ def save_recommendation_run(
         "market_context": market_context or {},
         "strategy_rules": strategy_rules or {},
         "portfolio_context": portfolio_context or {},
-        "memory_context": memory_context or {},
+        # Compacted, not raw. The prompt builders have always compacted this before showing
+        # it to the model, but the stored copy kept the full retrieved memory, which grows
+        # with every recorded decision. It reached 388KB of a 450KB item and crossed
+        # DynamoDB's 400KB ceiling, so a scan began failing on its own save. Storing what
+        # the model was actually given is both bounded and the more faithful record.
+        "memory_context": compact_memory_context(memory_context or {}),
     }
     put_item(run_item)
     put_items([

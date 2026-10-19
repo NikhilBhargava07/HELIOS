@@ -196,8 +196,14 @@ def run_recommendation_job(job_id, user_id):
             status="failed",
             error={
                 "code": "recommendation_failed",
-                # Surface the real cause so the page explains the failure without CloudWatch digging.
-                "message": f"CSP scan failed — {type(error).__name__}: {str(error)[:300]}",
+                # Surface the real cause so the page explains the failure without CloudWatch
+                # digging. The strategy is read from the job rather than the local variable,
+                # which is not yet bound if resolving the strategy is what failed. It used to
+                # say "CSP" for every strategy, so a stock scan reported a CSP failure.
+                "message": (
+                    f"{item.get('strategy_key') or DEFAULT_STRATEGY_KEY} scan failed — "
+                    f"{type(error).__name__}: {str(error)[:300]}"
+                ),
             },
             completed_at=utc_now_text(),
         )

@@ -4,11 +4,15 @@
 ## observation, and learning modules. This file only owns table access, key
 ## helpers, serialization, and common read/write operations.
 
+import json
+import logging
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from functools import lru_cache
 
 from backend.config import DYNAMODB_TABLE_NAME
+
+logger = logging.getLogger(__name__)
 
 
 ## Return the authenticated user's stable DynamoDB partition key.
@@ -68,7 +72,40 @@ def from_dynamodb_value(value):
 
 ## Store one serialized item in the configured DynamoDB table.
 ## Domain repositories use this for individual records and pointer updates.
+# DynamoDB refuses any item over 400KB, and it refuses it at write time with a message that
+# names neither the item nor the field responsible. A recommendation run reached that ceiling
+# by accumulating retrieved memory over months, so the failure arrived long after the cause.
+MAXIMUM_ITEM_BYTES = 400 * 1024
+ITEM_SIZE_WARNING_BYTES = 280 * 1024
+
+
+## Log an item that is approaching DynamoDB's hard size limit, naming its largest fields.
+## The point is to see the growth in CloudWatch while it is still only large, not once it fails.
+def warn_if_item_is_outgrowing_dynamodb(item):
+    try:
+        measured = len(json.dumps(item, default=str).encode("utf-8"))
+    except Exception:
+        return
+
+    if measured < ITEM_SIZE_WARNING_BYTES:
+        return
+
+    widest = sorted(
+        ((key, len(json.dumps(value, default=str).encode("utf-8"))) for key, value in item.items()),
+        key=lambda pair: -pair[1],
+    )[:3]
+    logger.warning(
+        "DynamoDB item is %.0fKB of the %.0fKB limit (%s, %s): %s",
+        measured / 1024,
+        MAXIMUM_ITEM_BYTES / 1024,
+        item.get("item_type", "unknown type"),
+        item.get("sk", "unknown key"),
+        ", ".join(f"{key}={size / 1024:.0f}KB" for key, size in widest),
+    )
+
+
 def put_item(item):
+    warn_if_item_is_outgrowing_dynamodb(item)
     get_table().put_item(Item=to_dynamodb_value(item))
 
 
