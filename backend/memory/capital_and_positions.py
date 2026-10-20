@@ -1,6 +1,6 @@
 ## Build user-scoped capital, position, and paper-order memory views.
 
-from backend.capital import strategy_capacity
+from backend.capital import investable_capacity
 from backend.memory.dynamodb_store import query_items, user_pk
 
 
@@ -30,7 +30,7 @@ def get_saved_paper_orders(user_id, limit=20):
 def get_capital_summary(
     user_id,
     total_capital,
-    max_csp_capital_percent,
+    reserve_percent,
     max_open_positions,
     open_positions=None,
 ):
@@ -43,13 +43,16 @@ def get_capital_summary(
         position["cash_required"]
         for position in positions
     )
-    max_csp_capital, available_csp_capital = strategy_capacity(
+    liquid_reserve, max_csp_capital, available_csp_capital = investable_capacity(
         total_capital,
-        max_csp_capital_percent,
+        reserve_percent,
         committed_capital,
     )
     return {
         "total_capital": total_capital,
+        # Held back deliberately, and reported so the page can show why the investable
+        # figure is lower than the balance.
+        "liquid_reserve": liquid_reserve,
         "max_csp_capital": max_csp_capital,
         "committed_capital": committed_capital,
         "available_csp_capital": available_csp_capital,
@@ -64,7 +67,7 @@ def get_capital_summary(
 def get_dashboard_data(
     user_id,
     total_capital,
-    max_csp_capital_percent,
+    reserve_percent,
     max_open_positions,
 ):
     open_positions = get_open_positions(user_id)
@@ -72,7 +75,7 @@ def get_dashboard_data(
         "capital": get_capital_summary(
             user_id,
             total_capital,
-            max_csp_capital_percent,
+            reserve_percent,
             max_open_positions,
             open_positions,
         ),

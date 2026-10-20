@@ -9,8 +9,8 @@ import logging
 
 import pandas as pd
 
-from backend.capital import strategy_capacity
-from backend.config import CAPITAL_BUDGETS, MAX_OPEN_POSITIONS
+from backend.capital import investable_capacity
+from backend.config import CASH_BACKED_STRATEGY_KEYS, LIQUID_RESERVE_PERCENT, MAX_OPEN_POSITIONS
 from backend.market.context import build_candidate_review_context
 from backend.market.trends import get_latest_stock_prices
 from backend.memory.learning_user import build_memory_context
@@ -35,13 +35,12 @@ def available_strategy_capital(
     committed_capital,
     external_available_capital=None,
 ):
-    budget_percent = CAPITAL_BUDGETS.get(strategy.key)
-    if budget_percent is None:
+    if strategy.key not in CASH_BACKED_STRATEGY_KEYS:
         return None
 
-    _, available = strategy_capacity(
+    _, _, available = investable_capacity(
         total_capital,
-        budget_percent,
+        LIQUID_RESERVE_PERCENT,
         committed_capital,
     )
     if external_available_capital is not None:

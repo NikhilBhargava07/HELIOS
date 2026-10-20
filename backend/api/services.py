@@ -21,9 +21,9 @@ from backend.broker.trading import (
     parse_option_contract_symbol,
     refresh_candidate_option_quote,
 )
-from backend.capital import strategy_capacity
+from backend.capital import investable_capacity
 from backend.config import (
-    CAPITAL_BUDGETS,
+    LIQUID_RESERVE_PERCENT,
     COMPANY_NAMES,
     MAX_RECOMMENDATION_AGE_SECONDS,
     MAX_OPEN_POSITIONS,
@@ -425,7 +425,7 @@ def get_dashboard_with_cash_context(
     dashboard = get_dashboard_data(
         user_id,
         live_total_capital,
-        CAPITAL_BUDGETS[CASH_SECURED_PUT.key],
+        LIQUID_RESERVE_PERCENT,
         MAX_OPEN_POSITIONS,
     )
     alpaca_positions, position_error = get_safe_paper_positions(trading_client=trading_client)
@@ -434,9 +434,9 @@ def get_dashboard_with_cash_context(
         csp_positions = csp_positions_from_all_positions(alpaca_positions)
         non_csp_positions = non_csp_positions_from_all_positions(alpaca_positions)
         committed = sum(position["cash_required"] for position in csp_positions)
-        max_csp_capital, available_csp_capital = strategy_capacity(
+        liquid_reserve, max_csp_capital, available_csp_capital = investable_capacity(
             live_total_capital,
-            CAPITAL_BUDGETS[CASH_SECURED_PUT.key],
+            LIQUID_RESERVE_PERCENT,
             committed,
         )
         dashboard["open_positions"] = csp_positions
@@ -444,6 +444,7 @@ def get_dashboard_with_cash_context(
         dashboard["all_positions"] = alpaca_positions
         dashboard["capital"].update({
             "total_capital": live_total_capital,
+            "liquid_reserve": liquid_reserve,
             "max_csp_capital": max_csp_capital,
             "open_positions": csp_positions,
             "committed_capital": committed,

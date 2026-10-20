@@ -115,7 +115,7 @@ Strategy rules:
   "min_iv_percent": 20,
   "max_iv_percent": 80,
   "min_roc_percent": 0.5,
-  "max_csp_capital_percent": 0.7,
+  "liquid_reserve_percent": 0.1,
   "max_open_positions": 5,
   "minimum_pattern_sample_size": 11
 }

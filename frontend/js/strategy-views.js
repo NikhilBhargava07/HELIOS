@@ -31,6 +31,8 @@ const STRATEGY_VIEWS = {
             return [
                 { label: "Available CSP cash", value: money(capital.effective_available_csp_capital ?? capital.available_csp_capital ?? 0) },
                 { label: "Committed", value: money(capital.committed_capital ?? 0) },
+                // Named so a lower available figure reads as a deliberate reserve, not a bug.
+                { label: "Held in cash", value: money(capital.liquid_reserve ?? 0) },
                 { label: "Open CSPs", value: `${capital.open_position_count ?? 0}`, suffix: ` / ${capital.max_open_positions ?? 5}` },
                 { label: "Buying power", value: money(account.options_buying_power ?? account.buying_power ?? capital.total_capital ?? 0) },
             ];

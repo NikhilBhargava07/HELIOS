@@ -219,6 +219,8 @@ function renderDashboard(dashboard) {
     const equity = account.portfolio_value ?? capital.total_capital;
     const buyingPower = account.options_buying_power ?? account.buying_power;
     const maxCsp = Number(capital.max_csp_capital) || 0;
+    // Deliberately uncommitted, so the page can explain why investable is below equity.
+    const reserve = Number(capital.liquid_reserve) || 0;
     const committed = Number(capital.committed_capital) || 0;
     const available = capital.effective_available_csp_capital ?? capital.available_csp_capital;
     const committedPct = maxCsp > 0 ? Math.min(100, Math.round((committed / maxCsp) * 100)) : 0;
@@ -240,11 +242,12 @@ function renderDashboard(dashboard) {
         <div class="cap-alloc">
             <div class="cap-alloc-head">
                 <span class="cap-lbl">CSP capital allocation</span>
-                <span class="num cap-alloc-meta">${money(committed)} committed · ${money(maxCsp)} max</span>
+                <span class="num cap-alloc-meta">${money(committed)} committed · ${money(maxCsp)} investable</span>
             </div>
             <div class="cap-alloc-bar"><div class="cap-alloc-fill" style="width:${committedPct}%"></div></div>
             <div class="cap-alloc-foot">
                 <span class="num cap-alloc-committed">committed ${committedPct}%</span>
+                ${reserve > 0 ? `<span class="num cap-lbl">${money(reserve)} held in cash</span>` : ""}
                 <span class="num cap-lbl">available ${available !== undefined && available !== null ? money(available) : "—"}</span>
             </div>
         </div>

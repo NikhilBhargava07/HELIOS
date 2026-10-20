@@ -7,10 +7,10 @@
 
 from alpaca.trading.enums import ContractType
 
-from backend.capital import strategy_capacity
+from backend.capital import investable_capacity
 from backend.config import (
     APPROVED_TICKERS,
-    CAPITAL_BUDGETS,
+    LIQUID_RESERVE_PERCENT,
     MAX_OPEN_POSITIONS,
     MIN_PATTERN_SAMPLE_SIZE,
     SHARES_PER_CONTRACT,
@@ -70,7 +70,7 @@ STRATEGY_RULES = {
     "min_iv_percent": RULES.min_iv_percent,
     "max_iv_percent": RULES.max_iv_percent,
     "min_roc_percent": RULES.min_roc_percent,
-    "max_csp_capital_percent": CAPITAL_BUDGETS[KEY],
+    "liquid_reserve_percent": LIQUID_RESERVE_PERCENT,
     "max_open_positions": MAX_OPEN_POSITIONS,
     "minimum_pattern_sample_size": MIN_PATTERN_SAMPLE_SIZE,
 }
@@ -184,9 +184,9 @@ def secure_candidate(candidate, context):
         )
 
     committed = sum(float(position.get("cash_required") or 0) for position in open_puts)
-    _, strategy_available = strategy_capacity(
+    _, _, strategy_available = investable_capacity(
         context.total_capital,
-        CAPITAL_BUDGETS[KEY],
+        LIQUID_RESERVE_PERCENT,
         committed,
     )
     broker_available = context.account.get("available_csp_cash")

@@ -101,12 +101,19 @@ MIN_PATTERN_SAMPLE_SIZE = 11
 AI_JOB_TTL_SECONDS = 86_400
 MAX_RECOMMENDATION_AGE_SECONDS = 900
 
-# The share of the account each strategy may commit, keyed by strategy. Only
-# strategies that consume buying power appear here; a covered call is secured by
-# shares already owned, so it ties up no capital and needs no budget.
-CAPITAL_BUDGETS = {
-    "cash_secured_put": 0.70,
-}
+# The share of the account HELIOS will not commit, whatever the strategy. Keeping a
+# little of the balance in cash is ordinary practice: it absorbs an assignment, a margin
+# call, or a drawdown without forcing a sale at the worst moment.
+#
+# This replaced a per-strategy cap that allowed puts 70% of the account. That number
+# decided how much of someone's money went into one strategy, which is their call rather
+# than HELIOS's. The reserve is the only account-wide capital rule now; within what is
+# left, how much goes anywhere is the user's decision.
+LIQUID_RESERVE_PERCENT = 0.10
+
+# Strategies that draw on that balance. A covered call is secured by shares already owned
+# and a stock recommendation places no order, so neither touches the reserve.
+CASH_BACKED_STRATEGY_KEYS = frozenset({"cash_secured_put"})
 
 # Earnings data comes from Finnhub, whose free tier covers the few dozen symbols HELIOS
 # follows. Without a key the earnings view reports that it is unconfigured rather than

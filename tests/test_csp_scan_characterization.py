@@ -134,7 +134,7 @@ STRATEGY_RULES_FIXTURE = {
     "min_iv_percent": MIN_IV_PERCENT,
     "max_iv_percent": MAX_IV_PERCENT,
     "min_roc_percent": MIN_ROC_PERCENT,
-    "max_csp_capital_percent": 0.70,
+    "liquid_reserve_percent": 0.10,
     "max_open_positions": 5,
     "minimum_pattern_sample_size": 11,
 }
